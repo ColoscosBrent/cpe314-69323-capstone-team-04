@@ -5,7 +5,7 @@ Members:
 - 
 - Coloscos, Brent
 - Lagaya, John Carlo Stephen
-- 
+- Labra, Simone Joaquin S.
 
 Repository URL: https://github.com/ColoscosBrent/cpe314-69323-capstone-team-04
 

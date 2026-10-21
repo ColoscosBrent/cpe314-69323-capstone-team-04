@@ -4,7 +4,7 @@ Members:
 - Gabasa, Dexter E.
 - 
 - Coloscos, Brent
-- 
+- Lagaya, John Carlo Stephen
 - 
 
 Repository URL: https://github.com/ColoscosBrent/cpe314-69323-capstone-team-04

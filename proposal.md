@@ -16,7 +16,7 @@ API You Will Use: NHTSA vPIC API — https://vpic.nhtsa.dot.gov/api
 ---
 
 ### 1. One-Paragraph Pitch
-FleetRent is a JavaFX desktop application designed for small vehicle rental businesses that manage cars, SUVs, and motorcycles. It helps staff manage vehicle and renter records, track rentals, monitor vehicle availability, and maintain a waiting list when vehicles are unavailable. The system stores data in an SQLite database and retrieves vehicle make, model, and year information through the NHTSA vPIC API. Its dashboard displays the most-rented vehicle type and fleet utilization over time, helping rental staff monitor fleet activity more efficiently.
+Our app is a vehicle rental and fleet management desktop app built with JavaFX. It is for small rental shops that rent out cars, SUVs, and motorcycles. Many of these shops still write rentals on paper, so it is easy to lose track of which vehicle is out and who is next in line. Our app lets the shop keep a list of its vehicles, record who rented what and for how long, and keep a waiting list when a vehicle is already out. Real make and model data comes from the NHTSA vPIC API and everything is saved in a SQLite database. A dashboard shows the most rented vehicle type and how busy the fleet is over time.
 
 ### 2. Entity-Relationship Sketch
 - **Renter**(id PK, name, contact)

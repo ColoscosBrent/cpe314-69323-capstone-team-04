@@ -1,11 +1,11 @@
 Group Name / No.: Group 4
 
 Members:
-- Gabasa, Dexter
-- Rosal, Wendil
+- 
+- 
 - Coloscos, Brent
-- Lagaya, John Carlo
-- Labra, Simone
+- 
+- 
 
 Repository URL: https://github.com/ColoscosBrent/cpe314-69323-capstone-team-04
 

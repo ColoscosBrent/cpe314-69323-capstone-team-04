@@ -1,7 +1,7 @@
 Group Name / No.: Group 4
 
 Members:
-- Gabasa, Dexter E.
+- Gabasa,Dexter E.
 - Rosal, Wendil C.
 - Coloscos, Brent
 - Lagaya, John Carlo Stephen

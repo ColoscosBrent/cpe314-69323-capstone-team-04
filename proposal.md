@@ -19,16 +19,42 @@ API You Will Use: NHTSA vPIC API — https://vpic.nhtsa.dot.gov/api
 Our app is a vehicle rental and fleet management desktop app built with JavaFX. It is for small rental shops that rent out cars, SUVs, and motorcycles. Many of these shops still write rentals on paper, so it is easy to lose track of which vehicle is out and who is next in line. Our app lets the shop keep a list of its vehicles, record who rented what and for how long, and keep a waiting list when a vehicle is already out. Real make and model data comes from the NHTSA vPIC API and everything is saved in a SQLite database. A dashboard shows the most rented vehicle type and how busy the fleet is over time.
 
 ### 2. Entity-Relationship Sketch
-- **Renter**(id PK, name, contact)
-- **Vehicle**(id PK, type, make, model, year, dailyRate, mileage, categoryPath)
-- **Rental**(id PK, renterId FK, vehicleId FK, startDate, endDate, milesDriven)
 
-**Relationships:** 
-- Renter `--1:M-->` Rental (one renter can have many rentals) 
-- Vehicle `--1:M-->` Rental (one vehicle can be in many rentals over time). 
-- `type` is one of `SEDAN | SUV | MOTORCYCLE`.
+## Renter
 
-**Summary:** We have 3 entities (Renter, Vehicle, Rental), all saved in SQLite using JDBC with PreparedStatement. The waiting-list Queue and the undo Stack are only in memory, not tables. `categoryPath` is a text like "Car > Sedan > Compact Sedan" that we use to build the category tree.
+| Attribute | Key | Description                          |
+| --------- | --- | ------------------------------------ |
+| id        | PK  | Unique number for each renter.       |
+| name      | -   | Full name of the renter.             |
+| contact   | -   | Phone number or email of the renter. |
+
+## Vehicle
+
+| Attribute    | Key | Description                                                                           |
+| ------------ | --- | ------------------------------------------------------------------------------------- |
+| id           | PK  | Unique number for each vehicle.                                                       |
+| type         | -   | SEDAN, SUV, or MOTORCYCLE.                                                            |
+| make         | -   | Brand of the vehicle (from the NHTSA vPIC API).                                       |
+| model        | -   | Model name of the vehicle (from the NHTSA vPIC API).                                  |
+| year         | -   | Model year of the vehicle.                                                            |
+| dailyRate    | -   | Rental price per day.                                                                 |
+| mileage      | -   | Total miles the vehicle has driven so far.                                            |
+| categoryPath | -   | Category text such as "Car > Sedan > Compact Sedan", used to build the category tree. |
+
+## Rental
+
+| Attribute   | Key | Description                            |
+| ----------- | --- | -------------------------------------- |
+| id          | PK  | Unique number for each rental.         |
+| renterId    | FK  | Links to Renter.id (who rented).       |
+| vehicleId   | FK  | Links to Vehicle.id (what was rented). |
+| startDate   | -   | Day the vehicle was taken.             |
+| endDate     | -   | Day the vehicle was returned.          |
+| milesDriven | -   | Miles driven during this rental.       |
+
+**Relationships:** Renter --1:M--> Rental (one renter can have many rentals) and Vehicle --1:M--> Rental (one vehicle can be in many rentals over time). type is one of SEDAN \| SUV \| MOTORCYCLE.
+
+**Summary:** we have 3 entities (Renter, Vehicle, Rental), all saved in SQLite using JDBC with PreparedStatement. The waiting-list Queue and the undo Stack are only in memory, not tables. categoryPath is a text like "Car > Sedan > Compact Sedan" that we use to build the category tree.
 
 ### 3. Feature Checklist
 | Planned Feature | Requirement(s) It Satisfies |

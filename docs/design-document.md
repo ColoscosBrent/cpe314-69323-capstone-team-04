@@ -15,11 +15,25 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 
 ## Revision History
 
-_TODO (Gabasa): delete this line and paste the revision history table here._
+# Revision History
+
+**Table 1: Revision History of This Document**
+
+| Version | Date | Author | Changes |
+|---|---|---|---|
+| 0.1 | October 21, 2026 | Team 4 | Initial draft — Week 8 sections |
+| 0.2 | — | — | Week 9 sections added |
+| 0.3 | — | — | Week 10 sections added |
+| 1.0 | — | — | Final compilation and polish — Week 11 |
+			
+
 
 ## 1. Introduction & Project Overview
 
-_TODO (Gabasa): delete this line and paste Section 1 (the introduction) here._
+Our app, FleetRent, is a vehicle rental and fleet management desktop app built with JavaFX. It is
+for small rental shops that rent out cars, SUVs, and motorcycles. We chose Theme Q: Vehicle Rental & Fleet Management. Many small shops still write their rentals on paper, so it is easy to lose track of which vehicle is out, how many miles it has driven, and who is next in line. FleetRent keeps the vehicles, renters, and rentals in one SQLite database, keeps a waiting list when a vehicle is already out, and lets staff undo the last check-out. Real make and model data comes from the NHTSA vPIC API, and a dashboard shows the most rented vehicle type and how busy the fleet is over time.
+
+
 
 ## 2. Preliminary ER Sketch & Team Roles
 

@@ -65,9 +65,15 @@ categoryPath is a text like "Car > Sedan > Compact Sedan" that we use to build t
 | Dashboard: find the most rented vehicle type and the fleet utilization over time. Shown as a bar chart and a line chart with titles and axis labels. | Data Mining + Data Visualization |
 | At least 6 JUnit 5 tests: rate and fee of each vehicle type, queue order, stack undo, recursive mileage (including an empty tree), and CSV edge cases. | Automated Testing |
 
-## 4. Task Split
-
-_TODO (Wendil): delete this line and paste Section 4 (the task split table) here._
+### 4. Task Split
+| Member | Primary Responsibility (this milestone) |
+| :--- | :--- |
+| Gabasa, Dexter | Database: SQLite tables for vehicles, renters, and rentals, and the JDBC code with PreparedStatement. Database tests. |
+| Rosal, Wendil | Vehicle category tree and the recursive fleet mileage method. Maven project setup. Tests for these. |
+| Coloscos, Brent | Domain model and OOD: Vehicle abstract class, its 3 subclasses, and the rate and fee logic. Tests for these. |
+| Lagaya, John Carlo | Rental and Renter classes, the waiting list Queue, the undo Stack, and the CSV import on a background thread. Tests for these. |
+| Labra, Simone | NHTSA vPIC API: sending the request and parsing the JSON. JavaFX GUI (forms, buttons, dashboard) and the bar and line charts. |
+| All members | Commit our own work to the team repo, review each other's pull requests, and attend the Week 8-9 consultation. |
 
 ### 5. Public API You Plan to Use
 - **NHTSA vPIC API** (`https://vpic.nhtsa.dot.gov/api`). It gives real vehicle make, model, and year data from the US government in JSON. No API key needed.

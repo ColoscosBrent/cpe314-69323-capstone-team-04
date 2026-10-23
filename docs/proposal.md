@@ -69,10 +69,10 @@ categoryPath is a text like "Car > Sedan > Compact Sedan" that we use to build t
 
 _TODO (Wendil): delete this line and paste Section 4 (the task split table) here._
 
-## 5. Public API You Plan to Use
-
-_TODO (Lagaya): delete this line and paste Section 5 (the API text) here._
-
+### 5. Public API You Plan to Use
+- **NHTSA vPIC API** (`https://vpic.nhtsa.dot.gov/api`). It gives real vehicle make, model, and year data from the US government in JSON. No API key needed.
+- **Example call:** `https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/honda?format=json`
+- We will cache the response so we do not call the API too much.
 ## 6. Risks / Open Questions
 
 _TODO (Lagaya): delete this line and paste Section 6 (the risk questions) here._

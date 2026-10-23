@@ -7,5 +7,5 @@ Course: CPE 314 - Software Design | Instructor: Richyll Son | EDP code: 69323 | 
 | Gabasa, Dexter E. | (fill in) | gabasad84-afk |
 | Rosal, Wendil C. | (fill in) | wendilrosalx22 |
 | Coloscos, Brent | 25217712 | ColoscosBrent |
-| Lagaya, John Carlo Stephen | (fill in) | caloylagaya2k4-pixel |
+| Lagaya, John Carlo Stephen | 18441209 | caloylagaya2k4-pixel |
 | Labra, Simone Joaquin S. | 24218729 | simonelabra21 |

@@ -51,9 +51,19 @@ Rental (one vehicle can be in many rentals over time). type is one of SEDAN \| S
 PreparedStatement. The waiting-list Queue and the undo Stack are only in memory, not tables.
 categoryPath is a text like "Car > Sedan > Compact Sedan" that we use to build the category tree
 
-## 3. Feature Checklist
+### 3. Feature Checklist
 
-_TODO (Labra): delete this line and paste Section 3 (the feature table) here._
+| Planned Feature | Requirement(s) It Satisfies |
+|---|---|
+| Vehicle abstract class with Sedan, SUV, and Motorcycle subclasses. Each one has its own daily rate and mileage fee rules. | Object-Oriented Design |
+| A Queue for the reservation waiting list and a Stack of check-outs so we can undo the last one. | Data Structure (Queue and Stack) |
+| Vehicle category tree (Car > Sedan > Compact Sedan). A recursive method adds up the total fleet mileage. | Recursion |
+| SQLite tables for Renter, Vehicle, and Rental, accessed with JDBC PreparedStatement. | Data Modeling + Database |
+| Get make, model, and year data from the NHTSA vPIC API, parse the JSON, and use it when adding a vehicle. | API Consumption |
+| Import the old rental history (CSV) using a JavaFX Task on a background thread, so the window does not freeze. | Concurrency |
+| GUI with an add-vehicle form, check-out and check-in buttons, an undo button, an import button, and a dashboard tab. | Event-Driven GUI (3+ controls with handlers) |
+| Dashboard: find the most rented vehicle type and the fleet utilization over time. Shown as a bar chart and a line chart with titles and axis labels. | Data Mining + Data Visualization |
+| At least 6 JUnit 5 tests: rate and fee of each vehicle type, queue order, stack undo, recursive mileage (including an empty tree), and CSV edge cases. | Automated Testing |
 
 ## 4. Task Split
 

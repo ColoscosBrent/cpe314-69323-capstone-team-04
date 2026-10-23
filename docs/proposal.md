@@ -73,6 +73,10 @@ _TODO (Wendil): delete this line and paste Section 4 (the task split table) here
 - **NHTSA vPIC API** (`https://vpic.nhtsa.dot.gov/api`). It gives real vehicle make, model, and year data from the US government in JSON. No API key needed.
 - **Example call:** `https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/honda?format=json`
 - We will cache the response so we do not call the API too much.
-## 6. Risks / Open Questions
 
-_TODO (Lagaya): delete this line and paste Section 6 (the risk questions) here._
+### 6. Risks / Open Questions
+- How will we keep the window responsive while importing a large rental history CSV?
+- Should the category tree be saved as a text path in the Vehicle table or in its own table?
+- How will we read the JSON from the API in Java, and is it OK to use a library like Gson?
+- What should the app show when the API is slow or down?
+- How will we count utilization over time correctly when rentals overlap?

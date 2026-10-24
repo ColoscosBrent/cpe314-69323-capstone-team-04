@@ -14,42 +14,99 @@ CPE 314 - Software Design | Week 8 | Instructor: Richyll Son | First Semester, S
 
 FleetRent is a JavaFX desktop application designed for small vehicle rental businesses that manage cars, SUVs, and motorcycles. It replaces paper logbooks with a centralized SQLite database for managing vehicles, renters, and rental records, while supporting check-out, check-in, rental history, and undo operations. The system maintains a waiting list when vehicles are unavailable and retrieves vehicle make and model information from the NHTSA vPIC API. Its dashboard displays the most-rented vehicle type and fleet utilization over time, helping business owners monitor rental activity and manage their fleet more efficiently.
 
-### 2. Entity-Relationship Sketch
+# 2. Entity-Relationship Sketch
+
 ## Renter
+
 | Attribute | Key | Description |
-| --------- | --- | ------------------------------------ |
-| id | PK | Unique number for each renter. |
-| name | - | Full name of the renter. |
-| contact | - | Phone number or email of the renter. |
+|---|---|---|
+| `id` | PK | Unique number for each renter. |
+| `name` | - | Full name of the renter. |
+| `contact` | - | Phone number of the renter. |
+| `email` | - | Email address of the renter. |
+| `address` | - | Home address of the renter. |
 
 ## Vehicle
+
 | Attribute | Key | Description |
-| ------------ | --- | ------------------------------------------------------------------------------------- |
-| id | PK | Unique number for each vehicle. |
-| type | - | SEDAN, SUV, or MOTORCYCLE. |
-| make | - | Brand of the vehicle (from the NHTSA vPIC API). |
-| model | - | Model name of the vehicle (from the NHTSA vPIC API). |
-| year | - | Model year of the vehicle. |
-| dailyRate | - | Rental price per day. |
-| mileage | - | Total miles the vehicle has driven so far. |
-| categoryPath | - | Category text such as "Car > Sedan > Compact Sedan", used to build the category
-tree. |
+|---|---|---|
+| `id` | PK | Unique number for each vehicle. |
+| `type` | - | SEDAN, SUV, or MOTORCYCLE. |
+| `make` | - | Brand of the vehicle (from the NHTSA vPIC API). |
+| `model` | - | Model name of the vehicle (from the NHTSA vPIC API). |
+| `year` | - | Model year of the vehicle. |
+| `plateNumber` | - | License plate number of the vehicle. |
+| `color` | - | Color of the vehicle. |
+| `dailyRate` | - | Rental price per day. |
+| `mileage` | - | Total miles the vehicle has driven so far. |
+| `lastPMS` | - | Date of the last preventive maintenance service (PMS). |
+| `categoryPath` | - | Category text such as `Car > Sedan > Compact Sedan`, used to build the category tree. |
 
 ## Rental
-| Attribute | Key | Description |
-| ----------- | --- | -------------------------------------- |
-| id | PK | Unique number for each rental. |
-| renterId | FK | Links to Renter.id (who rented). |
-| vehicleId | FK | Links to Vehicle.id (what was rented). |
-| startDate | - | Day the vehicle was taken. |
-| endDate | - | Day the vehicle was returned. |
-| milesDriven | - | Miles driven during this rental. |
 
-**Relationships:** Renter --1:M--> Rental (one renter can have many rentals) and Vehicle --1:M-->
-Rental (one vehicle can be in many rentals over time). type is one of SEDAN \| SUV \| MOTORCYCLE.
-**Summary:** we have 3 entities (Renter, Vehicle, Rental), all saved in SQLite using JDBC with
-PreparedStatement. The waiting-list Queue and the undo Stack are only in memory, not tables.
-categoryPath is a text like "Car > Sedan > Compact Sedan" that we use to build the category tree
+| Attribute | Key | Description |
+|---|---|---|
+| `id` | PK | Unique number for each rental. |
+| `renterId` | FK | Links to `Renter.id` (who rented). |
+| `vehicleId` | FK | Links to `Vehicle.id` (what was rented). |
+| `startDate` | - | Day the rental starts (rent from). |
+| `endDate` | - | Day the vehicle is due back (rent to). |
+| `returnedOn` | - | Day the vehicle was actually returned to the rental shop. Empty until it is returned. |
+| `milesDriven` | - | Miles driven during this rental (mileage used). |
+| `status` | - | `ONGOING` or `RETURNED`. If the vehicle comes back earlier than `endDate`, the status becomes `RETURNED` and the vehicle is available to rent again. |
+
+## Relationships
+
+- **Renter 1:M Rental:** One renter can have many rentals.
+- **Vehicle 1:M Rental:** One vehicle can be in many rentals over time.
+
+The Rental table connects a renter to a vehicle. The vehicle type is one of `SEDAN`, `SUV`, or `MOTORCYCLE`.
+
+## Summary
+
+We have 3 entities (Renter, Vehicle, Rental), all saved in SQLite using JDBC with `PreparedStatement`. The waiting-list Queue and the undo Stack are only in memory, not tables. `categoryPath` is a text like `Car > Sedan > Compact Sedan` that we use to build the vehicle category tree. When a vehicle is returned, even earlier than its `endDate`, the rental status becomes `RETURNED` and the vehicle is available to rent again.
+
+## Figure 1: Preliminary ER Sketch of FleetRent (Renter, Rental, Vehicle)
+
+```mermaid
+erDiagram
+    Renter ||--o{ Rental : has
+    Rental }o--|| Vehicle : uses
+
+    Renter {
+        int id PK
+        string name
+        string contact
+        string email
+        string address
+    }
+
+    Rental {
+        int id PK
+        int renterId FK
+        int vehicleId FK
+        date startDate
+        date endDate
+        date returnedOn
+        double milesDriven
+        string status
+    }
+
+    Vehicle {
+        int id PK
+        string type
+        string make
+        string model
+        int year
+        string plateNumber
+        string color
+        double dailyRate
+        double mileage
+        date lastPMS
+        string categoryPath
+    }
+```
+
 
 ### 3. Feature Checklist
 

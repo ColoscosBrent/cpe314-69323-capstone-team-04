@@ -30,7 +30,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 FleetRent is a JavaFX desktop app that helps small shops renting out cars, SUVs, and motorcycles replace their paper logbooks, which make it easy to lose track of which vehicle is out, its mileage, and who is next in line. It stores vehicles, renters, and rentals together in a single SQLite database, so staff can check vehicles out and in, look up rental history by renter or vehicle, and undo the last check-out if they make a mistake. When a vehicle is already rented, the app keeps a waiting list so the next customer is served in order, and it pulls verified make and model data from the NHTSA vPIC API instead of relying on typed-in entries. A dashboard then shows the most rented vehicle type and how busy the fleet is over time, giving owners a clear, organized view of their business.
 
 
-# 2. Preliminary ER Sketch & Team Roles
+## 2. Preliminary ER Sketch & Team Roles
 
 This is the preliminary ER sketch from our Week 8 project proposal. It has three entities (Renter, Vehicle, and Rental) and two relationships. Tables 2 to 4 list the attributes of each entity, and Figure 1 shows how they connect. It is a rough draft and will be replaced by the finalized ERD in Section 4.
 
@@ -126,7 +126,7 @@ erDiagram
 
 Each member has one role and one main job for Milestone 1, the same as in our project proposal.
 
-### Table 5: Team Roster and Primary Roles (Group 4)
+## Table 5: Team Roster and Primary Roles (Group 4)
 
 | Member (GitHub Username) | Role | Primary Responsibility |
 |---|---|---|

@@ -10,11 +10,11 @@ CPE 314 - Software Design | Week 8 | Instructor: Richyll Son | First Semester, S
 | Chosen Theme     | Q - Vehicle Rental & Fleet Management                                             |
 | API You Will Use | NHTSA vPIC API - https://vpic.nhtsa.dot.gov/api                                   |
 
-# 1. One-Paragraph Pitch
+## 1. One-Paragraph Pitch
 
 FleetRent is a JavaFX desktop app that helps small shops renting out cars, SUVs, and motorcycles replace their paper logbooks, which make it easy to lose track of which vehicle is out, its mileage, and who is next in line. It stores vehicles, renters, and rentals together in a single SQLite database, so staff can check vehicles out and in, look up rental history by renter or vehicle, and undo the last check-out if they make a mistake. When a vehicle is already rented, the app keeps a waiting list so the next customer is served in order, and it pulls verified make and model data from the NHTSA vPIC API instead of relying on typed-in entries. A dashboard then shows the most rented vehicle type and how busy the fleet is over time, giving owners a clear, organized view of their business.
 
-# 2. Entity-Relationship Sketch
+## 2. Entity-Relationship Sketch
 
 ## Renter
 
@@ -108,7 +108,7 @@ erDiagram
 ```
 
 
-### 3. Feature Checklist
+## 3. Feature Checklist
 
 | Planned Feature | Requirement(s) It Satisfies |
 |---|---|
@@ -122,7 +122,7 @@ erDiagram
 | Dashboard: find the most rented vehicle type and the fleet utilization over time. Shown as a bar chart and a line chart with titles and axis labels. | Data Mining + Data Visualization |
 | At least 6 JUnit 5 tests: rate and fee of each vehicle type, queue order, stack undo, recursive mileage (including an empty tree), and CSV edge cases. | Automated Testing |
 
-### 4. Task Split
+## 4. Task Split
 
 | Member | Role | Primary Responsibility (this milestone) |
 |---|---|---|
@@ -134,12 +134,12 @@ erDiagram
 | **All members** | - | Commit our own work to the team repo, review each other's pull requests, and attend the Week 8–9 consultation. |
 
 
-### 5. Public API You Plan to Use
+## 5. Public API You Plan to Use
 - **NHTSA vPIC API** (`https://vpic.nhtsa.dot.gov/api`). It gives real vehicle make, model, and year data from the US government in JSON. No API key needed.
 - **Example call:** `https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/honda?format=json`
 - We will cache the response so we do not call the API too much.
 
-### 6. Risks / Open Questions
+## 6. Risks / Open Questions
 - How will we keep the window responsive while importing a large rental history CSV?
 - Should the category tree be saved as a text path in the Vehicle table or in its own table?
 - How will we read the JSON from the API in Java, and is it OK to use a library like Gson?

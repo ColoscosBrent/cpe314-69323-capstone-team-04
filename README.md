@@ -4,7 +4,7 @@
 
 Vehicle Rental & Fleet Management — CPE 314 capstone (Theme Q)
 
-FleetRent is a Java desktop app that helps small rental shops manage their cars, SUVs, and motorcycles. It keeps vehicles, renters, and rentals in a SQLite database, keeps a waiting list when a vehicle is already out, and lets staff undo the last check-out. It uses CSV imports of old rental history, the NHTSA vPIC API for real make and model data, and a dashboard that shows the most rented vehicle type and how busy the fleet is over time.
+FleetRent is a JavaFX desktop app that helps small shops renting out cars, SUVs, and motorcycles replace their paper logbooks, which make it easy to lose track of which vehicle is out, its mileage, and who is next in line. It stores vehicles, renters, and rentals together in a single SQLite database, so staff can check vehicles out and in, look up rental history by renter or vehicle, and undo the last check-out if they make a mistake. When a vehicle is already rented, the app keeps a waiting list so the next customer is served in order, and it pulls verified make and model data from the NHTSA vPIC API instead of relying on typed-in entries. A dashboard then shows the most rented vehicle type and how busy the fleet is over time, giving owners a clear, organized view of their business.
 
 ## Team Members
 

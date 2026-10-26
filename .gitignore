@@ -28,3 +28,7 @@ replay_pid*
 .classpath
 .project
 .settings/
+*.db
+.idea/
+*.iml
+.vscode/

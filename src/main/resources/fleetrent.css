@@ -1,0 +1,134 @@
+.root {
+    -fx-font-family: "Segoe UI", "Arial";
+    -fx-font-size: 13px;
+    -fx-background-color: #eef3ff;
+}
+
+.header {
+    -fx-background-color: linear-gradient(to right, #1b44c8, #3b82f6);
+    -fx-padding: 22 26 22 26;
+}
+.app-title {
+    -fx-text-fill: white;
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+}
+.app-subtitle {
+    -fx-text-fill: #d6e4ff;
+    -fx-font-size: 13px;
+}
+
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 18;
+    -fx-padding: 18;
+    -fx-effect: dropshadow(gaussian, rgba(30, 60, 140, 0.18), 16, 0.2, 0, 4);
+}
+.card-title {
+    -fx-text-fill: #16264f;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+}
+.field-label {
+    -fx-text-fill: #5b6785;
+    -fx-font-size: 12px;
+}
+
+.text-field {
+    -fx-background-color: #f7f9ff;
+    -fx-background-radius: 10;
+    -fx-border-color: #d3dcf2;
+    -fx-border-radius: 10;
+    -fx-padding: 7 10 7 10;
+}
+.text-field:focused {
+    -fx-border-color: #3b6fe0;
+}
+.choice-box {
+    -fx-background-color: #f7f9ff;
+    -fx-background-radius: 10;
+    -fx-border-color: #d3dcf2;
+    -fx-border-radius: 10;
+    -fx-padding: 4 8 4 8;
+}
+
+.primary-button {
+    -fx-background-color: #ff7a1a;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 10 24 10 24;
+    -fx-cursor: hand;
+}
+.primary-button:hover {
+    -fx-background-color: #ff8f3d;
+}
+
+.status-label {
+    -fx-text-fill: #1b6e4a;
+    -fx-wrap-text: true;
+}
+.hint-label {
+    -fx-text-fill: #7a86a3;
+    -fx-font-size: 11px;
+}
+.count-label {
+    -fx-text-fill: #1b44c8;
+    -fx-background-color: #e3ebff;
+    -fx-background-radius: 20;
+    -fx-padding: 3 12 3 12;
+    -fx-font-weight: bold;
+}
+
+.vehicle-list {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.vehicle-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 4 0 4 0;
+}
+.vehicle-list .list-cell:filled:hover,
+.vehicle-list .list-cell:filled:selected {
+    -fx-background-color: transparent;
+}
+
+.vehicle-card {
+    -fx-background-color: #f7f9ff;
+    -fx-background-radius: 14;
+    -fx-border-color: #e0e7fb;
+    -fx-border-radius: 14;
+    -fx-padding: 12 16 12 16;
+}
+.vehicle-name {
+    -fx-text-fill: #16264f;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+.vehicle-details {
+    -fx-text-fill: #6b7692;
+}
+.vehicle-price {
+    -fx-text-fill: #1b44c8;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.badge {
+    -fx-text-fill: white;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 4 10 4 10;
+    -fx-background-radius: 20;
+}
+.badge-sedan {
+    -fx-background-color: #2f6df0;
+}
+.badge-suv {
+    -fx-background-color: #17a673;
+}
+.badge-motorcycle {
+    -fx-background-color: #e8590c;
+}

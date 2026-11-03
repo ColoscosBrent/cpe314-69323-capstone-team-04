@@ -11,7 +11,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 | Repository URL          | https://github.com/ColoscosBrent/cpe314-69323-capstone-team-04                    |
 | Instructor              | Richyll Son                                                                       |
 | Term                    | First Semester, S.Y. 2026-2027                                                    |
-| Document Version / Date | 0.2 / October 27, 2026                                                            |
+| Document Version / Date | 0.3 / November 2, 2026                                                            |
 
 ## Revision History
 
@@ -22,7 +22,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 |---|---|---|---|
 | 0.1 | October 21, 2026 | Team 4 | Initial draft — Week 8 sections |
 | 0.2 | October 27, 2026 | Team 4 | Week 9 sections added — Section 3 (OOD) and Section 4 (Data Model) |
-| 0.3 | — | — | Week 10 sections added |
+| 0.3 | November 2, 2026 | Team 4 | Week 10 sections added — Section 5 (API), Section 6 (Concurrency), Section 7 (Data Mining & Visualization), Section 8 (Testing Summary) |
 | 1.0 | — | — | Final compilation and polish — Week 11 |
 
 ## 1. Introduction & Project Overview
@@ -258,15 +258,67 @@ _To be completed in Week 9._
 
 ## 6. Concurrency Design
 
-_To be completed in Week 10._
+**Long-running operations.** Four kinds of operation can take long enough to freeze a window, so each one runs on a background thread:
+
+| Operation | Where | Why it is slow |
+|---|---|---|
+| NHTSA make and model lists | `VehicleTab.loadMakes`, `VehicleTab.loadModels` | They wait for the internet. |
+| CSV rental import | `ImportTab.runImport` | It reads a file and writes thousands of rows to SQLite (the demo file has 50,000 rentals). |
+| Car photo search (after adding a vehicle, and the "Find photos for all" button) | `VehicleTab.afterAdd`, `VehicleTab.findAllPhotos` | It asks Wikipedia and downloads pictures. |
+| Live dashboard question | `DashboardTab.showLive` | It makes one API call for each make in the fleet. |
+
+**Threading approach.** We use JavaFX `Task` objects. The slow work is written inside the Task's `call()` method. The helper `UiHelper.runInBackground` puts the Task on its own daemon thread (`new Thread(task)`), so the thread never keeps the program open after the window closes. We chose `Task` instead of a bare `Thread` because it reports its result in a safe way: when it finishes, `setOnSucceeded` or `setOnFailed` runs on the JavaFX Application Thread, so those handlers can update labels, lists and charts directly. During the CSV import, progress is sent to the window with `Platform.runLater`, which is the only way background code may touch the screen.
+
+**How the UI stays responsive.** The Application Thread only draws the window and handles clicks. While a Task runs, the button that started it is disabled (so it cannot be pressed twice) and a `ProgressBar` is shown: an endless bar for API calls, and a bar that fills from 0 to 100 percent for the import. The user can switch to another tab, type in a form or press other buttons while the work continues. If the work fails, `setOnFailed` shows the message from `ErrorMessages` and turns the button back on. When the user changes the type or the make quickly, each request gets a number and an answer that is no longer the newest one is ignored, so an old answer can never overwrite a new list.
+
+**Keeping the database safe.** The background import and the screen both use the same SQLite connection. Every public method in `Database` is `synchronized`, so two threads cannot use the connection at the same moment. The import saves rentals in batches of 100 inside one transaction (`insertRentalBatch`): if a batch fails, it is rolled back, and the transaction also makes the import much faster than saving row by row.
+
+**Why not do it on the UI thread?** A call to NHTSA can take a second or more, and a 2,000-row import takes longer. On the UI thread the window would show "Not Responding" until it finished.
 
 ## 7. Data Mining & Visualization Design
 
-_To be completed in Week 10._
+**Data analyzed.** The Dashboard tab mines the rentals saved in our SQLite database (entered in the Rentals tab or imported from CSV) together with the vehicle table. Only rentals with status RETURNED are counted, because only they have a final cost. The class `FleetAnalytics` does all the calculations. It has no screen code, so it can be unit tested.
+
+**Aggregation and frequency analysis.** The user picks a question and a date range (rentals that start inside the From and To dates are used):
+
+| Question | Mining step |
+|---|---|
+| Most rented vehicle type | Frequency count: each returned rental is counted for the type of its vehicle (Sedan, SUV, Motorcycle). The biggest bar is the most rented type. |
+| Fleet utilization per month (%) | Rate over time: for every month, the vehicle-days that were rented divided by (number of vehicles x days in the month), times 100. A vehicle counts once per day even if two records overlap, so it never passes 100%. |
+| Revenue by vehicle type | Aggregation: for each rental, the cost is worked out with the vehicle's own `computeRentalCost`, then the costs are summed for Sedan, SUV and Motorcycle. |
+| Rentals per month | Frequency count: rentals are grouped by year and month and counted. Months with no rentals show 0. |
+| Top 5 rented models | Frequency count: rentals are counted per make and model, sorted from most to fewest, and cut to 5. |
+| NHTSA models per make (live) | Count over live API data: the number of models NHTSA lists for each make in our fleet. |
+
+A text summary line under the controls reports the number of rentals, total revenue, best earning type, busiest month and average rental length. A second analysis, `CategoryNode.totalMileage`, uses recursion over the vehicle category tree (Fleet > Car > Sedan) to total the mileage of every branch, and is shown as text under the chart.
+
+**Nothing is hard-coded.** Every number comes from a database query. Changing a date, choosing another question, adding a rental or importing a new CSV changes both the summary and the chart. The unit tests also check that changing the date range changes the result.
+
+**Charts.** We use two JavaFX charts, as the project description asks (a bar chart and a line chart). The `BarChart` shows questions that compare separate groups: most rented vehicle type, revenue by type, top 5 models and NHTSA models per make. The `LineChart` shows the two questions that change over time: rentals per month and fleet utilization per month. Both have a category axis (vehicle type, model, make or month) and a number axis (rentals, revenue, models or percent). The chart title and both axis labels change with the question. Only one series is drawn, so a legend would repeat the title and is hidden. Bars make it easy to compare groups at a glance, while a line shows the rise and fall from month to month. A pie chart would be hard to read for 12 months, so we do not use one.
 
 ## 8. Testing Summary
 
-_To be completed in Week 10._
+The project has 118 JUnit 5 tests. They run with `mvn test` and all pass with 0 errors, 0 failures. Tests that touch the database use an in-memory SQLite database (`jdbc:sqlite::memory:`), so they never change the real `fleetrent.db` file. The API tests use a small fake web server on the same computer, so they do not need the internet and always give the same answer.
+
+| Test class | Tests | What it covers | Edge case examples |
+|---|---|---|---|
+| `VehicleCostTest` | 4 | Rental cost rules of Sedan, SUV, Motorcycle | Zero days is rejected, miles over the free limit |
+| `CategoryNodeTest` | 3 | Recursive mileage totals | Empty tree, same category added twice |
+| `QueueStackTest` | 4 | Waiting list (Queue) and check-out history (Stack) | Serving or undoing when empty |
+| `DatabaseTest` | 6 | Insert and select for Renter, Vehicle, Rental | Rental with an unknown renter is rejected, vehicle without a model year is saved with an empty (NULL) year, renter without email and address |
+| `MainTest` | 1 | Startup message | |
+| `VpicClientTest` | 19 | Reading the NHTSA models and makes JSON, building the addresses with and without year and vehicle type, calling a fake server | Empty `Results`, missing model name, invalid JSON, HTTP 500, server down, blank make, year 1995, no vehicle type, duplicate makes |
+| `RentalMathTest` | 4 | Billable days of a rental | Same-day rental counts as 1 day, end before start |
+| `FleetAnalyticsTest` | 18 | Revenue per type, rentals per type, utilization per month, rentals per month, top models, average days | Empty data, From after To, ongoing rentals ignored, unknown vehicle, overlapping rentals, rental crossing a month end, no vehicles |
+| `RentalServiceTest` | 9 | Start, return, waiting list and undo rules | Vehicle already rented, return twice, early return, negative miles |
+| `RentalCsvImporterTest` | 6 | Checking CSV lines and saving them in batches | 9 kinds of bad line, empty file, header-only file, 450-row file |
+| `SampleDataTest` | 5 | Demo data generator | Same seed gives the same file, zero rows |
+| `CarImageStoreTest` | 6 | Saving, finding and replacing a car picture file | Text saved as a picture is rejected, empty bytes, missing file, wrong file name |
+| `CarImageClientTest` | 9 | Reading the Wikipedia JSON, building the address, downloading and saving a picture with a fake server | No thumbnail, invalid JSON, HTTP 500, download that is not a picture, no picture found |
+| `ValidatorsTest` | 8 | Which characters each text box accepts and when the finished text is valid | Letters in a phone box, digits in a name box, symbols in a plate, two @ in an email, 3 decimals in money, empty required and optional boxes |
+| `ErrorMessagesTest` | 6 | The messages for API and database problems | No internet, timeout, connection refused, HTTP 503 and 404, unreadable answer, locked database file, missing record, no error given |
+| `VehicleTypesTest` | 4 | Our types to NHTSA types, NHTSA names to our types, categories per type, vehicle name without a year | Unknown type, Truck is not supported, SUV with a Motorcycle category, year 0 |
+| `ColorNamesTest` | 6 | Turning a color name into the color of the car picture | Upper case and spaces, "Pearl White", hex code, unknown, empty or null text |
 
 ## 9. Individual Contributions
 

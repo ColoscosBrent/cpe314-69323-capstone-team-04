@@ -13,6 +13,8 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println(startupMessage());
+        // Use the proxy settings of the computer (school or office networks), if there are any.
+        System.setProperty("java.net.useSystemProxies", "true");
         Application.launch(App.class, args);
     }
 }

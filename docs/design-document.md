@@ -266,7 +266,27 @@ _To be completed in Week 10._
 
 ## 8. Testing Summary
 
-_To be completed in Week 10._
+The project has 118 JUnit 5 tests. They run with `mvn test` and all pass with 0 errors, 0 failures. Tests that touch the database use an in-memory SQLite database (`jdbc:sqlite::memory:`), so they never change the real `fleetrent.db` file. The API tests use a small fake web server on the same computer, so they do not need the internet and always give the same answer.
+
+| Test class | Tests | What it covers | Edge case examples |
+|---|---|---|---|
+| `VehicleCostTest` | 4 | Rental cost rules of Sedan, SUV, Motorcycle | Zero days is rejected, miles over the free limit |
+| `CategoryNodeTest` | 3 | Recursive mileage totals | Empty tree, same category added twice |
+| `QueueStackTest` | 4 | Waiting list (Queue) and check-out history (Stack) | Serving or undoing when empty |
+| `DatabaseTest` | 6 | Insert and select for Renter, Vehicle, Rental | Rental with an unknown renter is rejected, vehicle without a model year is saved with an empty (NULL) year, renter without email and address |
+| `MainTest` | 1 | Startup message | |
+| `VpicClientTest` | 19 | Reading the NHTSA models and makes JSON, building the addresses with and without year and vehicle type, calling a fake server | Empty `Results`, missing model name, invalid JSON, HTTP 500, server down, blank make, year 1995, no vehicle type, duplicate makes |
+| `RentalMathTest` | 4 | Billable days of a rental | Same-day rental counts as 1 day, end before start |
+| `FleetAnalyticsTest` | 18 | Revenue per type, rentals per type, utilization per month, rentals per month, top models, average days | Empty data, From after To, ongoing rentals ignored, unknown vehicle, overlapping rentals, rental crossing a month end, no vehicles |
+| `RentalServiceTest` | 9 | Start, return, waiting list and undo rules | Vehicle already rented, return twice, early return, negative miles |
+| `RentalCsvImporterTest` | 6 | Checking CSV lines and saving them in batches | 9 kinds of bad line, empty file, header-only file, 450-row file |
+| `SampleDataTest` | 5 | Demo data generator | Same seed gives the same file, zero rows |
+| `CarImageStoreTest` | 6 | Saving, finding and replacing a car picture file | Text saved as a picture is rejected, empty bytes, missing file, wrong file name |
+| `CarImageClientTest` | 9 | Reading the Wikipedia JSON, building the address, downloading and saving a picture with a fake server | No thumbnail, invalid JSON, HTTP 500, download that is not a picture, no picture found |
+| `ValidatorsTest` | 8 | Which characters each text box accepts and when the finished text is valid | Letters in a phone box, digits in a name box, symbols in a plate, two @ in an email, 3 decimals in money, empty required and optional boxes |
+| `ErrorMessagesTest` | 6 | The messages for API and database problems | No internet, timeout, connection refused, HTTP 503 and 404, unreadable answer, locked database file, missing record, no error given |
+| `VehicleTypesTest` | 4 | Our types to NHTSA types, NHTSA names to our types, categories per type, vehicle name without a year | Unknown type, Truck is not supported, SUV with a Motorcycle category, year 0 |
+| `ColorNamesTest` | 6 | Turning a color name into the color of the car picture | Upper case and spaces, "Pearl White", hex code, unknown, empty or null text |
 
 ## 9. Individual Contributions
 

@@ -11,7 +11,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 | Repository URL          | https://github.com/ColoscosBrent/cpe314-69323-capstone-team-04                    |
 | Instructor              | Richyll Son                                                                       |
 | Term                    | First Semester, S.Y. 2026-2027                                                    |
-| Document Version / Date | 0.2 / October 27, 2026                                                            |
+| Document Version / Date | 0.3 / November 2, 2026                                                            |
 
 ## Revision History
 
@@ -22,7 +22,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 |---|---|---|---|
 | 0.1 | October 21, 2026 | Team 4 | Initial draft — Week 8 sections |
 | 0.2 | October 27, 2026 | Team 4 | Week 9 sections added — Section 3 (OOD) and Section 4 (Data Model) |
-| 0.3 | — | — | Week 10 sections added |
+| 0.3 | November 2, 2026 | Team 4 | Week 10 sections added — Section 5 (API), Section 6 (Concurrency), Section 7 (Data Mining & Visualization), Section 8 (Testing Summary) |
 | 1.0 | — | — | Final compilation and polish — Week 11 |
 
 ## 1. Introduction & Project Overview
@@ -277,7 +277,24 @@ _To be completed in Week 9._
 
 ## 7. Data Mining & Visualization Design
 
-_To be completed in Week 10._
+**Data analyzed.** The Dashboard tab mines the rentals saved in our SQLite database (entered in the Rentals tab or imported from CSV) together with the vehicle table. Only rentals with status RETURNED are counted, because only they have a final cost. The class `FleetAnalytics` does all the calculations. It has no screen code, so it can be unit tested.
+
+**Aggregation and frequency analysis.** The user picks a question and a date range (rentals that start inside the From and To dates are used):
+
+| Question | Mining step |
+|---|---|
+| Most rented vehicle type | Frequency count: each returned rental is counted for the type of its vehicle (Sedan, SUV, Motorcycle). The biggest bar is the most rented type. |
+| Fleet utilization per month (%) | Rate over time: for every month, the vehicle-days that were rented divided by (number of vehicles x days in the month), times 100. A vehicle counts once per day even if two records overlap, so it never passes 100%. |
+| Revenue by vehicle type | Aggregation: for each rental, the cost is worked out with the vehicle's own `computeRentalCost`, then the costs are summed for Sedan, SUV and Motorcycle. |
+| Rentals per month | Frequency count: rentals are grouped by year and month and counted. Months with no rentals show 0. |
+| Top 5 rented models | Frequency count: rentals are counted per make and model, sorted from most to fewest, and cut to 5. |
+| NHTSA models per make (live) | Count over live API data: the number of models NHTSA lists for each make in our fleet. |
+
+A text summary line under the controls reports the number of rentals, total revenue, best earning type, busiest month and average rental length. A second analysis, `CategoryNode.totalMileage`, uses recursion over the vehicle category tree (Fleet > Car > Sedan) to total the mileage of every branch, and is shown as text under the chart.
+
+**Nothing is hard-coded.** Every number comes from a database query. Changing a date, choosing another question, adding a rental or importing a new CSV changes both the summary and the chart. The unit tests also check that changing the date range changes the result.
+
+**Charts.** We use two JavaFX charts, as the project description asks (a bar chart and a line chart). The `BarChart` shows questions that compare separate groups: most rented vehicle type, revenue by type, top 5 models and NHTSA models per make. The `LineChart` shows the two questions that change over time: rentals per month and fleet utilization per month. Both have a category axis (vehicle type, model, make or month) and a number axis (rentals, revenue, models or percent). The chart title and both axis labels change with the question. Only one series is drawn, so a legend would repeat the title and is hidden. Bars make it easy to compare groups at a glance, while a line shows the rise and fall from month to month. A pie chart would be hard to read for 12 months, so we do not use one.
 
 ## 8. Testing Summary
 

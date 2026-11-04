@@ -258,7 +258,22 @@ _To be completed in Week 9._
 
 ## 6. Concurrency Design
 
-_To be completed in Week 10._
+**Long-running operations.** Four kinds of operation can take long enough to freeze a window, so each one runs on a background thread:
+
+| Operation | Where | Why it is slow |
+|---|---|---|
+| NHTSA make and model lists | `VehicleTab.loadMakes`, `VehicleTab.loadModels` | They wait for the internet. |
+| CSV rental import | `ImportTab.runImport` | It reads a file and writes thousands of rows to SQLite (the demo file has 50,000 rentals). |
+| Car photo search (after adding a vehicle, and the "Find photos for all" button) | `VehicleTab.afterAdd`, `VehicleTab.findAllPhotos` | It asks Wikipedia and downloads pictures. |
+| Live dashboard question | `DashboardTab.showLive` | It makes one API call for each make in the fleet. |
+
+**Threading approach.** We use JavaFX `Task` objects. The slow work is written inside the Task's `call()` method. The helper `UiHelper.runInBackground` puts the Task on its own daemon thread (`new Thread(task)`), so the thread never keeps the program open after the window closes. We chose `Task` instead of a bare `Thread` because it reports its result in a safe way: when it finishes, `setOnSucceeded` or `setOnFailed` runs on the JavaFX Application Thread, so those handlers can update labels, lists and charts directly. During the CSV import, progress is sent to the window with `Platform.runLater`, which is the only way background code may touch the screen.
+
+**How the UI stays responsive.** The Application Thread only draws the window and handles clicks. While a Task runs, the button that started it is disabled (so it cannot be pressed twice) and a `ProgressBar` is shown: an endless bar for API calls, and a bar that fills from 0 to 100 percent for the import. The user can switch to another tab, type in a form or press other buttons while the work continues. If the work fails, `setOnFailed` shows the message from `ErrorMessages` and turns the button back on. When the user changes the type or the make quickly, each request gets a number and an answer that is no longer the newest one is ignored, so an old answer can never overwrite a new list.
+
+**Keeping the database safe.** The background import and the screen both use the same SQLite connection. Every public method in `Database` is `synchronized`, so two threads cannot use the connection at the same moment. The import saves rentals in batches of 100 inside one transaction (`insertRentalBatch`): if a batch fails, it is rolled back, and the transaction also makes the import much faster than saving row by row.
+
+**Why not do it on the UI thread?** A call to NHTSA can take a second or more, and a 2,000-row import takes longer. On the UI thread the window would show "Not Responding" until it finished.
 
 ## 7. Data Mining & Visualization Design
 
@@ -266,7 +281,27 @@ _To be completed in Week 10._
 
 ## 8. Testing Summary
 
-_To be completed in Week 10._
+The project has 118 JUnit 5 tests. They run with `mvn test` and all pass with 0 errors, 0 failures. Tests that touch the database use an in-memory SQLite database (`jdbc:sqlite::memory:`), so they never change the real `fleetrent.db` file. The API tests use a small fake web server on the same computer, so they do not need the internet and always give the same answer.
+
+| Test class | Tests | What it covers | Edge case examples |
+|---|---|---|---|
+| `VehicleCostTest` | 4 | Rental cost rules of Sedan, SUV, Motorcycle | Zero days is rejected, miles over the free limit |
+| `CategoryNodeTest` | 3 | Recursive mileage totals | Empty tree, same category added twice |
+| `QueueStackTest` | 4 | Waiting list (Queue) and check-out history (Stack) | Serving or undoing when empty |
+| `DatabaseTest` | 6 | Insert and select for Renter, Vehicle, Rental | Rental with an unknown renter is rejected, vehicle without a model year is saved with an empty (NULL) year, renter without email and address |
+| `MainTest` | 1 | Startup message | |
+| `VpicClientTest` | 19 | Reading the NHTSA models and makes JSON, building the addresses with and without year and vehicle type, calling a fake server | Empty `Results`, missing model name, invalid JSON, HTTP 500, server down, blank make, year 1995, no vehicle type, duplicate makes |
+| `RentalMathTest` | 4 | Billable days of a rental | Same-day rental counts as 1 day, end before start |
+| `FleetAnalyticsTest` | 18 | Revenue per type, rentals per type, utilization per month, rentals per month, top models, average days | Empty data, From after To, ongoing rentals ignored, unknown vehicle, overlapping rentals, rental crossing a month end, no vehicles |
+| `RentalServiceTest` | 9 | Start, return, waiting list and undo rules | Vehicle already rented, return twice, early return, negative miles |
+| `RentalCsvImporterTest` | 6 | Checking CSV lines and saving them in batches | 9 kinds of bad line, empty file, header-only file, 450-row file |
+| `SampleDataTest` | 5 | Demo data generator | Same seed gives the same file, zero rows |
+| `CarImageStoreTest` | 6 | Saving, finding and replacing a car picture file | Text saved as a picture is rejected, empty bytes, missing file, wrong file name |
+| `CarImageClientTest` | 9 | Reading the Wikipedia JSON, building the address, downloading and saving a picture with a fake server | No thumbnail, invalid JSON, HTTP 500, download that is not a picture, no picture found |
+| `ValidatorsTest` | 8 | Which characters each text box accepts and when the finished text is valid | Letters in a phone box, digits in a name box, symbols in a plate, two @ in an email, 3 decimals in money, empty required and optional boxes |
+| `ErrorMessagesTest` | 6 | The messages for API and database problems | No internet, timeout, connection refused, HTTP 503 and 404, unreadable answer, locked database file, missing record, no error given |
+| `VehicleTypesTest` | 4 | Our types to NHTSA types, NHTSA names to our types, categories per type, vehicle name without a year | Unknown type, Truck is not supported, SUV with a Motorcycle category, year 0 |
+| `ColorNamesTest` | 6 | Turning a color name into the color of the car picture | Upper case and spaces, "Pearl White", hex code, unknown, empty or null text |
 
 ## 9. Individual Contributions
 

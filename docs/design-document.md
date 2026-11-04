@@ -254,7 +254,41 @@ Notes on the schema:
 
 ## 5. API Integration Design
 
-_To be completed in Week 9._
+**API used.** FleetRent uses the free NHTSA vPIC (Vehicle Product Information Catalog) web service, a public REST API from the US National Highway Traffic Safety Administration. It needs no API key. Base address: `https://vpic.nhtsa.dot.gov/api`. We chose it because the app needs real make and model names for the Add Vehicle form instead of typed-in guesses. The catalog lists vehicles sold in the United States, so a few models are not sold in the Philippines. Our instructor approved this for the capstone.
+
+**Endpoints called.** All are plain HTTP GET requests that return JSON (`?format=json`). The vehicle type words NHTSA understands are `car`, `mpv` (its name for SUVs) and `motorcycle`.
+
+| Endpoint | When we use it |
+|---|---|
+| `/vehicles/GetMakesForVehicleType/{type}?format=json` | When the Type box of the Add Vehicle form is set (and every time it changes). It fills the Make list with the makes NHTSA has for that type, so a motorcycle make can never be picked for a Sedan. |
+| `/vehicles/GetModelsForMakeYear/make/{make}/vehicleType/{type}?format=json` | After a make is clicked and the Year box says "Not specified". It fills the Model list. |
+| `/vehicles/GetModelsForMakeYear/make/{make}/modelyear/{year}/vehicleType/{type}?format=json` | Same, when a Year is chosen. The API only has years after 1995, so the Year box starts at 1996. If NHTSA has no model for that make, type and year, the app asks again without the year, shows all years and sets Year back to "Not specified" with a note. |
+| `/vehicles/GetModelsForMake/{make}?format=json` | The Dashboard question "NHTSA models per make in our fleet (live)", once for each make in the fleet. |
+
+**Type, make and model always agree.** Our three types map to NHTSA types: SEDAN to `car`, SUV to `mpv`, MOTORCYCLE to `motorcycle` (class `VehicleTypes`). The Type box decides which lists are loaded, and Make and Model are chosen by clicking in those lists, not typed. The Category box only offers paths that belong to the chosen type. NHTSA does not give vehicle colors, so the Color box uses a fixed list of 17 color names (class `ColorNames`) and the drawn car and swatches follow it. Only if NHTSA cannot be reached are Make and Model typed by hand (letters, digits and a few symbols only), and the screen says so.
+
+**Shape of the JSON response.** The answer is one JSON object. The part we use is the `Results` array. Each item describes one model:
+
+```
+{
+  "Count": 3,
+  "Message": "Response returned successfully",
+  "SearchCriteria": "Make:toyota",
+  "Results": [
+    { "Make_ID": 448, "Make_Name": "TOYOTA", "Model_ID": 2208, "Model_Name": "Corolla" }
+  ]
+}
+```
+
+The makes answer has the same `Results` array, with `MakeId`, `MakeName`, `VehicleTypeId` and `VehicleTypeName` in each item.
+
+**How the data is parsed.** The class `VpicClient` sends the request with Java's built-in `java.net.http.HttpClient` (HTTP/1.1, 10 second connect timeout, 30 second request timeout, follows redirects, uses the computer's proxy settings). The method `VpicClient.parseModels` reads the text with the Gson library and builds one `VehicleModelInfo` object (make name, model id, model name) for each item in `Results`. Items without a model name are skipped, and the final list is sorted by model name. `VpicClient.parseMakes` does the same for makes: it reads `MakeName`, removes duplicates and sorts the names. If the answer is not valid JSON or has no `Results` list, the method throws an error and the screen shows a plain message instead of crashing. A status code other than 200 is treated as a failure too. The class `ErrorMessages` turns each kind of failure into a clear sentence: no internet, the service took too long, could not connect (firewall or proxy), the service has a problem (HTTP 5xx), the service refused the request (HTTP 4xx), or an answer that cannot be read.
+
+**How the data is used.** The parsed objects are not just printed. (1) They fill the Make and Model lists of the "Choose from NHTSA" card on the Vehicles tab. Clicking a make and a model puts them in the Add Vehicle form, and the vehicle saved in our SQLite database uses the official names. (2) The Dashboard question "NHTSA models per make in our fleet (live)" calls the API once for each make that exists in our fleet and charts how many models NHTSA lists for each make.
+
+**No caching, and clear errors.** Every change of type, make or year makes a new live call, so the result always matches what NHTSA has at that moment. When NHTSA cannot be reached, the red message under "Choose from NHTSA" (or on the Dashboard) says why, the "Reload from NHTSA" button tries again, and the rest of the app keeps working. Each call also prints one line to the console (address, HTTP status, time taken) so the call can be shown during the demo. For a test or a demo the address can be changed with `-Dfleetrent.vpicUrl=http://...`.
+
+**Second web service: car photos.** To show the real picture of each car, the app also calls the free Wikipedia web service (`https://en.wikipedia.org/w/api.php`, no key). The class `CarImageClient` asks for the page that matches "make model" and reads the `thumbnail.source` address from the JSON (`query.pages.*.thumbnail.source`, best search rank first). It then downloads that picture, `CarImageStore` checks that it really is a JPG, PNG, GIF or BMP and saves it as `vehicle_images/vehicle-<id>.<ext>`, and the Vehicles tab and the Rentals tab (ongoing and returned rentals) show it. This is a convenience feature, not one of the graded API calls. If Wikipedia has no picture, the network is down, or the user chose their own file with "Choose photo...", the app shows the picture the user chose or the drawn car in the vehicle's color instead, so the app never breaks. Our tests check the JSON reading and the saving with a fake local server; we did not verify the live Wikipedia answer inside our test environment, so this feature is checked by hand on a real computer before the demo.
 
 ## 6. Concurrency Design
 

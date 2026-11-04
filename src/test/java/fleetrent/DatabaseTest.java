@@ -62,4 +62,23 @@ class DatabaseTest {
         Rental bad = Rental.startNew(999, 999, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 3));
         assertThrows(SQLException.class, () -> db.insertRental(bad));
     }
+
+    @Test
+    void unknownYearIsStoredAsNullAndReadBackAsZero() throws SQLException {
+        Vehicle bike = new Motorcycle(0, "Honda", "Rebel 500", 0, "MC 001", "Black", 900.0, 0, null, "Motorcycle");
+        db.insertVehicle(bike);
+        Vehicle loaded = db.getAllVehicles().get(0);
+        assertEquals(0, loaded.getYear());
+        assertEquals(null, loaded.getLastPMS());
+    }
+
+    @Test
+    void renterKeepsEmailAndAddress() throws SQLException {
+        db.insertRenter(new Renter(0, "Ben Cruz", "09170000000", "ben@x.com", "Mandaue City"));
+        db.insertRenter(new Renter(0, "Cara Lim", "09171111111", null, null));
+        List<Renter> renters = db.getAllRenters();
+        assertEquals("ben@x.com", renters.get(0).getEmail());
+        assertEquals("Mandaue City", renters.get(0).getAddress());
+        assertEquals(null, renters.get(1).getEmail());
+    }
 }

@@ -258,7 +258,22 @@ _To be completed in Week 9._
 
 ## 6. Concurrency Design
 
-_To be completed in Week 10._
+**Long-running operations.** Four kinds of operation can take long enough to freeze a window, so each one runs on a background thread:
+
+| Operation | Where | Why it is slow |
+|---|---|---|
+| NHTSA make and model lists | `VehicleTab.loadMakes`, `VehicleTab.loadModels` | They wait for the internet. |
+| CSV rental import | `ImportTab.runImport` | It reads a file and writes thousands of rows to SQLite (the demo file has 50,000 rentals). |
+| Car photo search (after adding a vehicle, and the "Find photos for all" button) | `VehicleTab.afterAdd`, `VehicleTab.findAllPhotos` | It asks Wikipedia and downloads pictures. |
+| Live dashboard question | `DashboardTab.showLive` | It makes one API call for each make in the fleet. |
+
+**Threading approach.** We use JavaFX `Task` objects. The slow work is written inside the Task's `call()` method. The helper `UiHelper.runInBackground` puts the Task on its own daemon thread (`new Thread(task)`), so the thread never keeps the program open after the window closes. We chose `Task` instead of a bare `Thread` because it reports its result in a safe way: when it finishes, `setOnSucceeded` or `setOnFailed` runs on the JavaFX Application Thread, so those handlers can update labels, lists and charts directly. During the CSV import, progress is sent to the window with `Platform.runLater`, which is the only way background code may touch the screen.
+
+**How the UI stays responsive.** The Application Thread only draws the window and handles clicks. While a Task runs, the button that started it is disabled (so it cannot be pressed twice) and a `ProgressBar` is shown: an endless bar for API calls, and a bar that fills from 0 to 100 percent for the import. The user can switch to another tab, type in a form or press other buttons while the work continues. If the work fails, `setOnFailed` shows the message from `ErrorMessages` and turns the button back on. When the user changes the type or the make quickly, each request gets a number and an answer that is no longer the newest one is ignored, so an old answer can never overwrite a new list.
+
+**Keeping the database safe.** The background import and the screen both use the same SQLite connection. Every public method in `Database` is `synchronized`, so two threads cannot use the connection at the same moment. The import saves rentals in batches of 100 inside one transaction (`insertRentalBatch`): if a batch fails, it is rolled back, and the transaction also makes the import much faster than saving row by row.
+
+**Why not do it on the UI thread?** A call to NHTSA can take a second or more, and a 2,000-row import takes longer. On the UI thread the window would show "Not Responding" until it finished.
 
 ## 7. Data Mining & Visualization Design
 

@@ -11,7 +11,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 | Repository URL          | https://github.com/ColoscosBrent/cpe314-69323-capstone-team-04                    |
 | Instructor              | Richyll Son                                                                       |
 | Term                    | First Semester, S.Y. 2026-2027                                                    |
-| Document Version / Date | 0.2 / October 27, 2026                                                            |
+| Document Version / Date | 0.3 / November 4, 2026                                                            |
 
 ## Revision History
 
@@ -22,7 +22,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 |---|---|---|---|
 | 0.1 | October 21, 2026 | Team 4 | Initial draft — Week 8 sections |
 | 0.2 | October 27, 2026 | Team 4 | Week 9 sections added — Section 3 (OOD) and Section 4 (Data Model) |
-| 0.3 | — | — | Week 10 sections added |
+| 0.3 | November 4, 2026 | Labra - Section 5 (API); Lagaya - Section 6 (Concurrency); Coloscos - Section 7 (Data Mining & Visualization); Rosal - Section 8 (Testing Summary) | Week 10 sections added — Section 5 (API), Section 6 (Concurrency), Section 7 (Data Mining & Visualization), Section 8 (Testing Summary) |
 | 1.0 | — | — | Final compilation and polish — Week 11 |
 
 ## 1. Introduction & Project Overview
@@ -254,19 +254,81 @@ Notes on the schema:
 
 ## 5. API Integration Design
 
-_To be completed in Week 9._
+**Public API consumed.** FleetRent uses the free NHTSA vPIC (Vehicle Product Information Catalog) REST API from the US National Highway Traffic Safety Administration. It needs no API key. Base address: `https://vpic.nhtsa.dot.gov/api`. We use it so the make and model of every vehicle come from official data instead of typed text. The catalog lists vehicles sold in the United States, so a few models are not sold in the Philippines (approved by our instructor).
+
+**Endpoints called.** All are HTTP GET requests that return JSON (`?format=json`). Our three vehicle types map to the NHTSA type words: SEDAN to `car`, SUV to `mpv`, MOTORCYCLE to `motorcycle`.
+
+| Endpoint | When we use it |
+|---|---|
+| `/vehicles/GetMakesForVehicleType/{type}?format=json` | The user picks a vehicle Type in the Add Vehicle form. It fills the Make list, so a motorcycle make can never be chosen for a Sedan. |
+| `/vehicles/GetModelsForMakeYear/make/{make}[/modelyear/{year}]/vehicleType/{type}?format=json` | The user clicks a make. It fills the Model list. The year part is used only when a Year is chosen (the API has years after 1995). If NHTSA has no model for that year, the app asks again without the year and shows all years. |
+| `/vehicles/GetModelsForMake/{make}?format=json` | The Dashboard question "NHTSA models per make in our fleet (live)", once for each make we own. |
+
+**Shape of the JSON response.** The answer is one object. The part we use is the `Results` array, with one item per model:
+
+```
+{
+  "Count": 3,
+  "Message": "Response returned successfully",
+  "Results": [
+    { "Make_ID": 448, "Make_Name": "TOYOTA", "Model_ID": 2208, "Model_Name": "Corolla" }
+  ]
+}
+```
+
+The makes answer has the same `Results` array, with `MakeId` and `MakeName` in each item.
+
+**How the data is parsed.** The class `VpicClient` sends the request with Java's `java.net.http.HttpClient` (10 second connect timeout, 30 second request timeout). `VpicClient.parseModels` reads the JSON text with the Gson library and builds one `VehicleModelInfo` object (make name, model id, model name) for each item in `Results`, skipping items without a model name and sorting by name. `VpicClient.parseMakes` reads `MakeName`, removes duplicates and sorts. Invalid JSON, a missing `Results` list or an HTTP status other than 200 is reported as an error, never a crash.
+
+**How the data is used.** (1) The parsed objects fill the Make and Model lists of the "Choose from NHTSA" card on the Vehicles tab. The user clicks a make and a model, so the vehicle saved in our SQLite database always has an official make and model that match its type. (2) The Dashboard question "NHTSA models per make in our fleet (live)" calls the API once per make in the fleet and charts how many models NHTSA lists for each. Nothing is cached: every choice makes a new live call. If NHTSA cannot be reached, a red message says why (no internet, too slow, blocked, server problem), and Make and Model can be typed by hand until it works again.
 
 ## 6. Concurrency Design
 
-_To be completed in Week 10._
+**Long-running operations.** Four operations can take long enough to freeze the window, so each runs on a background thread:
+
+| Operation | Where | Why it is slow |
+|---|---|---|
+| NHTSA make and model lists | `VehicleTab.loadMakes`, `VehicleTab.loadModels` | They wait for the internet. |
+| CSV rental import | `ImportTab.runImport` | It reads a file and saves thousands of rows (the demo file has 50,000 rentals). |
+| Car photo search | `VehicleTab.afterAdd`, `VehicleTab.findAllPhotos` | It asks Wikipedia and downloads pictures. |
+| Live dashboard question | `DashboardTab.showLive` | It makes one API call for each make in the fleet. |
+
+**Threading approach.** We use JavaFX `Task` objects. The slow work is inside the Task's `call()` method, and the helper `UiHelper.runInBackground` runs it on its own daemon thread. When it finishes, `setOnSucceeded` or `setOnFailed` runs on the JavaFX Application Thread, so it can safely update labels, lists and charts. During the CSV import, progress is sent to the window with `Platform.runLater`. The background import and the screen share one SQLite connection, so every `Database` method is `synchronized`, and the import saves rentals in batches of 100 inside one transaction.
+
+**How the UI stays responsive.** The Application Thread only draws the window and handles clicks. While a Task runs, the button that started it is disabled and a `ProgressBar` is shown (an endless bar for API calls, a bar from 0 to 100 percent for the import). The user can switch tabs or type in forms while the work continues. If the work fails, a plain message is shown and the button works again. If the user changes the choice while a request is running, the old answer is ignored when it arrives.
 
 ## 7. Data Mining & Visualization Design
 
-_To be completed in Week 10._
+**Data analyzed.** The Dashboard tab mines the rentals saved in our SQLite database (entered by hand or imported from CSV) together with the vehicle table. Only RETURNED rentals are counted, because only they have a final cost. The class `FleetAnalytics` does the calculations and has no screen code. The user picks a question and a From and To date.
+
+**Aggregation and frequency analysis.** Every number is calculated from the database each time; nothing is hard-coded.
+
+| Question | Mining step |
+|---|---|
+| Most rented vehicle type | Frequency count of returned rentals per type (Sedan, SUV, Motorcycle). |
+| Fleet utilization per month (%) | For each month: rented vehicle-days divided by (vehicles x days in the month), times 100. |
+| Revenue by vehicle type | Sum of each rental's cost (`computeRentalCost` of its vehicle) per type. |
+| Rentals per month | Frequency count of rentals per year and month. |
+| Top 5 rented models | Frequency count per make and model, sorted, cut to 5. |
+| NHTSA models per make (live) | Number of models NHTSA lists for each make in our fleet. |
+
+A summary line reports the number of rentals, total revenue, best earning type, busiest month and average rental length. A recursive method, `CategoryNode.totalMileage`, also totals the mileage of the category tree (Fleet > Car > Sedan) and is shown under the chart.
+
+**Charts and why we chose them.** We use two JavaFX charts. A `BarChart` is used for questions that compare separate groups (rentals per type, revenue per type, top models, models per make), because bars make the difference between groups easy to compare. A `LineChart` is used for the two questions that change over time (utilization per month, rentals per month), because a line shows the rise and fall from one month to the next. Both charts have a title, labeled axes and one series, and they redraw whenever the question or the dates change. We do not use a pie chart because 12 months or many models would be hard to read.
 
 ## 8. Testing Summary
 
-_To be completed in Week 10._
+The project has 118 JUnit 5 tests in 17 test classes. They run with `mvn test` and all pass (0 failures, 0 errors). Database tests use an in-memory SQLite database, and API tests use a small fake web server on the same computer, so no test needs the internet.
+
+| Area | Test classes | Tests |
+|---|---|---|
+| Vehicle classes, category tree, Queue and Stack, vehicle types | `VehicleCostTest`, `CategoryNodeTest`, `QueueStackTest`, `VehicleTypesTest` | 15 |
+| Rental rules | `RentalMathTest`, `RentalServiceTest` | 13 |
+| Database and startup | `DatabaseTest`, `MainTest` | 7 |
+| CSV import and demo data | `RentalCsvImporterTest`, `SampleDataTest` | 11 |
+| NHTSA and Wikipedia API code | `VpicClientTest`, `CarImageClientTest`, `CarImageStoreTest` | 34 |
+| Data mining | `FleetAnalyticsTest` | 18 |
+| Input rules, error messages, colors | `ValidatorsTest`, `ErrorMessagesTest`, `ColorNamesTest` | 20 |
 
 ## 9. Individual Contributions
 

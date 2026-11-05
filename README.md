@@ -21,7 +21,7 @@ NHTSA vPIC API (https://vpic.nhtsa.dot.gov/api)
 ## How to run
 
 1. Install JDK 17 or newer and Maven (see the setup guide).
-2. Run the tests: `mvn test` (118 tests, all should pass).
+2. Run the tests: `mvn test` (124 tests, all should pass).
 3. Start the app: in VS Code open `src/main/java/fleetrent/Main.java` and press Run above `main`.
 4. The app creates `fleetrent.db` in the project folder the first time it starts. This file is not committed.
 

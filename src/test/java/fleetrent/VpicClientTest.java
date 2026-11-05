@@ -188,4 +188,22 @@ class VpicClientTest {
         status = 500;
         assertThrows(IOException.class, () -> client().fetchMakes("car"));
     }
+
+    // Simone: edge cases for the makes answer.
+    @Test
+    void parseMakesGivesEmptyListWhenResultsIsEmpty() {
+        assertTrue(VpicClient.parseMakes("{\"Count\":0,\"Results\":[]}").isEmpty());
+    }
+
+    @Test
+    void parseMakesSkipsItemsWithoutAMakeName() {
+        String json = "{\"Results\":[{\"MakeId\":1},{\"MakeName\":null},{\"MakeName\":\"  \"},"
+                + "{\"MakeName\":\"Toyota\"}]}";
+        assertEquals(List.of("Toyota"), VpicClient.parseMakes(json));
+    }
+
+    @Test
+    void parseMakesRejectsAnAnswerWithoutResults() {
+        assertThrows(IllegalArgumentException.class, () -> VpicClient.parseMakes("{\"Count\":0}"));
+    }
 }

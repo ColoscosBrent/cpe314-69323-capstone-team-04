@@ -2,6 +2,8 @@ package fleetrent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -80,5 +82,26 @@ class DatabaseTest {
         assertEquals("ben@x.com", renters.get(0).getEmail());
         assertEquals("Mandaue City", renters.get(0).getAddress());
         assertEquals(null, renters.get(1).getEmail());
+    }
+
+    // Dexter: edge cases for lookups and the batch insert.
+    @Test
+    void unknownVehicleIdGivesNull() throws SQLException {
+        assertNull(db.getVehicleById(999));
+    }
+
+    @Test
+    void plateSearchIgnoresCaseAndSpacesAndHandlesNull() throws SQLException {
+        db.insertVehicle(new Suv(0, "Ford", "Everest", 2021, "XYZ789", "Black", 2500.0, 12000,
+                LocalDate.of(2026, 8, 15), "Car > SUV"));
+        assertNotNull(db.findVehicleByPlate("  xyz789 "));
+        assertNull(db.findVehicleByPlate("NOPE000"));
+        assertNull(db.findVehicleByPlate(null));
+    }
+
+    @Test
+    void emptyRentalBatchSavesNothing() throws SQLException {
+        assertEquals(0, db.insertRentalBatch(List.of()));
+        assertTrue(db.getAllRentals().isEmpty());
     }
 }

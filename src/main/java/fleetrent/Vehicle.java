@@ -62,6 +62,6 @@ public abstract class Vehicle {
 
     @Override
     public String toString() {
-        return getType() + " - " + make + " " + model + " " + year + " (" + plateNumber + ")";
+        return getType() + " - " + make + " " + model + (year > 0 ? " " + year : "") + " (" + plateNumber + ")";
     }
 }

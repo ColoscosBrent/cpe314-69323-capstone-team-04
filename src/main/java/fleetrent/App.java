@@ -2,6 +2,7 @@ package fleetrent;
 
 import java.net.URL;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -27,11 +28,13 @@ public class App extends Application {
     private final ListView<Vehicle> vehicleList = new ListView<>();
     private final Label status = new Label("Ready.");
     private final Label countLabel = new Label("0 vehicles");
+    private RentalDesk desk;
 
     @Override
     public void start(Stage stage) throws Exception {
         db = new Database("jdbc:sqlite:fleetrent.db");
         db.createTables();
+        desk = new RentalDesk(db);
 
         // ----- header -----
         Label title = new Label("FleetRent");
@@ -96,6 +99,9 @@ public class App extends Application {
                 refreshList();
             } catch (NumberFormatException e) {
                 status.setText("Year and daily rate must be numbers.");
+            } catch (IllegalArgumentException e) {
+                // VehicleFactory throws this for an unknown vehicle type. Show it, do not let it escape.
+                status.setText(e.getMessage() == null ? "A value in the form is not valid." : e.getMessage());
             } catch (SQLException e) {
                 status.setText("Database error: " + e.getMessage());
             }
@@ -110,14 +116,90 @@ public class App extends Application {
         HBox listHeader = new HBox(10, listTitle, spacer, countLabel);
         listHeader.setAlignment(Pos.CENTER_LEFT);
 
-        Label hint = new Label("Price shown is for 1 day with no extra miles.");
+        Label hint = new Label("Price shown is for 1 day with no extra miles. Free miles per day, then a fee per "
+                + "extra mile: Sedan 100 free, 0.20; SUV 80 free, 0.30; Motorcycle 60 free, 0.15.");
+        hint.setWrapText(true);
         hint.getStyleClass().add("hint-label");
 
         vehicleList.setCellFactory(list -> new VehicleCell());
         vehicleList.getStyleClass().add("vehicle-list");
         VBox.setVgrow(vehicleList, Priority.ALWAYS);
 
-        VBox listCard = new VBox(10, listHeader, hint, vehicleList);
+        // ----- rent controls: the second wired control, using the Queue (WaitingList) and the Stack (CheckoutHistory) -----
+        TextField renterField = field("Renter name");
+        renterField.setPrefWidth(170);
+        TextField daysField = field("Days");
+        daysField.setText("1");
+        daysField.setPrefWidth(60);
+        Button rentButton = new Button("Rent selected vehicle");
+        rentButton.getStyleClass().add("primary-button");
+        Button undoButton = new Button("Undo last rental");
+        Label rentStatus = new Label("Pick a vehicle, type a renter name and the days, then press Rent.");
+        rentStatus.getStyleClass().add("status-label");
+        rentStatus.setWrapText(true);
+        Label queueInfo = new Label("Waiting for the selected vehicle: 0   |   Rentals that can be undone: 0");
+        queueInfo.getStyleClass().add("hint-label");
+        HBox rentRow = new HBox(10, renterField, daysField, rentButton, undoButton);
+        rentRow.setAlignment(Pos.CENTER_LEFT);
+
+        Runnable showCounts = () -> {
+            Vehicle picked = vehicleList.getSelectionModel().getSelectedItem();
+            int waiting = picked == null ? 0 : desk.waitingCount(picked.getId());
+            queueInfo.setText("Waiting for the selected vehicle: " + waiting
+                    + "   |   Rentals that can be undone: " + desk.undoCount());
+        };
+        vehicleList.getSelectionModel().selectedItemProperty().addListener((obs, was, now) -> showCounts.run());
+
+        rentButton.setOnAction(event -> {
+            Vehicle picked = vehicleList.getSelectionModel().getSelectedItem();
+            if (picked == null) {
+                rentStatus.setText("Pick a vehicle in the list first.");
+                return;
+            }
+            try {
+                int days = Integer.parseInt(daysField.getText().trim());
+                if (days < 1) {
+                    rentStatus.setText("Days must be 1 or more.");
+                    return;
+                }
+                Renter renter = desk.renterNamed(renterField.getText());
+                LocalDate start = LocalDate.now();
+                Rental rental = desk.rent(renter, picked, start, start.plusDays(days - 1));
+                if (rental == null) {
+                    rentStatus.setText(renter.getName() + " joined the waiting list for " + picked.getMake()
+                            + " " + picked.getModel() + " (" + desk.waitingCount(picked.getId()) + " waiting).");
+                } else {
+                    rentStatus.setText("Rented to " + renter.getName() + " from " + rental.getStartDate()
+                            + " to " + rental.getEndDate() + ".");
+                }
+            } catch (NumberFormatException e) {
+                rentStatus.setText("Days must be a whole number.");
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                rentStatus.setText(e.getMessage());
+            } catch (SQLException e) {
+                rentStatus.setText("Database error: " + e.getMessage());
+            }
+            showCounts.run();
+        });
+
+        undoButton.setOnAction(event -> {
+            try {
+                RentalDesk.UndoResult result = desk.undoLast();
+                if (result == null) {
+                    rentStatus.setText("There is no rental to undo.");
+                } else if (result.nextRenter() == null) {
+                    rentStatus.setText("Last rental undone. The vehicle is free again.");
+                } else {
+                    rentStatus.setText("Last rental undone. " + result.nextRenter().getName()
+                            + " was first in the waiting list and now has the vehicle.");
+                }
+            } catch (SQLException e) {
+                rentStatus.setText("Database error: " + e.getMessage());
+            }
+            showCounts.run();
+        });
+
+        VBox listCard = new VBox(10, listHeader, hint, vehicleList, rentRow, rentStatus, queueInfo);
         listCard.getStyleClass().add("card");
         HBox.setHgrow(listCard, Priority.ALWAYS);
 

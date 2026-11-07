@@ -118,7 +118,30 @@ public class Database implements AutoCloseable {
 
     // ---------- Rental ----------
 
+    // True when no saved rental of this vehicle uses any day from start to end.
+    // A returned rental only uses its days up to the day it came back, so early returns free the vehicle.
+    public boolean isVehicleFree(int vehicleId, LocalDate start, LocalDate end) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Rental WHERE vehicleId = ? AND startDate <= ? "
+                + "AND COALESCE(returnedOn, endDate) >= ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            ps.setString(2, end.toString());
+            ps.setString(3, start.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) == 0;
+            }
+        }
+    }
+
+    // Saves a rental. Throws IllegalArgumentException if the end date is before the start date,
+    // and IllegalStateException if the vehicle is already rented on any of those days.
     public int insertRental(Rental r) throws SQLException {
+        if (r.getEndDate().isBefore(r.getStartDate())) {
+            throw new IllegalArgumentException("The end date is before the start date.");
+        }
+        if (!isVehicleFree(r.getVehicleId(), r.getStartDate(), r.getEndDate())) {
+            throw new IllegalStateException("This vehicle is already rented on some of those days.");
+        }
         String sql = "INSERT INTO Rental (renterId, vehicleId, startDate, endDate, returnedOn, "
                 + "milesDriven, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -133,6 +156,13 @@ public class Database implements AutoCloseable {
             int newId = readGeneratedId(ps);
             r.setId(newId);
             return newId;
+        }
+    }
+
+    public void deleteRental(int rentalId) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM Rental WHERE id = ?")) {
+            ps.setInt(1, rentalId);
+            ps.executeUpdate();
         }
     }
 

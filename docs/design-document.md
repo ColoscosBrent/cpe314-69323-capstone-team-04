@@ -22,6 +22,7 @@ CPE 314 - Software Design | University of Cebu Computer Engineering Department |
 |---|---|---|---|
 | 0.1 | October 21, 2026 | Team 4 | Initial draft — Week 8 sections |
 | 0.2 | October 27, 2026 | Team 4 | Week 9 sections added — Section 3 (OOD) and Section 4 (Data Model) |
+| 0.2.1 | November 7, 2026 | Team 4 | After the Week 9 review: added `RentalDesk` (Rent and Undo rules), the overlap rule in `Database.insertRental`, and the 1-inch margins |
 | 0.3 | — | — | Week 10 sections added |
 | 1.0 | — | — | Final compilation and polish — Week 11 |
 
@@ -167,6 +168,7 @@ The other classes are not part of this hierarchy:
 - `Renter`, `Rental`, `RentalStatus`: the data for a customer and a rental (ONGOING or RETURNED).
 - `WaitingList`: a Queue of renters waiting for a vehicle (first in, first out).
 - `CheckoutHistory`: a Stack of check-outs so the last one can be undone (last in, first out).
+- `RentalDesk`: the rules behind the Rent and Undo buttons. It keeps one `WaitingList` for each vehicle and one `CheckoutHistory`, and uses `Database` to save and delete rentals.
 - `Database`: all SQLite code, using JDBC `PreparedStatement`.
 - `App` and `Main`: the JavaFX window and the class that starts it.
 
@@ -189,6 +191,7 @@ Table 7 explains, for each class, its one responsibility and why that follows th
 | RentalStatus | The allowed rental states | It only lists ONGOING and RETURNED. |
 | WaitingList | The waiting line of renters | It only manages the queue order. |
 | CheckoutHistory | The undo stack of check-outs | It only manages the undo order. |
+| RentalDesk | The Rent and Undo rules: who gets a vehicle, who waits, and what is undone | It has no screen code and no SQL. It only decides, then asks `Database` to save. |
 | Database | Reading and writing SQLite | It is the only class that contains SQL. If the database changes, only this class changes. |
 | App | The JavaFX window and button handlers | It shows data and passes user actions on. It does not contain SQL or cost rules. |
 | Main | Starting the JavaFX application | It only launches `App`. |
@@ -249,6 +252,7 @@ Notes on the schema:
 - Dates (`lastPMS`, `startDate`, `endDate`, `returnedOn`) are saved as text in the form `YYYY-MM-DD`, because SQLite has no separate date type.
 - `returnedOn` stays empty (NULL) until the vehicle is returned. When a vehicle comes back, even before `endDate`, the status changes to RETURNED and the vehicle can be rented again.
 - `Rental.renterId` and `Rental.vehicleId` are foreign keys. The app turns on `PRAGMA foreign_keys = ON`, so SQLite refuses a rental that points to a renter or vehicle that does not exist.
+- `Database.insertRental` refuses a rental of a vehicle that is already rented on any of those days (it throws `IllegalStateException`) and a rental whose end date is before its start date (`IllegalArgumentException`). A rental that was returned early only uses its days up to the return day.
 - `Vehicle.type` is limited to SEDAN, SUV, or MOTORCYCLE.
 - All JDBC statements that use values use `PreparedStatement` with bound parameters.
 

@@ -1,4 +1,7 @@
-package fleetrent;
+package fleetrent.app;
+
+import fleetrent.ui.AppWindow;
+import fleetrent.controller.Background;
 
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -18,6 +21,6 @@ public class App extends Application {
     @Override
     public void stop() {
         AppWindow.closeAll();
-        UiHelper.stopWorkers();
+        Background.stop();
     }
 }

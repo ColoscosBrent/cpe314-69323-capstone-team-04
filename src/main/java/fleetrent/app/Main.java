@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.app;
+
 
 import javafx.application.Application;
 

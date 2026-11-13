@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.dto;
+
 
 /**
  * One car model as returned by the NHTSA vPIC API (for example TOYOTA / Camry).

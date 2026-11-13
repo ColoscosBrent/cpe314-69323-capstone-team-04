@@ -34,7 +34,15 @@ public final class Validators {
         MONEY("Digits and one decimal point only (up to 2 decimals).",
                 Pattern.compile("[0-9]{0,6}(\\.[0-9]{0,2})?")),
         VEHICLE_TEXT("Letters, digits, spaces and . & ' ( ) / + - only.",
-                Pattern.compile("[\\p{L}0-9 .&'()/+\\-]{0,50}"));
+                Pattern.compile("[\\p{L}0-9 .&'()/+\\-]{0,50}")),
+        NAME_PART("Letters, spaces and . ' - only.",
+                Pattern.compile("[\\p{L} .'\\-]{0,30}")),
+        PHONE_DIGITS("Digits, spaces and - only.",
+                Pattern.compile("[0-9 \\-]{0,16}")),
+        STREET("Letters, digits, spaces and . # / ' - only (no commas).",
+                Pattern.compile("[\\p{L}0-9 .#/'\\-]{0,80}")),
+        CITY("Letters, spaces and . ' - only.",
+                Pattern.compile("[\\p{L} .'\\-]{0,50}"));
 
         private final String rejectMessage;
         private final Pattern allowed;
@@ -109,6 +117,26 @@ public final class Validators {
         }
     }
 
+    // The kinds of the three-box name, phone and address: a name part, phone digits, street, city.
+    private static String checkPart(Kind kind, String t) {
+        switch (kind) {
+            case NAME_PART:
+                if (!NAME_OK.matcher(t).matches()) {
+                    return "Start with a letter. Use letters, spaces and . ' - only.";
+                }
+                return null;
+            case PHONE_DIGITS:
+                if (t.replaceAll("[^0-9]", "").isEmpty()) {
+                    return "Enter the phone number (digits).";
+                }
+                return null;
+            case STREET:
+                return AddressRules.checkStreet(t);
+            default:
+                return AddressRules.checkCity(t);
+        }
+    }
+
     // The rest of the kinds: plate, digits, money and vehicle text.
     private static String checkOther(Kind kind, String t) {
         switch (kind) {
@@ -139,7 +167,7 @@ public final class Validators {
                 }
                 return null;
             default:
-                return null;
+                return checkPart(kind, t);
         }
     }
 

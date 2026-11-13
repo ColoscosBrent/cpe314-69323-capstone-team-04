@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.model;
+
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -28,11 +29,9 @@ class QueueStackTest {
     @Test
     void undoRemovesTheLastCheckoutFirst() {
         CheckoutHistory history = new CheckoutHistory();
-        Rental one = Rental.startNew(1, 1, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 3));
-        Rental two = Rental.startNew(2, 2, LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 4));
-        history.record(one);
-        history.record(two);
-        assertSame(two, history.undoLast());
+        history.record(1);
+        history.record(2);
+        assertEquals(2, history.undoLast());
         assertEquals(1, history.size());
     }
 

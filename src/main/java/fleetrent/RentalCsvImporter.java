@@ -13,25 +13,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.IntConsumer;
 
-// Reads a CSV file of finished rentals and saves them. Columns, in this order:
-// plateNumber,renterName,startDate,endDate,milesDriven      (dates look like 2026-03-15)
-// The plate must belong to a vehicle that is already in the database. A new renter name is added.
+/**
+ * Reads a CSV file of finished rentals and saves them. Columns, in this order:
+ * plateNumber,renterName,startDate,endDate,milesDriven      (dates look like 2026-03-15) The plate
+ * must belong to a vehicle that is already in the database. A new renter name is added.
+ */
 public class RentalCsvImporter {
     public static final String HEADER = "plateNumber,renterName,startDate,endDate,milesDriven";
     private static final int BATCH_SIZE = 100;
     private static final int MAX_ERRORS_KEPT = 50;
 
+    /** How many rentals were imported and skipped, and the problems found. */
     public static class ImportResult {
         private int imported;
         private int skipped;
         private final List<String> errors = new ArrayList<>();
 
+        /** Returns the imported. */
         public int getImported() { return imported; }
+        /** Returns the skipped. */
         public int getSkipped() { return skipped; }
+        /** Returns the errors. */
         public List<String> getErrors() { return errors; }
     }
 
-    // One checked row, before it is saved.
+    /**
+     * One checked row, before it is saved.
+     */
     public static class Row {
         public final Vehicle vehicle;
         public final String renterName;
@@ -48,7 +56,9 @@ public class RentalCsvImporter {
         }
     }
 
-    // Checks one line. Throws IllegalArgumentException with a plain message when the line is bad.
+    /**
+     * Checks one line. Throws IllegalArgumentException with a plain message when the line is bad.
+     */
     public static Row parseRow(String line, Map<String, Vehicle> vehiclesByPlate) {
         String[] parts = line.split(",", -1);
         if (parts.length != 5) {
@@ -86,13 +96,16 @@ public class RentalCsvImporter {
         return new Row(vehicle, renterName, start, end, miles);
     }
 
+    /** Reads the CSV file and saves the valid rentals. Reports the progress while it works. */
     public ImportResult importFile(Path file, Database db, IntConsumer progressPercent)
             throws IOException, SQLException {
         return importLines(Files.readAllLines(file, StandardCharsets.UTF_8), db, progressPercent);
     }
 
-    // Saves every good line, skips bad ones (and remembers why). Calls progressPercent(0..100).
-    // This is slow for big files, so the GUI calls it from a background thread.
+    /**
+     * Saves every good line, skips bad ones (and remembers why). Calls progressPercent(0..100).
+     * This is slow for big files, so the GUI calls it from a background thread.
+     */
     public ImportResult importLines(List<String> lines, Database db, IntConsumer progressPercent)
             throws SQLException {
         ImportResult result = new ImportResult();
@@ -111,6 +124,9 @@ public class RentalCsvImporter {
         int total = lines.size();
         for (int i = 0; i < total; i++) {
             String line = lines.get(i);
+            if (i == 0 && line.startsWith("\uFEFF")) {
+                line = line.substring(1); // Excel's "CSV UTF-8" puts an invisible mark at the very start
+            }
             boolean isHeader = i == 0 && line.trim().toLowerCase(java.util.Locale.ROOT).startsWith("platenumber");
             if (!line.isBlank() && !isHeader) {
                 try {

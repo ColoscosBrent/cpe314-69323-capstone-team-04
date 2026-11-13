@@ -17,6 +17,9 @@ import javafx.scene.shape.Rectangle;
 // One place that makes the picture of a vehicle, so the Vehicles tab and the Rentals tab show the
 // same thing: the saved photo if there is one, otherwise the drawn car in the vehicle's color.
 final class VehiclePictures {
+    private static final double STAGE_MIN_WIDTH = 172;
+    private static final double STAGE_PREF_WIDTH = 172;
+    private static final double STAGE_MIN_HEIGHT = 106;
     private final IntFunction<Path> photos;
     private final Map<String, Image> cache = new HashMap<>();
 
@@ -31,9 +34,9 @@ final class VehiclePictures {
         StackPane stage = new StackPane(image != null ? photoNode(image, 156, 98)
                 : CarGraphic.create(v.getType(), v.getColor(), 130));
         stage.getStyleClass().add("car-stage");
-        stage.setMinWidth(172);
-        stage.setPrefWidth(172);
-        stage.setMinHeight(106);
+        stage.setMinWidth(STAGE_MIN_WIDTH);
+        stage.setPrefWidth(STAGE_PREF_WIDTH);
+        stage.setMinHeight(STAGE_MIN_HEIGHT);
         return stage;
     }
 
@@ -42,7 +45,8 @@ final class VehiclePictures {
         Path photo = photos.apply(v.getId());
         Image image = photo == null ? null : load(photo, width * 2);
         Node inner = image != null ? photoNode(image, width - 16, height - 8)
-                : CarGraphic.create(v.getType(), v.getColor(), Math.min(width - 24, (height - 12) * 200.0 / 90.0));
+                : CarGraphic.create(v.getType(), v.getColor(), Math.min(width - 24,
+                        (height - 12) * 200.0 / 90.0));
         StackPane stage = new StackPane(inner);
         stage.getStyleClass().add("car-stage");
         stage.setMinSize(width, height);
@@ -54,7 +58,8 @@ final class VehiclePictures {
     // Reads a picture file once and keeps it in memory. Returns null if the file cannot be read.
     Image load(Path file, double width) {
         try {
-            String key = file.toAbsolutePath() + "|" + Files.getLastModifiedTime(file) + "|" + width;
+            String key = file.toAbsolutePath() + "|" + Files.getLastModifiedTime(file) + "|"
+                    + width;
             Image cached = cache.get(key);
             if (cached != null) {
                 return cached;

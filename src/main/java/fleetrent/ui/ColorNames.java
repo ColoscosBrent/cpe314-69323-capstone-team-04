@@ -68,7 +68,8 @@ public final class ColorNames {
      * used.
      */
     public static String[] choices() {
-        return new String[] {"White", "Black", "Silver", "Gray", "Red", "Maroon", "Blue", "Navy", "Teal",
+        return new String[] {"White", "Black", "Silver", "Gray", "Red", "Maroon", "Blue", "Navy",
+                "Teal",
             "Green", "Yellow", "Gold", "Orange", "Brown", "Beige", "Purple", "Pink"};
     }
 
@@ -76,6 +77,7 @@ public final class ColorNames {
      * The color names shown as quick swatches in the Add Vehicle form.
      */
     public static String[] swatchNames() {
-        return new String[] {"White", "Black", "Silver", "Red", "Blue", "Green", "Orange", "Purple"};
+        return new String[] {"White", "Black", "Silver", "Red", "Blue", "Green", "Orange",
+                "Purple"};
     }
 }

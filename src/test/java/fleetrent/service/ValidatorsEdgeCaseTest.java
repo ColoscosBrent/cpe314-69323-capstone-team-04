@@ -10,7 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import fleetrent.service.Validators.Kind;
 import org.junit.jupiter.api.Test;
 
-// The exact edges of every input rule: the longest allowed text, one more, nothing at all, and null.
+// The exact edges of every input rule: the longest allowed text, one more, nothing at all, and
+// null.
 class ValidatorsEdgeCaseTest {
 
     @Test

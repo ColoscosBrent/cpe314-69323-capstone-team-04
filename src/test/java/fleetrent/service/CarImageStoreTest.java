@@ -59,7 +59,8 @@ class CarImageStoreTest {
         Files.write(good, JPG);
         assertNotNull(store.copyFrom(9, good));
         assertTrue(store.has(9));
-        assertThrows(IllegalArgumentException.class, () -> store.copyFrom(9, temp.resolve("missing.png")));
+        assertThrows(IllegalArgumentException.class, () -> store.copyFrom(9,
+                temp.resolve("missing.png")));
         Path fake = temp.resolve("fake.png");
         Files.writeString(fake, "not a picture");
         assertThrows(IllegalArgumentException.class, () -> store.copyFrom(10, fake));

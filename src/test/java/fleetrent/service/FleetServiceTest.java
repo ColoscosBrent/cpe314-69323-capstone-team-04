@@ -32,7 +32,8 @@ class FleetServiceTest {
         db = new Database("jdbc:sqlite::memory:");
         db.createTables();
         fleet = new FleetService(db);
-        Vehicle v = VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White", 1500, 1000,
+        Vehicle v = VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+                1500, 1000,
                 null, "Car > Sedan");
         vehicleId = db.insertVehicle(v);
         renterId = db.insertRenter(new Renter(0, "Ana Reyes", "09171234567", null, null));
@@ -59,13 +60,15 @@ class FleetServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.startRental(renterId, vehicleId, TODAY, TODAY.plusDays(2)));
         BookingService booking = new BookingService(db, () -> TODAY);
-        assertThrows(IllegalStateException.class, () -> booking.rentNow(renterId, vehicleId, TODAY.plusDays(2)));
+        assertThrows(IllegalStateException.class, () -> booking.rentNow(renterId, vehicleId,
+                TODAY.plusDays(2)));
     }
 
     @Test
     void cannotRemoveAVehicleThatIsRentedOutNow() throws SQLException {
         new RentalService(db).startRental(renterId, vehicleId, TODAY, TODAY.plusDays(2));
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> fleet.removeVehicle(vehicleId));
+        IllegalStateException e = assertThrows(IllegalStateException.class, () ->
+                fleet.removeVehicle(vehicleId));
         assertTrue(e.getMessage().contains("rented out"));
         assertEquals(1, db.getAllVehicles().size());
     }
@@ -99,7 +102,8 @@ class FleetServiceTest {
     @Test
     void restoreIsRefusedWhenAnotherVehicleUsesThePlate() throws SQLException {
         fleet.removeVehicle(vehicleId);
-        db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "ABC 123", "Black", 2500, 0,
+        db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "ABC 123",
+                "Black", 2500, 0,
                 null, "Car > SUV"));
         assertThrows(IllegalStateException.class, () -> fleet.restoreVehicle(vehicleId));
     }
@@ -112,7 +116,8 @@ class FleetServiceTest {
 
     @Test
     void editChangesTheDetailsAndKeepsTheId() throws SQLException {
-        Vehicle edited = VehicleFactory.create(vehicleId, "SEDAN", "Toyota", "Vios", 2023, "XYZ 999", "Black",
+        Vehicle edited = VehicleFactory.create(vehicleId, "SEDAN", "Toyota", "Vios", 2023,
+                "XYZ 999", "Black",
                 1800, 1200, LocalDate.of(2026, 10, 1), "Car > Sedan > Compact Sedan");
         fleet.updateVehicle(edited);
         Vehicle saved = db.getVehicleById(vehicleId);
@@ -127,12 +132,15 @@ class FleetServiceTest {
 
     @Test
     void editRefusesAPlateOfAnotherVehicleButAllowsItsOwnPlate() throws SQLException {
-        db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "QQQ 111", "Black", 2500, 0,
+        db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "QQQ 111",
+                "Black", 2500, 0,
                 null, "Car > SUV"));
-        Vehicle clash = VehicleFactory.create(vehicleId, "SEDAN", "Toyota", "Vios", 2022, "qqq 111", "White", 1500, 0,
+        Vehicle clash = VehicleFactory.create(vehicleId, "SEDAN", "Toyota", "Vios", 2022,
+                "qqq 111", "White", 1500, 0,
                 null, "Car > Sedan");
         assertThrows(IllegalStateException.class, () -> fleet.updateVehicle(clash));
-        Vehicle same = VehicleFactory.create(vehicleId, "SEDAN", "Toyota", "Vios", 2022, "abc 123", "Red", 1600, 0,
+        Vehicle same = VehicleFactory.create(vehicleId, "SEDAN", "Toyota", "Vios", 2022, "abc 123",
+                "Red", 1600, 0,
                 null, "Car > Sedan");
         fleet.updateVehicle(same);
         assertEquals("Red", db.getVehicleById(vehicleId).getColor());
@@ -140,7 +148,8 @@ class FleetServiceTest {
 
     @Test
     void editCannotChangeTheType() {
-        Vehicle other = VehicleFactory.create(vehicleId, "SUV", "Toyota", "Vios", 2022, "ABC 123", "White", 1500, 0,
+        Vehicle other = VehicleFactory.create(vehicleId, "SUV", "Toyota", "Vios", 2022, "ABC 123",
+                "White", 1500, 0,
                 null, "Car > SUV");
         assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(other));
     }
@@ -148,15 +157,22 @@ class FleetServiceTest {
     @Test
     void oldDatabaseWithoutTheActiveColumnIsMigrated() throws Exception {
         try (Database old = new Database("jdbc:sqlite::memory:")) {
-            // This connection is separate, so build the old table by hand and then run createTables on it.
+            // This connection is separate, so build the old table by hand and then run createTables
+            // on it.
             java.lang.reflect.Field f = Database.class.getDeclaredField("connection");
             f.setAccessible(true);
             java.sql.Connection c = (java.sql.Connection) f.get(old);
             try (java.sql.Statement st = c.createStatement()) {
-                st.execute("CREATE TABLE Vehicle (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL, "
-                        + "make TEXT NOT NULL, model TEXT NOT NULL, year INTEGER, plateNumber TEXT, color TEXT, "
-                        + "dailyRate REAL NOT NULL, mileage INTEGER NOT NULL DEFAULT 0, lastPMS TEXT, categoryPath TEXT)");
-                st.execute("INSERT INTO Vehicle (type, make, model, year, plateNumber, color, dailyRate) "
+                st.execute(
+                        "CREATE TABLE Vehicle (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT "
+                        + "NOT NULL, "
+                        + "make TEXT NOT NULL, model TEXT NOT NULL, year INTEGER, plateNumber "
+                                + "TEXT, color TEXT, "
+                        + "dailyRate REAL NOT NULL, mileage INTEGER NOT NULL DEFAULT 0, lastPMS "
+                                + "TEXT, categoryPath TEXT)");
+                st.execute(
+                        "INSERT INTO Vehicle (type, make, model, year, plateNumber, color, "
+                        + "dailyRate) "
                         + "VALUES ('SEDAN', 'Honda', 'City', 2020, 'OLD 111', 'Blue', 1400)");
             }
             old.createTables();

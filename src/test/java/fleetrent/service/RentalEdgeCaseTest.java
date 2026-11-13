@@ -35,7 +35,8 @@ class RentalEdgeCaseTest {
         db = new Database("jdbc:sqlite::memory:");
         db.createTables();
         service = new RentalService(db);
-        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022,
+                "ABC 123", "White",
                 1500, 0, null, "Car > Sedan"));
         renterId = db.insertRenter(new Renter(0, "Ana Reyes", "0917", null, null));
     }
@@ -50,23 +51,30 @@ class RentalEdgeCaseTest {
         IllegalArgumentException a = assertThrows(IllegalArgumentException.class,
                 () -> service.startRental(renterId, vehicleId, null, TODAY));
         assertTrue(a.getMessage().length() > 5);
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, vehicleId, TODAY, null));
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, vehicleId, TODAY, TODAY.minusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, vehicleId,
+                TODAY, null));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, vehicleId,
+                TODAY, TODAY.minusDays(1)));
     }
 
     @Test
     void unknownRenterOrVehicleIsRefusedAndNothingIsSaved() throws SQLException {
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(999, vehicleId, TODAY, TODAY.plusDays(1)));
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, 999, TODAY, TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(999, vehicleId,
+                TODAY, TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, 999,
+                TODAY, TODAY.plusDays(1)));
         assertTrue(db.getAllRentals().isEmpty());
     }
 
     @Test
     void returningBeforeTheStartDateOrWithNegativeMilesIsRefused() throws SQLException {
         Rental r = service.startRental(renterId, vehicleId, TODAY, TODAY.plusDays(3));
-        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), TODAY.minusDays(1), 10));
-        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), TODAY, -1));
-        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), null, 10));
+        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(),
+                TODAY.minusDays(1), 10));
+        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), TODAY,
+                -1));
+        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), null,
+                10));
         assertThrows(IllegalArgumentException.class, () -> service.returnRental(999, TODAY, 10));
         assertEquals(RentalStatus.ONGOING, db.getRentalById(r.getId()).getStatus());
         assertEquals(0, db.getVehicleById(vehicleId).getMileage());
@@ -94,7 +102,8 @@ class RentalEdgeCaseTest {
 
     @Test
     void undoGoesBackOneRentalAtATimeNewestFirst() throws SQLException {
-        int second = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "SUV 1", "Black", 2500,
+        int second = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021,
+                "SUV 1", "Black", 2500,
                 0, null, "Car > SUV"));
         Rental first = service.startRental(renterId, vehicleId, TODAY, TODAY.plusDays(1));
         Rental newest = service.startRental(renterId, second, TODAY, TODAY.plusDays(1));
@@ -107,14 +116,17 @@ class RentalEdgeCaseTest {
     @Test
     void waitingForARemovedVehicleIsNotPossible() throws SQLException {
         new FleetService(db).removeVehicle(vehicleId);
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, vehicleId, TODAY, TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterId, vehicleId,
+                TODAY, TODAY.plusDays(1)));
         assertEquals(0, service.waitingCount(vehicleId));
     }
 
     @Test
     void anOwnerRentalOnDaysHeldByAReservationIsRefusedAndNothingIsSaved() throws SQLException {
-        new BookingService(db, () -> TODAY).reserve(renterId, vehicleId, TODAY.plusDays(2), TODAY.plusDays(4));
-        assertThrows(IllegalStateException.class, () -> service.startRental(renterId, vehicleId, TODAY.plusDays(3),
+        new BookingService(db, () -> TODAY).reserve(renterId, vehicleId, TODAY.plusDays(2),
+                TODAY.plusDays(4));
+        assertThrows(IllegalStateException.class, () -> service.startRental(renterId, vehicleId,
+                TODAY.plusDays(3),
                 TODAY.plusDays(5)));
         assertTrue(db.getAllRentals().isEmpty());
         // the days before the reservation are still free
@@ -135,7 +147,8 @@ class RentalEdgeCaseTest {
 
     @Test
     void aFileFromExcelWithAnInvisibleMarkAtTheStartStillHasItsHeaderSkipped() throws SQLException {
-        List<String> lines = Arrays.asList("﻿" + RentalCsvImporter.HEADER, "ABC 123,Ana Reyes,2026-03-01,2026-03-04,100");
+        List<String> lines = Arrays.asList("﻿" + RentalCsvImporter.HEADER,
+                "ABC 123,Ana Reyes,2026-03-01,2026-03-04,100");
         ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
         assertEquals(1, result.getImported());
         assertEquals(0, result.getSkipped());
@@ -143,7 +156,8 @@ class RentalEdgeCaseTest {
 
     @Test
     void blankLinesSpacesAndLowerCasePlatesAreAccepted() throws SQLException {
-        List<String> lines = Arrays.asList(RentalCsvImporter.HEADER, "", "   ", " abc 123 , Ana Reyes ,2026-03-01,2026-03-04, 100 ",
+        List<String> lines = Arrays.asList(RentalCsvImporter.HEADER, "", "   ",
+                " abc 123 , Ana Reyes ,2026-03-01,2026-03-04, 100 ",
                 "");
         ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
         assertEquals(1, result.getImported());
@@ -154,7 +168,8 @@ class RentalEdgeCaseTest {
     void aRemovedVehiclesPlateIsNotImportedInto() throws SQLException {
         new FleetService(db).removeVehicle(vehicleId);
         ImportResult result = new RentalCsvImporter().importLines(
-                Arrays.asList(RentalCsvImporter.HEADER, "ABC 123,Ana Reyes,2026-03-01,2026-03-04,100"), db, null);
+                Arrays.asList(RentalCsvImporter.HEADER,
+                        "ABC 123,Ana Reyes,2026-03-01,2026-03-04,100"), db, null);
         assertEquals(0, result.getImported());
         assertEquals(1, result.getSkipped());
     }
@@ -171,7 +186,7 @@ class RentalEdgeCaseTest {
     }
 
     @Test
-    void aTextLineWithQuotesOrTheWrongNumberOfColumnsIsSkippedWithItsLineNumber() throws SQLException {
+    void badQuotesOrColumnCountIsSkippedWithItsLineNumber() throws SQLException {
         ImportResult result = new RentalCsvImporter().importLines(Arrays.asList(
                 RentalCsvImporter.HEADER,
                 "ABC 123,\"Cruz, Maria\",2026-03-01,2026-03-02,10",

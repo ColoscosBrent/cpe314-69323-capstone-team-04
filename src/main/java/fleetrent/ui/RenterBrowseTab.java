@@ -42,8 +42,33 @@ import javafx.scene.shape.Circle;
  * Reserve and Undo buttons.
  */
 public class RenterBrowseTab extends Tab {
+    private static final double START_PICKER_PREF_WIDTH = 250;
+    private static final double END_PICKER_PREF_WIDTH = 250;
+    private static final double TYPE_FILTER_PREF_WIDTH = 250;
+    private static final double DATE_NOTE_MAX_WIDTH = 230;
+    private static final double RULE_MAX_WIDTH = 230;
+    private static final double FILTER_CARD_PREF_WIDTH = 270;
+    private static final double FILTER_CARD_MIN_WIDTH = 270;
+    private static final double FILTER_CARD_MAX_WIDTH = 270;
+    private static final Insets CARDS_PADDING = new Insets(4);
+    private static final double CARD_SCROLL_MIN_WIDTH = 300;
+    private static final double DETAIL_PREF_WIDTH = 350;
+    private static final double DETAIL_MIN_WIDTH = 350;
+    private static final double DETAIL_MAX_WIDTH = 350;
+    private static final double BOOK_STATUS_MAX_WIDTH = 310;
+    private static final Insets CONTENT_PADDING = new Insets(16, 18, 16, 18);
+    private static final double CONTENT_MIN_WIDTH = 990;
+    private static final double NAME_MAX_WIDTH = 220;
+    private static final double FEE_MAX_WIDTH = 220;
+    private static final double BOX_PREF_WIDTH = 256;
+    private static final double BOX_MIN_WIDTH = 256;
+    private static final double BOX_MAX_WIDTH = 256;
+    private static final double BOX_MIN_HEIGHT = 330;
+    private static final double FEES_MAX_WIDTH = 310;
+    private static final double WHY_MAX_WIDTH = 310;
     private static final String ALL_TYPES = "All types";
-    private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
+    private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy",
+            Locale.ENGLISH);
 
     private final RenterController controller;
     private final VehiclePictures pictures;
@@ -59,7 +84,7 @@ public class RenterBrowseTab extends Tab {
     private final Label totalNumber = new Label("0");
     private final Label dateNote = new Label();
     private final Label listNote = new Label();
-    private final VBox detail = new VBox(10);
+    private final VBox detail = new VBox(Layout.GAP_MEDIUM);
     private final Label bookStatus = new Label();
     private final Button rentButton = new Button("Rent today");
     private final Button reserveButton = new Button("Reserve these days");
@@ -70,7 +95,8 @@ public class RenterBrowseTab extends Tab {
     private boolean loading;
 
     /** Creates a renter browse tab. */
-    public RenterBrowseTab(RenterController controller, VehiclePictures pictures, int renterId, Runnable onBookingChanged) {
+    public RenterBrowseTab(RenterController controller, VehiclePictures pictures, int renterId,
+            Runnable onBookingChanged) {
         super("Cars");
         this.controller = controller;
         this.pictures = pictures;
@@ -83,14 +109,15 @@ public class RenterBrowseTab extends Tab {
         endPicker.setValue(today.plusDays(2));
         startPicker.setEditable(false);
         endPicker.setEditable(false);
-        startPicker.setPrefWidth(250);
-        endPicker.setPrefWidth(250);
+        startPicker.setPrefWidth(START_PICKER_PREF_WIDTH);
+        endPicker.setPrefWidth(END_PICKER_PREF_WIDTH);
         startPicker.setDayCellFactory(p -> new DateCell() {
             @Override
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
                 setDisable(empty || date.isBefore(controller.today())
-                        || date.isAfter(controller.today().plusDays(RenterController.MAX_DAYS_AHEAD)));
+                        || date.isAfter(controller.today()
+                                .plusDays(RenterController.MAX_DAYS_AHEAD)));
             }
         });
         endPicker.setDayCellFactory(p -> new DateCell() {
@@ -99,7 +126,8 @@ public class RenterBrowseTab extends Tab {
                 super.updateItem(date, empty);
                 LocalDate start = startPicker.getValue();
                 setDisable(empty || date.isBefore(start == null ? controller.today() : start)
-                        || date.isAfter((start == null ? controller.today() : start).plusDays(RenterController.MAX_DAYS)));
+                        || date.isAfter((start == null ? controller.today() : start)
+                                .plusDays(RenterController.MAX_DAYS)));
             }
         });
         startPicker.valueProperty().addListener((obs, o, n) -> {
@@ -116,7 +144,7 @@ public class RenterBrowseTab extends Tab {
         typeFilter.getItems().add(ALL_TYPES);
         typeFilter.getItems().addAll(VehicleTypes.ALL);
         typeFilter.setValue(ALL_TYPES);
-        typeFilter.setPrefWidth(250);
+        typeFilter.setPrefWidth(TYPE_FILTER_PREF_WIDTH);
         typeFilter.valueProperty().addListener((obs, o, n) -> refresh());
         onlyFree.setSelected(false);
         onlyFree.setWrapText(true);
@@ -124,40 +152,46 @@ public class RenterBrowseTab extends Tab {
 
         freeNumber.getStyleClass().add("stat-number");
         totalNumber.getStyleClass().add("stat-number");
-        HBox stats = new HBox(10, tile(freeNumber, "available"), tile(totalNumber, "in the fleet"));
+        HBox stats = new HBox(Layout.GAP_MEDIUM, tile(freeNumber, "available"), tile(totalNumber,
+                "in the fleet"));
         dateNote.getStyleClass().add("hint-label");
         dateNote.setWrapText(true);
-        dateNote.setMaxWidth(230);
-        Label rule = new Label("Starting today? Press Rent. Starting on a later day? Press Reserve (up to "
-                + RenterController.MAX_DAYS_AHEAD + " days ahead, up to " + RenterController.MAX_DAYS + " days long). "
+        dateNote.setMaxWidth(DATE_NOTE_MAX_WIDTH);
+        Label rule = new Label(
+                "Starting today? Press Rent. Starting on a later day? Press Reserve (up to "
+                + RenterController.MAX_DAYS_AHEAD + " days ahead, up to "
+                        + RenterController.MAX_DAYS + " days long). "
                 + "The start day and the last day are both held for you.");
         rule.getStyleClass().add("hint-label");
         rule.setWrapText(true);
-        rule.setMaxWidth(230);
-        VBox filterCard = new VBox(10, UiHelper.title("Your dates"), labeled("First day", startPicker),
-                labeled("Last day", endPicker), dateNote, labeled("Type", typeFilter), onlyFree, stats, rule);
+        rule.setMaxWidth(RULE_MAX_WIDTH);
+        VBox filterCard = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Your dates"),
+                labeled("First day",
+                startPicker),
+                labeled("Last day", endPicker), dateNote, labeled("Type", typeFilter), onlyFree,
+                        stats, rule);
         filterCard.getStyleClass().add("card");
-        filterCard.setPrefWidth(270);
-        filterCard.setMinWidth(270);
-        filterCard.setMaxWidth(270);
+        filterCard.setPrefWidth(FILTER_CARD_PREF_WIDTH);
+        filterCard.setMinWidth(FILTER_CARD_MIN_WIDTH);
+        filterCard.setMaxWidth(FILTER_CARD_MAX_WIDTH);
 
-        cards.setPadding(new Insets(4));
+        cards.setPadding(CARDS_PADDING);
         cards.setAlignment(Pos.TOP_LEFT);
         listNote.getStyleClass().add("status-label");
         listNote.setWrapText(true);
-        VBox cardsBox = new VBox(10, cards, listNote);
+        VBox cardsBox = new VBox(Layout.GAP_MEDIUM, cards, listNote);
         ScrollPane cardScroll = new ScrollPane(cardsBox);
         cardScroll.setFitToWidth(true);
         cardScroll.getStyleClass().add("page-scroll");
         cardScroll.setFocusTraversable(false);
         HBox.setHgrow(cardScroll, Priority.ALWAYS);
-        cardScroll.setMinWidth(300);
+        cardScroll.setMinWidth(CARD_SCROLL_MIN_WIDTH);
         cardScroll.setPrefViewportWidth(300);
 
         detail.getStyleClass().add("card");
-        detail.setPrefWidth(350);
-        detail.setMinWidth(350);
-        detail.setMaxWidth(350);
+        detail.setPrefWidth(DETAIL_PREF_WIDTH);
+        detail.setMinWidth(DETAIL_MIN_WIDTH);
+        detail.setMaxWidth(DETAIL_MAX_WIDTH);
         for (Button b : new Button[] {rentButton, reserveButton, undoButton}) {
             b.setMinWidth(Region.USE_PREF_SIZE);
         }
@@ -166,15 +200,15 @@ public class RenterBrowseTab extends Tab {
         undoButton.getStyleClass().add("secondary-button");
         bookStatus.getStyleClass().add("status-label");
         bookStatus.setWrapText(true);
-        bookStatus.setMaxWidth(310);
+        bookStatus.setMaxWidth(BOOK_STATUS_MAX_WIDTH);
         bookStatus.setMinHeight(Region.USE_PREF_SIZE);
         rentButton.setOnAction(e -> rent());
         reserveButton.setOnAction(e -> reserve());
         undoButton.setOnAction(e -> undo());
 
-        HBox content = new HBox(16, filterCard, cardScroll, detail);
-        content.setPadding(new Insets(16, 18, 16, 18));
-        content.setMinWidth(990);
+        HBox content = new HBox(Layout.GAP_LARGE, filterCard, cardScroll, detail);
+        content.setPadding(CONTENT_PADDING);
+        content.setMinWidth(CONTENT_MIN_WIDTH);
         setContent(UiHelper.scroll(content));
         refresh();
     }
@@ -182,7 +216,7 @@ public class RenterBrowseTab extends Tab {
     private static VBox labeled(String text, Node control) {
         Label l = new Label(text);
         l.getStyleClass().add("field-label");
-        return new VBox(3, l, control);
+        return new VBox(Layout.GAP_HAIR, l, control);
     }
 
     private static VBox tile(Label number, String caption) {
@@ -225,10 +259,12 @@ public class RenterBrowseTab extends Tab {
             freeNumber.setText(String.valueOf(free));
             totalNumber.setText(String.valueOf(offers.size()));
             int days = RentalMath.billableDays(start, end);
-            dateNote.setText(start.format(SHORT) + " to " + end.format(SHORT) + " = " + days + " day" + (days == 1 ? "" : "s")
+            dateNote.setText(start.format(SHORT) + " to " + end.format(SHORT) + " = " + days
+                    + " day" + (days == 1 ? "" : "s")
                     + (start.equals(controller.today()) ? "  (starts today)" : ""));
             showCards(start, end);
-            if (selectedId != null && offers.stream().noneMatch(o -> o.vehicle().getId() == selectedId)) {
+            if (selectedId != null && offers.stream().noneMatch(o -> o.vehicle()
+                    .getId() == selectedId)) {
                 selectedId = null;
                 UiHelper.setStatus(bookStatus, "That car is not in the fleet anymore.", true);
             }
@@ -258,7 +294,8 @@ public class RenterBrowseTab extends Tab {
         for (Offer offer : offers) {
             Vehicle v = offer.vehicle();
             boolean free = offer.availability() == Availability.AVAILABLE;
-            if (!ALL_TYPES.equals(typeFilter.getValue()) && !v.getType().equals(typeFilter.getValue())) {
+            if (!ALL_TYPES.equals(typeFilter.getValue()) && !v.getType()
+                    .equals(typeFilter.getValue())) {
                 continue;
             }
             if (onlyFree.isSelected() && !free) {
@@ -268,9 +305,11 @@ public class RenterBrowseTab extends Tab {
             shown++;
         }
         if (offers.isEmpty()) {
-            UiHelper.setStatus(listNote, "There are no cars yet. The owner has not added any vehicle.", false);
+            UiHelper.setStatus(listNote,
+                    "There are no cars yet. The owner has not added any vehicle.", false);
         } else if (shown == 0) {
-            UiHelper.setStatus(listNote, "No car matches this filter. Try another type or untick the box.", false);
+            UiHelper.setStatus(listNote,
+                    "No car matches this filter. Try another type or untick the box.", false);
         } else {
             listNote.setText("");
         }
@@ -281,7 +320,7 @@ public class RenterBrowseTab extends Tab {
         Label name = new Label(v.displayName());
         name.getStyleClass().add("vehicle-name");
         name.setWrapText(true);
-        name.setMaxWidth(220);
+        name.setMaxWidth(NAME_MAX_WIDTH);
         name.setMinHeight(Region.USE_PREF_SIZE);
         Label type = new Label(v.getType());
         type.getStyleClass().addAll("badge", "badge-" + v.getType().toLowerCase(Locale.ROOT));
@@ -290,22 +329,23 @@ public class RenterBrowseTab extends Tab {
         chip.setStroke(Color.web("#f5b800"));
         Label color = new Label(v.getColor() == null ? "" : v.getColor());
         color.getStyleClass().add("color-name");
-        HBox row = new HBox(6, chip, color, type);
+        HBox row = new HBox(Layout.GAP_SMALL, chip, color, type);
         row.setAlignment(Pos.CENTER_LEFT);
         Label rate = new Label(money(v.getDailyRate()) + " / day");
         rate.getStyleClass().add("price-big");
         Label fee = new Label("+ " + money(v.getFeePerExtraMile()) + " per extra mile after "
                 + v.getFreeMilesPerDay() + " free miles a day");
         fee.getStyleClass().add("fee-text");
-        fee.setMaxWidth(220);
+        fee.setMaxWidth(FEE_MAX_WIDTH);
         Label total = new Label("Your dates: " + money(RenterController.estimate(v, start, end)));
         total.getStyleClass().add("hint-label");
-        VBox box = new VBox(6, pictures.stage(v, 232, 132), name, state, row, rate, fee, total);
+        VBox box = new VBox(Layout.GAP_SMALL, pictures.stage(v, 232, 132), name, state, row, rate,
+                fee, total);
         box.getStyleClass().add("offer-card");
-        box.setPrefWidth(256);
-        box.setMinWidth(256);
-        box.setMaxWidth(256);
-        box.setMinHeight(330);
+        box.setPrefWidth(BOX_PREF_WIDTH);
+        box.setMinWidth(BOX_MIN_WIDTH);
+        box.setMaxWidth(BOX_MAX_WIDTH);
+        box.setMinHeight(BOX_MIN_HEIGHT);
         if (offer.availability() != Availability.AVAILABLE) {
             box.getStyleClass().add("offer-dim");
         }
@@ -332,7 +372,8 @@ public class RenterBrowseTab extends Tab {
                 l.getStyleClass().addAll("badge", "badge-available");
                 break;
             case RENTED:
-                l = new Label("RENTED" + (offer.rentedUntil() == null ? "" : " until " + offer.rentedUntil().format(SHORT)));
+                l = new Label("RENTED" + (offer.rentedUntil() == null ? "" : " until "
+                        + offer.rentedUntil().format(SHORT)));
                 l.getStyleClass().addAll("badge", "badge-rented");
                 break;
             default:
@@ -349,10 +390,13 @@ public class RenterBrowseTab extends Tab {
         Offer offer = selectedOffer();
         undoButton.setDisable(!controller.canUndo());
         if (offer == null) {
-            Label empty = new Label("Click a car to see its details, the days it is busy, and to book it.");
+            Label empty = new Label(
+                    "Click a car to see its details, the days it is busy, and to book it.");
             empty.getStyleClass().add("hint-label");
             empty.setWrapText(true);
-            detail.getChildren().setAll(UiHelper.title("Your booking"), empty, new HBox(10, undoButton), bookStatus);
+            detail.getChildren().setAll(UiHelper.title("Your booking"), empty,
+                    new HBox(Layout.GAP_MEDIUM,
+                    undoButton), bookStatus);
             return;
         }
         Vehicle v = offer.vehicle();
@@ -367,11 +411,44 @@ public class RenterBrowseTab extends Tab {
         meta.setWrapText(true);
         Label rate = new Label(money(v.getDailyRate()) + " per day");
         rate.getStyleClass().add("price-big");
-        Label fees = new Label("Extra fees: " + v.feeSummary() + ". Extra miles are counted when the car is returned.");
+        Label fees = new Label("Extra fees: " + v.feeSummary()
+                + ". Extra miles are counted when the car is returned.");
         fees.getStyleClass().add("fee-text");
-        fees.setMaxWidth(310);
+        fees.setMaxWidth(FEES_MAX_WIDTH);
 
-        VBox busyBox = new VBox(3);
+        VBox busyBox = busyDaysBox(offer);
+
+        int days = RentalMath.billableDays(start, end);
+        Label mine = new Label("Your dates: " + start.format(SHORT) + " to " + end.format(SHORT)
+                + " (" + days + " day"
+                + (days == 1 ? "" : "s") + ")");
+        mine.getStyleClass().add("vehicle-details");
+        mine.setWrapText(true);
+        Label estimate = new Label("Rent for these days: " + money(RenterController.estimate(v,
+                start, end)));
+        estimate.getStyleClass().add("vehicle-price");
+        estimate.setWrapText(true);
+        Label why = new Label();
+        why.getStyleClass().add("hint-label");
+        why.setWrapText(true);
+        why.setMaxWidth(WHY_MAX_WIDTH);
+        why.setMinHeight(Region.USE_PREF_SIZE);
+
+        boolean free = offer.availability() == Availability.AVAILABLE;
+        boolean startsToday = start.equals(controller.today());
+        rentButton.setDisable(!(free && startsToday));
+        reserveButton.setDisable(!(free && !startsToday));
+        why.setText(whyText(free, startsToday));
+        FlowPane buttons = new FlowPane(8, 8, rentButton, reserveButton, undoButton);
+        buttons.setPrefWrapLength(330);
+        detail.getChildren().setAll(UiHelper.title("Your booking"), pictures.stage(v, 330, 190),
+                name, meta, rate, fees,
+                busyBox, mine, estimate, why, buttons, bookStatus);
+    }
+
+    // The list of days the car is rented or reserved.
+    private static VBox busyDaysBox(Offer offer) {
+        VBox busyBox = new VBox(Layout.GAP_HAIR);
         Label busyTitle = new Label("Days this car is not free");
         busyTitle.getStyleClass().add("field-label");
         busyBox.getChildren().add(busyTitle);
@@ -381,42 +458,27 @@ public class RenterBrowseTab extends Tab {
             busyBox.getChildren().add(none);
         } else {
             for (BusySpan s : offer.busy()) {
-                Label l = new Label((s.kind().equals("RENTED") ? "Rented   " : "Reserved ") + s.start().format(SHORT)
+                Label l = new Label((s.kind().equals("RENTED") ? "Rented   " : "Reserved ")
+                        + s.start().format(SHORT)
                         + " to " + s.end().format(SHORT));
                 l.getStyleClass().add("vehicle-details");
                 busyBox.getChildren().add(l);
             }
         }
+        return busyBox;
+    }
 
-        int days = RentalMath.billableDays(start, end);
-        Label mine = new Label("Your dates: " + start.format(SHORT) + " to " + end.format(SHORT) + " (" + days + " day"
-                + (days == 1 ? "" : "s") + ")");
-        mine.getStyleClass().add("vehicle-details");
-        mine.setWrapText(true);
-        Label estimate = new Label("Rent for these days: " + money(RenterController.estimate(v, start, end)));
-        estimate.getStyleClass().add("vehicle-price");
-        estimate.setWrapText(true);
-        Label why = new Label();
-        why.getStyleClass().add("hint-label");
-        why.setWrapText(true);
-        why.setMaxWidth(310);
-        why.setMinHeight(Region.USE_PREF_SIZE);
-
-        boolean free = offer.availability() == Availability.AVAILABLE;
-        boolean startsToday = start.equals(controller.today());
-        rentButton.setDisable(!(free && startsToday));
-        reserveButton.setDisable(!(free && !startsToday));
+    // Tells the renter why Rent or Reserve is on or off.
+    private static String whyText(boolean free, boolean startsToday) {
         if (!free) {
-            why.setText("This car is not free on your days. Pick other days, or another car.");
-        } else if (startsToday) {
-            why.setText("Your first day is today, so you can press Rent. To book later days, change the first day.");
-        } else {
-            why.setText("Your first day is later, so you can press Reserve. To take the car today, set the first day to today.");
+            return "This car is not free on your days. Pick other days, or another car.";
         }
-        FlowPane buttons = new FlowPane(8, 8, rentButton, reserveButton, undoButton);
-        buttons.setPrefWrapLength(330);
-        detail.getChildren().setAll(UiHelper.title("Your booking"), pictures.stage(v, 330, 190), name, meta, rate, fees,
-                busyBox, mine, estimate, why, buttons, bookStatus);
+        if (startsToday) {
+            return "Your first day is today, so you can press Rent. To book later days, change "
+                    + "the first day.";
+        }
+        return "Your first day is later, so you can press Reserve. To take the car today, "
+                + "set the first day to today.";
     }
 
     private void rent() {
@@ -427,8 +489,11 @@ public class RenterBrowseTab extends Tab {
         }
         try {
             Rental r = controller.rentNow(renterId, offer.vehicle().getId(), endPicker.getValue());
-            afterChange("Rental #" + r.getId() + " started: " + offer.vehicle().displayName() + " until "
-                    + r.getEndDate().format(SHORT) + ". Pick it up at the shop. The owner closes the rental when you return it.", false);
+            afterChange("Rental #" + r.getId() + " started: " + offer.vehicle().displayName()
+                    + " until "
+                    + r.getEndDate().format(SHORT)
+                            + ". Pick it up at the shop. The owner closes the rental when you "
+                            + "return it.", false);
         } catch (ControllerException ex) {
             afterChange(ex.getMessage(), true);
         }
@@ -441,8 +506,10 @@ public class RenterBrowseTab extends Tab {
             return;
         }
         try {
-            Reservation r = controller.reserve(renterId, offer.vehicle().getId(), startPicker.getValue(), endPicker.getValue());
-            afterChange("Reservation #" + r.getId() + " saved: " + offer.vehicle().displayName() + " from "
+            Reservation r = controller.reserve(renterId, offer.vehicle().getId(),
+                    startPicker.getValue(), endPicker.getValue());
+            afterChange("Reservation #" + r.getId() + " saved: " + offer.vehicle().displayName()
+                    + " from "
                     + r.getStartDate().format(SHORT) + " to " + r.getEndDate().format(SHORT)
                     + ". You can see it in My bookings.", false);
         } catch (ControllerException ex) {

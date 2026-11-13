@@ -4,8 +4,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import javafx.scene.paint.Color;
 
-// Turns the color text of a vehicle ("White", "pearl black", "#ff0000") into a real Color,
-// so the car picture on the screen has the same color as the vehicle in the database.
+/**
+ * Turns the color text of a vehicle ("White", "pearl black", "#ff0000") into a real Color, so the
+ * car picture on the screen has the same color as the vehicle in the database.
+ */
 public final class ColorNames {
     public static final Color FALLBACK = Color.web("#9aa0b4");
 
@@ -36,7 +38,9 @@ public final class ColorNames {
     private ColorNames() {
     }
 
-    // Never returns null. Unknown or empty text gives a neutral gray.
+    /**
+     * Never returns null. Unknown or empty text gives a neutral gray.
+     */
     public static Color toColor(String text) {
         if (text == null || text.isBlank()) {
             return FALLBACK;
@@ -58,13 +62,18 @@ public final class ColorNames {
         }
     }
 
-    // The colors a vehicle can have in FleetRent. NHTSA has no color data, so this fixed list is used.
+    /**
+     * The colors a vehicle can have in FleetRent. NHTSA has no color data, so this fixed list is
+     * used.
+     */
     public static String[] choices() {
         return new String[] {"White", "Black", "Silver", "Gray", "Red", "Maroon", "Blue", "Navy", "Teal",
             "Green", "Yellow", "Gold", "Orange", "Brown", "Beige", "Purple", "Pink"};
     }
 
-    // The color names shown as quick swatches in the Add Vehicle form.
+    /**
+     * The color names shown as quick swatches in the Add Vehicle form.
+     */
     public static String[] swatchNames() {
         return new String[] {"White", "Black", "Silver", "Red", "Blue", "Green", "Orange", "Purple"};
     }

@@ -14,8 +14,10 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.transform.Scale;
 
-// Draws a small picture of a vehicle with plain JavaFX shapes. The body uses the vehicle's real color.
-// The picture is drawn on a 200 x 90 canvas and then scaled to the width you ask for.
+/**
+ * Draws a small picture of a vehicle with plain JavaFX shapes. The body uses the vehicle's real
+ * color. The picture is drawn on a 200 x 90 canvas and then scaled to the width you ask for.
+ */
 public final class CarGraphic {
     private static final double W = 200;
     private static final double H = 90;
@@ -27,7 +29,9 @@ public final class CarGraphic {
     private CarGraphic() {
     }
 
-    // type is SEDAN, SUV or MOTORCYCLE. colorText is the vehicle's color text, for example "Red".
+    /**
+     * type is SEDAN, SUV or MOTORCYCLE. colorText is the vehicle's color text, for example "Red".
+     */
     public static Node create(String type, String colorText, double width) {
         Color body = ColorNames.toColor(colorText);
         Group art = new Group();
@@ -50,6 +54,7 @@ public final class CarGraphic {
         return box;
     }
 
+    /** Returns the picture height that goes with the given width. */
     public static double heightFor(double width) {
         return H * width / W;
     }

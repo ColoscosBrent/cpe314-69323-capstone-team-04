@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS Vehicle (
     dailyRate     REAL NOT NULL,
     mileage       INTEGER NOT NULL DEFAULT 0,
     lastPMS       TEXT,
-    categoryPath  TEXT
+    categoryPath  TEXT,
+    active        INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS Rental (
@@ -30,3 +31,96 @@ CREATE TABLE IF NOT EXISTS Rental (
     milesDriven  INTEGER NOT NULL DEFAULT 0,
     status       TEXT NOT NULL DEFAULT 'ONGOING' CHECK (status IN ('ONGOING', 'RETURNED'))
 );
+
+CREATE TABLE IF NOT EXISTS Account (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    username         TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    role             TEXT NOT NULL CHECK (role IN ('ADMIN', 'RENTER')),
+    displayName      TEXT NOT NULL,
+    phone            TEXT,
+    passwordHash     TEXT NOT NULL,
+    passwordSalt     TEXT NOT NULL,
+    securityQuestion TEXT NOT NULL,
+    answerHash       TEXT NOT NULL,
+    answerSalt       TEXT NOT NULL,
+    renterId         INTEGER REFERENCES Renter(id),
+    createdOn        TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Reservation (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    renterId   INTEGER NOT NULL REFERENCES Renter(id),
+    vehicleId  INTEGER NOT NULL REFERENCES Vehicle(id),
+    startDate  TEXT NOT NULL,
+    endDate    TEXT NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CANCELLED', 'CONVERTED')),
+    note       TEXT,
+    createdOn  TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idxVehiclePlate ON Vehicle(UPPER(plateNumber)) WHERE active = 1;
+
+CREATE INDEX IF NOT EXISTS idxRentalVehicle ON Rental(vehicleId, status);
+CREATE INDEX IF NOT EXISTS idxReservationVehicle ON Reservation(vehicleId, status);
+CREATE INDEX IF NOT EXISTS idxReservationRenter ON Reservation(renterId);
+
+CREATE TABLE IF NOT EXISTS Payment (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    rentalId  INTEGER NOT NULL UNIQUE REFERENCES Rental(id) ON DELETE CASCADE,
+    amount    REAL NOT NULL CHECK (amount >= 0),
+    lateFee   REAL NOT NULL DEFAULT 0 CHECK (lateFee >= 0),
+    paidOn    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Maintenance (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicleId  INTEGER NOT NULL REFERENCES Vehicle(id),
+    doneOn     TEXT NOT NULL,
+    type       TEXT NOT NULL CHECK (type IN ('PMS', 'REPAIR', 'TIRES', 'INSPECTION', 'OTHER')),
+    cost       REAL NOT NULL DEFAULT 0 CHECK (cost >= 0),
+    note       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS WaitingEntry (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicleId  INTEGER NOT NULL REFERENCES Vehicle(id),
+    renterId   INTEGER NOT NULL REFERENCES Renter(id),
+    joinedOn   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CheckoutLog (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    rentalId  INTEGER NOT NULL UNIQUE REFERENCES Rental(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idxMaintenanceVehicle ON Maintenance(vehicleId, doneOn);
+CREATE INDEX IF NOT EXISTS idxWaitingVehicle ON WaitingEntry(vehicleId, id);
+
+CREATE TABLE IF NOT EXISTS ImportBatch (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    fileName     TEXT NOT NULL,
+    importedBy   TEXT,
+    importedOn   TEXT NOT NULL,
+    rowsRead     INTEGER NOT NULL DEFAULT 0,
+    rowsAdded    INTEGER NOT NULL DEFAULT 0,
+    rowsSkipped  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS ImportRecord (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    batchId      INTEGER NOT NULL REFERENCES ImportBatch(id) ON DELETE CASCADE,
+    lineNo       INTEGER NOT NULL,
+    plateNumber  TEXT,
+    vehicleType  TEXT,
+    make         TEXT,
+    model        TEXT,
+    year         INTEGER,
+    renterName   TEXT,
+    startDate    TEXT,
+    endDate      TEXT,
+    milesDriven  INTEGER,
+    status       TEXT NOT NULL CHECK (status IN ('ADDED', 'SKIPPED')),
+    message      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idxImportRecordBatch ON ImportRecord(batchId, status);

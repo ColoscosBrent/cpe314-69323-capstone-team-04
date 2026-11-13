@@ -32,3 +32,6 @@ replay_pid*
 .idea/
 *.iml
 .vscode/
+
+# Car photos saved by the app
+vehicle_images/

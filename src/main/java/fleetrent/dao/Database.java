@@ -2,6 +2,8 @@ package fleetrent.dao;
 
 import fleetrent.model.Account;
 import fleetrent.model.BusySpan;
+import fleetrent.model.ImportBatch;
+import fleetrent.model.ImportRecord;
 import fleetrent.model.Maintenance;
 import fleetrent.model.MaintenanceType;
 import fleetrent.model.Payment;
@@ -24,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,7 +50,7 @@ public class Database implements AutoCloseable {
     }
 
     /**
-     * Reads schema.sql and creates the five tables if they do not exist yet.
+     * Reads schema.sql and creates the eleven tables if they do not exist yet.
      */
     public synchronized void createTables() throws SQLException {
         String script;
@@ -82,6 +85,11 @@ public class Database implements AutoCloseable {
         if (!columnExists("Vehicle", "active")) {
             try (Statement st = connection.createStatement()) {
                 st.execute("ALTER TABLE Vehicle ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+            }
+        }
+        if (!columnExists("Account", "phone")) {
+            try (Statement st = connection.createStatement()) {
+                st.execute("ALTER TABLE Account ADD COLUMN phone TEXT");
             }
         }
     }
@@ -121,7 +129,8 @@ public class Database implements AutoCloseable {
     /** Saves a new renter and gives it its new id. */
     public synchronized int insertRenter(Renter renter) throws SQLException {
         String sql = "INSERT INTO Renter (name, contact, email, address) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, renter.getName());
             ps.setString(2, renter.getContact());
             ps.setString(3, renter.getEmail());
@@ -140,7 +149,8 @@ public class Database implements AutoCloseable {
         try (PreparedStatement ps = connection.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                renters.add(new Renter(rs.getInt("id"), rs.getString("name"), rs.getString("contact"),
+                renters.add(new Renter(rs.getInt("id"), rs.getString("name"),
+                        rs.getString("contact"),
                         rs.getString("email"), rs.getString("address")));
             }
         }
@@ -149,11 +159,14 @@ public class Database implements AutoCloseable {
 
     // ---------- Vehicle ----------
 
-    /** Saves a new vehicle. Throws DuplicatePlateException when its plate is already in the fleet. */
+    /**
+     * Saves a new vehicle. Throws DuplicatePlateException when its plate is already in the fleet.
+     */
     public synchronized int insertVehicle(Vehicle v) throws SQLException {
         String sql = "INSERT INTO Vehicle (type, make, model, year, plateNumber, color, dailyRate, "
                 + "mileage, lastPMS, categoryPath) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, v.getType());
             ps.setString(2, v.getMake());
             ps.setString(3, v.getModel());
@@ -223,7 +236,8 @@ public class Database implements AutoCloseable {
      * True while the vehicle is in the fleet (not removed). False for a removed or unknown vehicle.
      */
     public synchronized boolean isVehicleActive(int vehicleId) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement("SELECT active FROM Vehicle WHERE id = ?")) {
+        try (PreparedStatement ps =
+                connection.prepareStatement("SELECT active FROM Vehicle WHERE id = ?")) {
             ps.setInt(1, vehicleId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() && rs.getInt(1) == 1;
@@ -236,7 +250,8 @@ public class Database implements AutoCloseable {
      * it.
      */
     public synchronized void setVehicleActive(int vehicleId, boolean active) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement("UPDATE Vehicle SET active = ? WHERE id = ?")) {
+        try (PreparedStatement ps =
+                connection.prepareStatement("UPDATE Vehicle SET active = ? WHERE id = ?")) {
             ps.setInt(1, active ? 1 : 0);
             ps.setInt(2, vehicleId);
             ps.executeUpdate();
@@ -249,7 +264,8 @@ public class Database implements AutoCloseable {
      * Saves the edited details of a vehicle. The type is not changed here.
      */
     public synchronized void updateVehicle(Vehicle v) throws SQLException {
-        String sql = "UPDATE Vehicle SET make = ?, model = ?, year = ?, plateNumber = ?, color = ?, "
+        String sql =
+                "UPDATE Vehicle SET make = ?, model = ?, year = ?, plateNumber = ?, color = ?, "
                 + "dailyRate = ?, mileage = ?, lastPMS = ?, categoryPath = ? WHERE id = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, v.getMake());
@@ -278,7 +294,8 @@ public class Database implements AutoCloseable {
     public synchronized int insertRental(Rental r) throws SQLException {
         String sql = "INSERT INTO Rental (renterId, vehicleId, startDate, endDate, returnedOn, "
                 + "milesDriven, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, r.getRenterId());
             ps.setInt(2, r.getVehicleId());
             ps.setString(3, r.getStartDate().toString());
@@ -295,7 +312,9 @@ public class Database implements AutoCloseable {
 
     /** Returns every rental of one renter. */
     public synchronized List<Rental> getRentalsByRenter(int renterId) throws SQLException {
-        String sql = "SELECT id, renterId, vehicleId, startDate, endDate, returnedOn, milesDriven, status "
+        String sql =
+                "SELECT id, renterId, vehicleId, startDate, endDate, returnedOn, milesDriven, "
+                + "status "
                 + "FROM Rental WHERE renterId = ? ORDER BY id";
         List<Rental> rentals = new ArrayList<>();
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -303,10 +322,13 @@ public class Database implements AutoCloseable {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String returned = rs.getString("returnedOn");
-                    rentals.add(new Rental(rs.getInt("id"), rs.getInt("renterId"), rs.getInt("vehicleId"),
-                            LocalDate.parse(rs.getString("startDate")), LocalDate.parse(rs.getString("endDate")),
+                    rentals.add(new Rental(rs.getInt("id"), rs.getInt("renterId"),
+                            rs.getInt("vehicleId"),
+                            LocalDate.parse(rs.getString("startDate")),
+                                    LocalDate.parse(rs.getString("endDate")),
                             returned == null ? null : LocalDate.parse(returned),
-                            rs.getInt("milesDriven"), RentalStatus.valueOf(rs.getString("status"))));
+                            rs.getInt("milesDriven"),
+                                    RentalStatus.valueOf(rs.getString("status"))));
                 }
             }
         }
@@ -327,13 +349,15 @@ public class Database implements AutoCloseable {
     private Rental readRental(ResultSet rs) throws SQLException {
         String returned = rs.getString("returnedOn");
         return new Rental(rs.getInt("id"), rs.getInt("renterId"), rs.getInt("vehicleId"),
-                LocalDate.parse(rs.getString("startDate")), LocalDate.parse(rs.getString("endDate")),
+                LocalDate.parse(rs.getString("startDate")),
+                        LocalDate.parse(rs.getString("endDate")),
                 returned == null ? null : LocalDate.parse(returned),
                 rs.getInt("milesDriven"), RentalStatus.valueOf(rs.getString("status")));
     }
 
     private static final String VEHICLE_COLUMNS =
-            "id, type, make, model, year, plateNumber, color, dailyRate, mileage, lastPMS, categoryPath";
+            "id, type, make, model, year, plateNumber, color, dailyRate, mileage, lastPMS, "
+                    + "categoryPath";
     private static final String RENTAL_COLUMNS =
             "id, renterId, vehicleId, startDate, endDate, returnedOn, milesDriven, status";
 
@@ -355,7 +379,8 @@ public class Database implements AutoCloseable {
      * when there is no match.
      */
     public synchronized Vehicle findVehicleByPlate(String plate) throws SQLException {
-        String sql = "SELECT " + VEHICLE_COLUMNS + " FROM Vehicle WHERE UPPER(plateNumber) = UPPER(?) AND active = 1";
+        String sql = "SELECT " + VEHICLE_COLUMNS
+                + " FROM Vehicle WHERE UPPER(plateNumber) = UPPER(?) AND active = 1";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, plate == null ? "" : plate.trim());
             try (ResultSet rs = ps.executeQuery()) {
@@ -417,7 +442,8 @@ public class Database implements AutoCloseable {
 
     /** Deletes one rental (used by Undo). */
     public synchronized void deleteRental(int id) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM Rental WHERE id = ?")) {
+        try (PreparedStatement ps =
+                connection.prepareStatement("DELETE FROM Rental WHERE id = ?")) {
             ps.setInt(1, id);
             ps.executeUpdate();
         }
@@ -477,37 +503,45 @@ public class Database implements AutoCloseable {
 
     // ---------- Milestone 3 (Week 10 review): accounts ----------
 
-    private static final String ACCOUNT_COLUMNS = "id, username, role, displayName, passwordHash, passwordSalt, "
+    private static final String ACCOUNT_COLUMNS =
+            "id, username, role, displayName, phone, passwordHash, passwordSalt, "
             + "securityQuestion, answerHash, answerSalt, renterId, createdOn";
 
     private Account readAccount(ResultSet rs) throws SQLException {
         int renter = rs.getInt("renterId");
         Integer renterId = rs.wasNull() ? null : renter;
-        return new Account(rs.getInt("id"), rs.getString("username"), Role.valueOf(rs.getString("role")),
-                rs.getString("displayName"), rs.getString("passwordHash"), rs.getString("passwordSalt"),
-                rs.getString("securityQuestion"), rs.getString("answerHash"), rs.getString("answerSalt"),
+        return new Account(rs.getInt("id"), rs.getString("username"),
+                Role.valueOf(rs.getString("role")),
+                rs.getString("displayName"), rs.getString("phone"), rs.getString("passwordHash"),
+                rs.getString("passwordSalt"),
+                rs.getString("securityQuestion"), rs.getString("answerHash"),
+                rs.getString("answerSalt"),
                 renterId, LocalDate.parse(rs.getString("createdOn")));
     }
 
     /** Saves a new account and gives it its new id. */
     public synchronized int insertAccount(Account a) throws SQLException {
-        String sql = "INSERT INTO Account (username, role, displayName, passwordHash, passwordSalt, "
-                + "securityQuestion, answerHash, answerSalt, renterId, createdOn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String sql =
+                "INSERT INTO Account (username, role, displayName, phone, passwordHash, "
+                + "passwordSalt, securityQuestion, answerHash, answerSalt, renterId, createdOn) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, a.getUsername());
             ps.setString(2, a.getRole().name());
             ps.setString(3, a.getDisplayName());
-            ps.setString(4, a.getPasswordHash());
-            ps.setString(5, a.getPasswordSalt());
-            ps.setString(6, a.getSecurityQuestion());
-            ps.setString(7, a.getAnswerHash());
-            ps.setString(8, a.getAnswerSalt());
+            ps.setString(4, a.getPhone());
+            ps.setString(5, a.getPasswordHash());
+            ps.setString(6, a.getPasswordSalt());
+            ps.setString(7, a.getSecurityQuestion());
+            ps.setString(8, a.getAnswerHash());
+            ps.setString(9, a.getAnswerSalt());
             if (a.getRenterId() == null) {
-                ps.setNull(9, java.sql.Types.INTEGER);
+                ps.setNull(10, java.sql.Types.INTEGER);
             } else {
-                ps.setInt(9, a.getRenterId());
+                ps.setInt(10, a.getRenterId());
             }
-            ps.setString(10, a.getCreatedOn().toString());
+            ps.setString(11, a.getCreatedOn().toString());
             ps.executeUpdate();
             int newId = readGeneratedId(ps);
             a.setId(newId);
@@ -518,13 +552,17 @@ public class Database implements AutoCloseable {
     /**
      * Saves a new renter and the account that belongs to it together: both are saved or neither.
      */
-    public synchronized int insertRenterWithAccount(Renter renter, Account account) throws SQLException {
+    public synchronized int insertRenterWithAccount(Renter renter,
+            Account account) throws SQLException {
         beginWrite();
         try {
             insertRenter(renter);
-            Account linked = new Account(0, account.getUsername(), account.getRole(), account.getDisplayName(),
-                    account.getPasswordHash(), account.getPasswordSalt(), account.getSecurityQuestion(),
-                    account.getAnswerHash(), account.getAnswerSalt(), renter.getId(), account.getCreatedOn());
+            Account linked = new Account(0, account.getUsername(), account.getRole(),
+                    account.getDisplayName(), account.getPhone(),
+                    account.getPasswordHash(), account.getPasswordSalt(),
+                    account.getSecurityQuestion(),
+                    account.getAnswerHash(), account.getAnswerSalt(), renter.getId(),
+                    account.getCreatedOn());
             insertAccount(linked);
             commitWrite();
             account.setId(linked.getId());
@@ -560,7 +598,8 @@ public class Database implements AutoCloseable {
     }
 
     /** Saves a new password hash and salt for an account. */
-    public synchronized void updateAccountPassword(int accountId, String hash, String salt) throws SQLException {
+    public synchronized void updateAccountPassword(int accountId, String hash,
+            String salt) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(
                 "UPDATE Account SET passwordHash = ?, passwordSalt = ? WHERE id = ?")) {
             ps.setString(1, hash);
@@ -576,7 +615,8 @@ public class Database implements AutoCloseable {
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? new Renter(rs.getInt("id"), rs.getString("name"), rs.getString("contact"),
+                return rs.next() ? new Renter(rs.getInt("id"), rs.getString("name"),
+                        rs.getString("contact"),
                         rs.getString("email"), rs.getString("address")) : null;
             }
         }
@@ -589,16 +629,20 @@ public class Database implements AutoCloseable {
 
     private Reservation readReservation(ResultSet rs) throws SQLException {
         return new Reservation(rs.getInt("id"), rs.getInt("renterId"), rs.getInt("vehicleId"),
-                LocalDate.parse(rs.getString("startDate")), LocalDate.parse(rs.getString("endDate")),
+                LocalDate.parse(rs.getString("startDate")),
+                        LocalDate.parse(rs.getString("endDate")),
                 ReservationStatus.valueOf(rs.getString("status")), rs.getString("note"),
                 LocalDate.parse(rs.getString("createdOn")));
     }
 
     /** Saves a new reservation. */
     public synchronized int insertReservation(Reservation r) throws SQLException {
-        String sql = "INSERT INTO Reservation (renterId, vehicleId, startDate, endDate, status, note, createdOn) "
+        String sql =
+                "INSERT INTO Reservation (renterId, vehicleId, startDate, endDate, status, note, "
+                + "createdOn) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, r.getRenterId());
             ps.setInt(2, r.getVehicleId());
             ps.setString(3, r.getStartDate().toString());
@@ -630,12 +674,14 @@ public class Database implements AutoCloseable {
     }
 
     /** Returns every reservation of one renter. */
-    public synchronized List<Reservation> getReservationsByRenter(int renterId) throws SQLException {
+    public synchronized List<Reservation> getReservationsByRenter(
+            int renterId) throws SQLException {
         return queryReservations("WHERE renterId = ?", renterId);
     }
 
     private List<Reservation> queryReservations(String where, Integer param) throws SQLException {
-        String sql = "SELECT " + RESERVATION_COLUMNS + " FROM Reservation " + where + " ORDER BY startDate, id";
+        String sql = "SELECT " + RESERVATION_COLUMNS + " FROM Reservation " + where
+                + " ORDER BY startDate, id";
         List<Reservation> list = new ArrayList<>();
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             if (param != null) {
@@ -651,7 +697,8 @@ public class Database implements AutoCloseable {
     }
 
     /** Changes the status of a reservation. */
-    public synchronized void updateReservationStatus(int id, ReservationStatus status, String note) throws SQLException {
+    public synchronized void updateReservationStatus(int id, ReservationStatus status,
+            String note) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(
                 "UPDATE Reservation SET status = ?, note = ? WHERE id = ?")) {
             ps.setString(1, status.name());
@@ -664,9 +711,11 @@ public class Database implements AutoCloseable {
     /**
      * Cancels every ACTIVE reservation of a vehicle. Returns how many were cancelled.
      */
-    public synchronized int cancelActiveReservationsOfVehicle(int vehicleId, String note) throws SQLException {
+    public synchronized int cancelActiveReservationsOfVehicle(int vehicleId,
+            String note) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(
-                "UPDATE Reservation SET status = 'CANCELLED', note = ? WHERE vehicleId = ? AND status = 'ACTIVE'")) {
+                "UPDATE Reservation SET status = 'CANCELLED', note = ? WHERE vehicleId = ? AND "
+                        + "status = 'ACTIVE'")) {
             ps.setString(1, note);
             ps.setInt(2, vehicleId);
             return ps.executeUpdate();
@@ -688,7 +737,8 @@ public class Database implements AutoCloseable {
      * True when an ACTIVE reservation of the vehicle touches any day from start to end (both
      * included).
      */
-    public synchronized boolean hasReservationOverlap(int vehicleId, LocalDate start, LocalDate end) throws SQLException {
+    public synchronized boolean hasReservationOverlap(int vehicleId, LocalDate start,
+            LocalDate end) throws SQLException {
         String sql = "SELECT COUNT(*) FROM Reservation WHERE vehicleId = ? AND status = 'ACTIVE' "
                 + "AND startDate <= ? AND endDate >= ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -705,7 +755,8 @@ public class Database implements AutoCloseable {
      * True when an ONGOING rental touches any day from start to end. A rental that is late (its end
      * date has passed and it is not returned) still blocks the vehicle until today.
      */
-    public synchronized boolean hasRentalOverlap(int vehicleId, LocalDate start, LocalDate end, LocalDate today)
+    public synchronized boolean hasRentalOverlap(int vehicleId, LocalDate start, LocalDate end,
+            LocalDate today)
             throws SQLException {
         String sql = "SELECT COUNT(*) FROM Rental WHERE vehicleId = ? AND status = 'ONGOING' "
                 + "AND startDate <= ? AND MAX(endDate, ?) >= ?";
@@ -724,7 +775,8 @@ public class Database implements AutoCloseable {
      * The days each vehicle is busy (ongoing rentals and active reservations that are not over
      * yet), for every vehicle at once. One query for rentals and one for reservations.
      */
-    public synchronized java.util.Map<Integer, List<BusySpan>> getBusySpans(LocalDate today) throws SQLException {
+    public synchronized java.util.Map<Integer,
+            List<BusySpan>> getBusySpans(LocalDate today) throws SQLException {
         java.util.Map<Integer, List<BusySpan>> map = new java.util.HashMap<>();
         String rentals = "SELECT vehicleId, startDate, MAX(endDate, ?) AS endDay FROM Rental "
                 + "WHERE status = 'ONGOING' ORDER BY startDate";
@@ -735,8 +787,10 @@ public class Database implements AutoCloseable {
                     if (rs.getString("startDate") == null) {
                         continue;
                     }
-                    map.computeIfAbsent(rs.getInt("vehicleId"), k -> new ArrayList<>()).add(new BusySpan(
-                            LocalDate.parse(rs.getString("startDate")), LocalDate.parse(rs.getString("endDay")), "RENTED"));
+                    map.computeIfAbsent(rs.getInt("vehicleId"), k -> new ArrayList<>())
+                            .add(new BusySpan(
+                            LocalDate.parse(rs.getString("startDate")),
+                                    LocalDate.parse(rs.getString("endDay")), "RENTED"));
                 }
             }
         }
@@ -746,8 +800,10 @@ public class Database implements AutoCloseable {
             ps.setString(1, today.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    map.computeIfAbsent(rs.getInt("vehicleId"), k -> new ArrayList<>()).add(new BusySpan(
-                            LocalDate.parse(rs.getString("startDate")), LocalDate.parse(rs.getString("endDate")), "RESERVED"));
+                    map.computeIfAbsent(rs.getInt("vehicleId"), k -> new ArrayList<>())
+                            .add(new BusySpan(
+                            LocalDate.parse(rs.getString("startDate")),
+                                    LocalDate.parse(rs.getString("endDate")), "RESERVED"));
                 }
             }
         }
@@ -761,7 +817,8 @@ public class Database implements AutoCloseable {
      * True when the vehicle is in the fleet and no ongoing rental or active reservation touches any
      * day from start to end (both days included).
      */
-    public synchronized boolean isVehicleFree(int vehicleId, LocalDate start, LocalDate end, LocalDate today)
+    public synchronized boolean isVehicleFree(int vehicleId, LocalDate start, LocalDate end,
+            LocalDate today)
             throws SQLException {
         return isVehicleActive(vehicleId) && !hasRentalOverlap(vehicleId, start, end, today)
                 && !hasReservationOverlap(vehicleId, start, end);
@@ -787,8 +844,12 @@ public class Database implements AutoCloseable {
         }
     }
 
-    /** Saves a reservation only when the vehicle is free on those days. Check and save happen in one transaction. */
-    public synchronized boolean insertReservationIfFree(Reservation r, LocalDate today) throws SQLException {
+    /**
+     * Saves a reservation only when the vehicle is free on those days. Check and save happen in one
+     * transaction.
+     */
+    public synchronized boolean insertReservationIfFree(Reservation r,
+            LocalDate today) throws SQLException {
         beginWrite();
         try {
             if (!isVehicleFree(r.getVehicleId(), r.getStartDate(), r.getEndDate(), today)) {
@@ -834,11 +895,13 @@ public class Database implements AutoCloseable {
     /**
      * Turns a reservation into a rental in one step: both are saved or neither.
      */
-    public synchronized int convertReservationToRental(Reservation reservation, Rental rental) throws SQLException {
+    public synchronized int convertReservationToRental(Reservation reservation,
+            Rental rental) throws SQLException {
         beginWrite();
         try {
             int rentalId = insertRental(rental);
-            updateReservationStatus(reservation.getId(), ReservationStatus.CONVERTED, "Rental #" + rentalId);
+            updateReservationStatus(reservation.getId(), ReservationStatus.CONVERTED, "Rental #"
+                    + rentalId);
             commitWrite();
             reservation.setStatus(ReservationStatus.CONVERTED);
             return rentalId;
@@ -853,7 +916,8 @@ public class Database implements AutoCloseable {
     /** Saves a payment and gives it its new id. */
     public synchronized int insertPayment(Payment p) throws SQLException {
         String sql = "INSERT INTO Payment (rentalId, amount, lateFee, paidOn) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, p.getRentalId());
             ps.setDouble(2, p.getAmount());
             ps.setDouble(3, p.getLateFee());
@@ -920,7 +984,8 @@ public class Database implements AutoCloseable {
         try {
             String sql = "INSERT INTO Maintenance (vehicleId, doneOn, type, cost, note) "
                     + "VALUES (?, ?, ?, ?, ?)";
-            try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement ps = connection.prepareStatement(sql,
+                    Statement.RETURN_GENERATED_KEYS)) {
                 ps.setInt(1, m.getVehicleId());
                 ps.setString(2, m.getDoneOn().toString());
                 ps.setString(3, m.getType().name());
@@ -948,7 +1013,8 @@ public class Database implements AutoCloseable {
     }
 
     /** Returns the maintenance of one vehicle, newest first. */
-    public synchronized List<Maintenance> getMaintenanceByVehicle(int vehicleId) throws SQLException {
+    public synchronized List<Maintenance> getMaintenanceByVehicle(
+            int vehicleId) throws SQLException {
         String sql = "SELECT id, vehicleId, doneOn, type, cost, note FROM Maintenance "
                 + "WHERE vehicleId = ? ORDER BY doneOn DESC, id DESC";
         List<Maintenance> list = new ArrayList<>();
@@ -969,7 +1035,8 @@ public class Database implements AutoCloseable {
     // ---------- Waiting list and check-out log ----------
 
     /** Puts a renter at the end of the waiting line of a vehicle. */
-    public synchronized void addWaiting(int vehicleId, int renterId, LocalDate joinedOn) throws SQLException {
+    public synchronized void addWaiting(int vehicleId, int renterId,
+            LocalDate joinedOn) throws SQLException {
         String sql = "INSERT INTO WaitingEntry (vehicleId, renterId, joinedOn) VALUES (?, ?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, vehicleId);
@@ -1006,7 +1073,8 @@ public class Database implements AutoCloseable {
 
     /** Remembers a check-out so it can be undone later, even after a restart. */
     public synchronized void logCheckout(int rentalId) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement("INSERT INTO CheckoutLog (rentalId) VALUES (?)")) {
+        try (PreparedStatement ps =
+                connection.prepareStatement("INSERT INTO CheckoutLog (rentalId) VALUES (?)")) {
             ps.setInt(1, rentalId);
             ps.executeUpdate();
         }
@@ -1026,10 +1094,124 @@ public class Database implements AutoCloseable {
 
     /** Forgets a logged check-out. */
     public synchronized void removeCheckoutLog(int rentalId) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM CheckoutLog WHERE rentalId = ?")) {
+        try (PreparedStatement ps =
+                connection.prepareStatement("DELETE FROM CheckoutLog WHERE rentalId = ?")) {
             ps.setInt(1, rentalId);
             ps.executeUpdate();
         }
+    }
+
+    // ---------- import history ----------
+
+    /** Saves a new, empty import in the history and returns its id. */
+    public synchronized int insertImportBatch(String fileName, String importedBy,
+            LocalDateTime importedOn) throws SQLException {
+        String sql = "INSERT INTO ImportBatch (fileName, importedBy, importedOn) VALUES (?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, fileName);
+            ps.setString(2, importedBy);
+            ps.setString(3, importedOn.toString());
+            ps.executeUpdate();
+            return readGeneratedId(ps);
+        }
+    }
+
+    /** Writes the final counts of an import. */
+    public synchronized void finishImportBatch(int batchId, int rowsRead, int rowsAdded,
+            int rowsSkipped) throws SQLException {
+        String sql = "UPDATE ImportBatch SET rowsRead = ?, rowsAdded = ?, rowsSkipped = ? "
+                + "WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, rowsRead);
+            ps.setInt(2, rowsAdded);
+            ps.setInt(3, rowsSkipped);
+            ps.setInt(4, batchId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Saves the rows of one import in one transaction. */
+    public synchronized void insertImportRecords(int batchId, List<ImportRecord> records)
+            throws SQLException {
+        String sql = "INSERT INTO ImportRecord (batchId, lineNo, plateNumber, vehicleType, make, "
+                + "model, year, renterName, startDate, endDate, milesDriven, status, message) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        beginWrite();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            for (ImportRecord r : records) {
+                ps.setInt(1, batchId);
+                ps.setInt(2, r.lineNo());
+                ps.setString(3, r.plateNumber());
+                ps.setString(4, r.vehicleType());
+                ps.setString(5, r.make());
+                ps.setString(6, r.model());
+                ps.setObject(7, r.year());
+                ps.setString(8, r.renterName());
+                ps.setString(9, r.startDate() == null ? null : r.startDate().toString());
+                ps.setString(10, r.endDate() == null ? null : r.endDate().toString());
+                ps.setObject(11, r.milesDriven());
+                ps.setString(12, r.added() ? "ADDED" : "SKIPPED");
+                ps.setString(13, r.message());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            commitWrite();
+        } catch (SQLException | RuntimeException e) {
+            rollbackWrite();
+            throw e;
+        }
+    }
+
+    /** Every import, the newest first. */
+    public synchronized List<ImportBatch> getImportBatches() throws SQLException {
+        String sql = "SELECT id, fileName, importedBy, importedOn, rowsRead, rowsAdded, "
+                + "rowsSkipped FROM ImportBatch ORDER BY id DESC";
+        List<ImportBatch> batches = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                batches.add(new ImportBatch(rs.getInt("id"), rs.getString("fileName"),
+                        rs.getString("importedBy"), LocalDateTime.parse(rs.getString("importedOn")),
+                        rs.getInt("rowsRead"), rs.getInt("rowsAdded"), rs.getInt("rowsSkipped")));
+            }
+        }
+        return batches;
+    }
+
+    /**
+     * The rows of one import in file order. Pass "ADDED" or "SKIPPED" to see only those rows, or
+     * null for all. At most limit rows are returned.
+     */
+    public synchronized List<ImportRecord> getImportRecords(int batchId, String status, int limit)
+            throws SQLException {
+        String sql = "SELECT id, batchId, lineNo, plateNumber, vehicleType, make, model, year, "
+                + "renterName, startDate, endDate, milesDriven, status, message FROM ImportRecord "
+                + "WHERE batchId = ? AND (? IS NULL OR status = ?) ORDER BY lineNo LIMIT ?";
+        List<ImportRecord> rows = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, batchId);
+            ps.setString(2, status);
+            ps.setString(3, status);
+            ps.setInt(4, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(readImportRecord(rs));
+                }
+            }
+        }
+        return rows;
+    }
+
+    private ImportRecord readImportRecord(ResultSet rs) throws SQLException {
+        String start = rs.getString("startDate");
+        String end = rs.getString("endDate");
+        return new ImportRecord(rs.getInt("id"), rs.getInt("batchId"), rs.getInt("lineNo"),
+                rs.getString("plateNumber"), rs.getString("vehicleType"), rs.getString("make"),
+                rs.getString("model"), (Integer) rs.getObject("year"), rs.getString("renterName"),
+                start == null ? null : LocalDate.parse(start),
+                end == null ? null : LocalDate.parse(end), (Integer) rs.getObject("milesDriven"),
+                "ADDED".equals(rs.getString("status")), rs.getString("message"));
     }
 
     private int readGeneratedId(PreparedStatement ps) throws SQLException {

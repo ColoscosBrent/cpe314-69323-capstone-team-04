@@ -26,6 +26,11 @@ import java.util.function.IntConsumer;
  * must belong to a vehicle that is already in the database. A new renter name is added.
  */
 public class RentalCsvImporter {
+    private static final int COLUMN_COUNT = 5;
+    private static final int END_COLUMN = 3;
+    private static final int MILES_COLUMN = 4;
+    private static final int PROGRESS_EVERY = 50;
+    private static final int PERCENT_FULL = 100;
     public static final String HEADER = "plateNumber,renterName,startDate,endDate,milesDriven";
     private static final int BATCH_SIZE = 100;
     private static final int MAX_ERRORS_KEPT = 50;
@@ -54,7 +59,7 @@ public class RentalCsvImporter {
      */
     public static Row parseRow(String line, Map<String, Vehicle> vehiclesByPlate) {
         String[] parts = line.split(",", -1);
-        if (parts.length != 5) {
+        if (parts.length != COLUMN_COUNT) {
             throw new IllegalArgumentException("expected 5 columns but found " + parts.length);
         }
         String plate = parts[0].trim().toUpperCase(java.util.Locale.ROOT);
@@ -70,7 +75,7 @@ public class RentalCsvImporter {
         LocalDate end;
         try {
             start = LocalDate.parse(parts[2].trim());
-            end = LocalDate.parse(parts[3].trim());
+            end = LocalDate.parse(parts[END_COLUMN].trim());
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("dates must look like 2026-03-15");
         }
@@ -79,7 +84,7 @@ public class RentalCsvImporter {
         }
         int miles;
         try {
-            miles = Integer.parseInt(parts[4].trim());
+            miles = Integer.parseInt(parts[MILES_COLUMN].trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("miles must be a whole number");
         }
@@ -118,9 +123,11 @@ public class RentalCsvImporter {
         for (int i = 0; i < total; i++) {
             String line = lines.get(i);
             if (i == 0 && line.startsWith("\uFEFF")) {
-                line = line.substring(1); // Excel's "CSV UTF-8" puts an invisible mark at the very start
+                // Excel's "CSV UTF-8" puts an invisible mark at the very start
+                line = line.substring(1);
             }
-            boolean isHeader = i == 0 && line.trim().toLowerCase(java.util.Locale.ROOT).startsWith("platenumber");
+            boolean isHeader = i == 0 && line.trim().toLowerCase(java.util.Locale.ROOT)
+                    .startsWith("platenumber");
             if (!line.isBlank() && !isHeader) {
                 try {
                     Row row = parseRow(line, byPlate);
@@ -143,15 +150,16 @@ public class RentalCsvImporter {
                 result.addImported(db.insertRentalBatch(batch));
                 batch.clear();
             }
-            if (progressPercent != null && (i % 50 == 0 || i == total - 1)) {
-                progressPercent.accept(total == 0 ? 100 : (int) ((i + 1) * 100L / total));
+            if (progressPercent != null && (i % PROGRESS_EVERY == 0 || i == total - 1)) {
+                progressPercent.accept(total == 0 ? PERCENT_FULL : (int) ((i
+                        + 1) * (long) PERCENT_FULL / total));
             }
         }
         if (!batch.isEmpty()) {
             result.addImported(db.insertRentalBatch(batch));
         }
         if (progressPercent != null) {
-            progressPercent.accept(100);
+            progressPercent.accept(PERCENT_FULL);
         }
         return result;
     }

@@ -21,6 +21,7 @@ import java.util.TreeMap;
  * range changes the answer. Only RETURNED rentals are counted, because only they have a final cost.
  */
 public final class FleetAnalytics {
+    private static final double PERCENT = 100.0;
     private FleetAnalytics() {
     }
 
@@ -85,7 +86,8 @@ public final class FleetAnalytics {
      * Number of rentals per month, in time order. Months with no rentals between the first and the
      * last month are shown as 0 so the chart has no holes.
      */
-    public static Map<YearMonth, Integer> rentalsPerMonth(List<Rental> rentals, LocalDate from, LocalDate to) {
+    public static Map<YearMonth, Integer> rentalsPerMonth(List<Rental> rentals, LocalDate from,
+            LocalDate to) {
         TreeMap<YearMonth, Integer> counts = new TreeMap<>();
         for (Rental r : filter(rentals, from, to)) {
             counts.merge(YearMonth.from(r.getStartDate()), 1, Integer::sum);
@@ -126,7 +128,8 @@ public final class FleetAnalytics {
      * in the month) x 100. A vehicle counts once per day even if two rentals overlap, so it never
      * passes 100. Months between the first and the last busy month with no rentals show as 0.
      */
-    public static Map<YearMonth, Double> utilizationByMonth(List<Rental> rentals, List<Vehicle> vehicles,
+    public static Map<YearMonth, Double> utilizationByMonth(List<Rental> rentals,
+            List<Vehicle> vehicles,
                                                             LocalDate from, LocalDate to) {
         TreeMap<YearMonth, Double> result = new TreeMap<>();
         if (vehicles.isEmpty()) {
@@ -143,7 +146,7 @@ public final class FleetAnalytics {
         }
         for (Map.Entry<YearMonth, Set<Long>> e : usedDays.entrySet()) {
             double capacity = (double) vehicles.size() * e.getKey().lengthOfMonth();
-            result.put(e.getKey(), e.getValue().size() * 100.0 / capacity);
+            result.put(e.getKey(), e.getValue().size() * PERCENT / capacity);
         }
         if (!result.isEmpty()) {
             YearMonth m = result.firstKey();
@@ -159,7 +162,8 @@ public final class FleetAnalytics {
     /**
      * The n most rented models (make + model), biggest first. A tie is sorted by name.
      */
-    public static List<Map.Entry<String, Integer>> topModels(List<Rental> rentals, List<Vehicle> vehicles,
+    public static List<Map.Entry<String, Integer>> topModels(List<Rental> rentals,
+            List<Vehicle> vehicles,
                                                              LocalDate from, LocalDate to, int n) {
         if (n < 1) {
             throw new IllegalArgumentException("n must be at least 1");
@@ -198,7 +202,8 @@ public final class FleetAnalytics {
     /**
      * One readable sentence block about what the mining found.
      */
-    public static String summary(List<Rental> rentals, List<Vehicle> vehicles, LocalDate from, LocalDate to) {
+    public static String summary(List<Rental> rentals, List<Vehicle> vehicles, LocalDate from,
+            LocalDate to) {
         List<Rental> kept = filter(rentals, from, to);
         if (kept.isEmpty()) {
             return "No returned rentals in this date range.";
@@ -219,8 +224,11 @@ public final class FleetAnalytics {
                 busiest = e.getKey();
             }
         }
-        return String.format(java.util.Locale.US, "%d rentals, total %.2f. Best earner: %s. Busiest month: %s (%d rentals). Average rental: %.1f days.",
-                kept.size(), total, bestType, busiest, months.get(busiest), averageDays(rentals, from, to));
+        return String.format(java.util.Locale.US,
+                "%d rentals, total %.2f. Best earner: %s. Busiest month: %s (%d rentals). Average "
+                + "rental: %.1f days.",
+                kept.size(), total, bestType, busiest, months.get(busiest), averageDays(rentals,
+                        from, to));
     }
 
     /**
@@ -230,7 +238,8 @@ public final class FleetAnalytics {
     public static CategoryNode mileageTree(List<Vehicle> vehicles) {
         CategoryNode root = new CategoryNode("Fleet");
         for (Vehicle v : vehicles) {
-            root.addVehicle(v.getCategoryPath() == null ? "Uncategorized" : v.getCategoryPath(), v.getMileage());
+            root.addVehicle(v.getCategoryPath() == null ? "Uncategorized" : v.getCategoryPath(),
+                    v.getMileage());
         }
         return root;
     }

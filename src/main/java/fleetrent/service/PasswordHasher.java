@@ -14,6 +14,7 @@ import javax.crypto.spec.PBEKeySpec;
  * library).
  */
 public final class PasswordHasher {
+    private static final int SALT_BYTES = 16;
     private static final int ITERATIONS = 100_000;
     private static final int KEY_BITS = 256;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -25,7 +26,7 @@ public final class PasswordHasher {
      * A new random salt, as text.
      */
     public static String newSalt() {
-        byte[] salt = new byte[16];
+        byte[] salt = new byte[SALT_BYTES];
         RANDOM.nextBytes(salt);
         return Base64.getEncoder().encodeToString(salt);
     }
@@ -38,7 +39,8 @@ public final class PasswordHasher {
             SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
             return Base64.getEncoder().encodeToString(factory.generateSecret(spec).getEncoded());
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("This Java cannot hash passwords: " + e.getMessage(), e);
+            throw new IllegalStateException("This Java cannot hash passwords: " + e.getMessage(),
+                    e);
         }
     }
 

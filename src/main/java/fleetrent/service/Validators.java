@@ -10,6 +10,10 @@ import java.util.regex.Pattern;
  * keys while the user types, and check() to show an error message under the field.
  */
 public final class Validators {
+    private static final int PHONE_DIGITS_MIN = 7;
+    private static final int PHONE_DIGITS_MAX = 15;
+    private static final int ADDRESS_MIN = 5;
+    private static final int PLATE_MIN = 3;
     private Validators() {
     }
 
@@ -87,20 +91,30 @@ public final class Validators {
                 return null;
             case CONTACT:
                 int digits = t.replaceAll("[^0-9]", "").length();
-                if (!CONTACT_OK.matcher(t).matches() || digits < 7 || digits > 15) {
+                if (!CONTACT_OK.matcher(t).matches() || digits < PHONE_DIGITS_MIN
+                        || digits > PHONE_DIGITS_MAX) {
                     return "A phone number needs 7 to 15 digits.";
                 }
                 return null;
             case EMAIL:
-                return EMAIL_OK.matcher(t).matches() ? null : "Enter an email like name@example.com.";
+                return EMAIL_OK.matcher(t).matches() ? null
+                        : "Enter an email like name@example.com.";
             case ADDRESS:
-                if (t.length() < 5 || letterCount(t) < 1) {
+                if (t.length() < ADDRESS_MIN || letterCount(t) < 1) {
                     return "The address is too short (at least 5 characters with a letter).";
                 }
                 return null;
+            default:
+                return checkOther(kind, t);
+        }
+    }
+
+    // The rest of the kinds: plate, digits, money and vehicle text.
+    private static String checkOther(Kind kind, String t) {
+        switch (kind) {
             case PLATE:
                 int alnum = t.replaceAll("[^A-Za-z0-9]", "").length();
-                if (alnum < 3) {
+                if (alnum < PLATE_MIN) {
                     return "A plate number needs at least 3 letters or digits.";
                 }
                 return null;

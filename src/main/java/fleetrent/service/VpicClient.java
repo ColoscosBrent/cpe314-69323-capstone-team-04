@@ -19,12 +19,18 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * Calls the free NHTSA vPIC web service (no API key) and turns the JSON answer into Java objects.
  * Always call it from a background thread, never from the JavaFX UI thread.
  */
 public class VpicClient {
+    private static final long CONNECT_TIMEOUT_SECONDS = 10;
+    private static final long REQUEST_TIMEOUT_SECONDS = 30;
+    private static final int HTTP_OK = 200;
+    private static final int LAST_UNSUPPORTED_YEAR = 1995;
+    private static final Logger LOG = Logger.getLogger(VpicClient.class.getName());
     public static final String DEFAULT_BASE_URL = "https://vpic.nhtsa.dot.gov/api";
 
     private final String baseUrl;
@@ -32,7 +38,7 @@ public class VpicClient {
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.NORMAL)
             .proxy(ProxySelector.getDefault())
-            .connectTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
             .build();
 
     /** Creates the NHTSA vPIC client. */
@@ -51,14 +57,16 @@ public class VpicClient {
     /**
      * All models of a make, for example "Toyota".
      */
-    public List<VehicleModelInfo> fetchModels(String make) throws IOException, InterruptedException {
+    public List<VehicleModelInfo> fetchModels(String make) throws IOException,
+            InterruptedException {
         return fetch(modelsUrl(make));
     }
 
     /**
      * Models of a make for one model year. vPIC only supports years after 1995.
      */
-    public List<VehicleModelInfo> fetchModels(String make, int year) throws IOException, InterruptedException {
+    public List<VehicleModelInfo> fetchModels(String make, int year) throws IOException,
+            InterruptedException {
         return fetch(modelsUrl(make, year));
     }
 
@@ -69,7 +77,7 @@ public class VpicClient {
 
     /** Builds the NHTSA address that lists the models. */
     public String modelsUrl(String make, int year) {
-        if (year <= 1995) {
+        if (year <= LAST_UNSUPPORTED_YEAR) {
             throw new IllegalArgumentException("The API only has model years after 1995.");
         }
         return baseUrl + "/vehicles/GetModelsForMakeYear/make/" + encode(cleanMake(make))
@@ -83,7 +91,7 @@ public class VpicClient {
         String body = get(makesUrl(apiType));
         try {
             List<String> makes = parseMakes(body);
-            System.out.println("[vPIC] parsed " + makes.size() + " makes");
+            LOG.info("[vPIC] parsed " + makes.size() + " makes");
             return makes;
         } catch (IllegalArgumentException e) {
             throw new IOException("NHTSA sent an answer we could not read: " + e.getMessage(), e);
@@ -100,14 +108,15 @@ public class VpicClient {
 
     /** Builds the NHTSA address that lists the makes. */
     public String makesUrl(String apiType) {
-        return baseUrl + "/vehicles/GetMakesForVehicleType/" + encode(cleanType(apiType)) + "?format=json";
+        return baseUrl + "/vehicles/GetMakesForVehicleType/" + encode(cleanType(apiType))
+                + "?format=json";
     }
 
     /** Builds the NHTSA address that lists the models. */
     public String modelsUrl(String make, Integer year, String apiType) {
         String url = baseUrl + "/vehicles/GetModelsForMakeYear/make/" + encode(cleanMake(make));
         if (year != null) {
-            if (year <= 1995) {
+            if (year <= LAST_UNSUPPORTED_YEAR) {
                 throw new IllegalArgumentException("The API only has model years after 1995.");
             }
             url += "/modelyear/" + year;
@@ -119,7 +128,7 @@ public class VpicClient {
         String body = get(url);
         try {
             List<VehicleModelInfo> models = parseModels(body);
-            System.out.println("[vPIC] parsed " + models.size() + " models");
+            LOG.info("[vPIC] parsed " + models.size() + " models");
             return models;
         } catch (IllegalArgumentException e) {
             throw new IOException("NHTSA sent an answer we could not read: " + e.getMessage(), e);
@@ -128,7 +137,7 @@ public class VpicClient {
 
     private String get(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
                 .header("Accept", "application/json")
                 .header("User-Agent", "FleetRent-CPE314/1.0 (student project)")
                 .GET()
@@ -137,8 +146,9 @@ public class VpicClient {
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
         long ms = System.currentTimeMillis() - start;
         // This line is what you show the instructor as proof of a live call.
-        System.out.println("[vPIC] GET " + url + " -> HTTP " + response.statusCode() + " in " + ms + " ms");
-        if (response.statusCode() != 200) {
+        LOG.info("[vPIC] GET " + url + " -> HTTP " + response.statusCode() + " in " + ms
+                + " ms");
+        if (response.statusCode() != HTTP_OK) {
             throw new IOException("NHTSA answered with HTTP " + response.statusCode());
         }
         return response.body();
@@ -205,9 +215,11 @@ public class VpicClient {
                 continue;
             }
             String make = text(o, "Make_Name");
-            models.add(new VehicleModelInfo(make == null ? "" : make.trim(), number(o, "Model_ID"), name.trim()));
+            models.add(new VehicleModelInfo(make == null ? "" : make.trim(), number(o, "Model_ID"),
+                    name.trim()));
         }
-        models.sort(Comparator.comparing(VehicleModelInfo::getModelName, String.CASE_INSENSITIVE_ORDER));
+        models.sort(Comparator.comparing(VehicleModelInfo::getModelName,
+                String.CASE_INSENSITIVE_ORDER));
         return models;
     }
 

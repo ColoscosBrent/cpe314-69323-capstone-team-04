@@ -19,6 +19,13 @@ import java.util.function.LongSupplier;
  * answer 5 times in a row must wait 30 seconds.
  */
 public class AuthService {
+    private static final int USERNAME_MIN = 4;
+    private static final int USERNAME_MAX = 20;
+    private static final int PASSWORD_MIN = 8;
+    private static final int PASSWORD_MAX = 64;
+    private static final int ANSWER_MIN = 2;
+    private static final int ANSWER_MAX = 60;
+    private static final long MILLIS_PER_SECOND = 1000;
     // A new rental owner must type this code when signing up, so a renter cannot make an owner
     // account.
     public static final String OWNER_CODE = "FLEETRENT-OWNER";
@@ -57,7 +64,7 @@ public class AuthService {
      */
     public static String checkUsername(String username) {
         String u = username == null ? "" : username.trim();
-        if (u.length() < 4 || u.length() > 20) {
+        if (u.length() < USERNAME_MIN || u.length() > USERNAME_MAX) {
             return "The username needs 4 to 20 characters.";
         }
         if (!u.matches("[A-Za-z][A-Za-z0-9_.]*")) {
@@ -69,7 +76,7 @@ public class AuthService {
     /** Checks a new password and returns a message when it is too weak, or null when it is fine. */
     public static String checkPassword(String password) {
         String p = password == null ? "" : password;
-        if (p.length() < 8 || p.length() > 64) {
+        if (p.length() < PASSWORD_MIN || p.length() > PASSWORD_MAX) {
             return "The password needs 8 to 64 characters.";
         }
         if (p.chars().anyMatch(Character::isWhitespace)) {
@@ -81,10 +88,13 @@ public class AuthService {
         return null;
     }
 
-    /** Checks the answer to the security question and returns a message when it is not accepted, or null. */
+    /**
+     * Checks the answer to the security question and returns a message when it is not accepted, or
+     * null.
+     */
     public static String checkAnswer(String answer) {
         String a = normalizeAnswer(answer);
-        if (a.length() < 2 || a.length() > 60) {
+        if (a.length() < ANSWER_MIN || a.length() > ANSWER_MAX) {
             return "The answer needs 2 to 60 characters.";
         }
         return null;
@@ -98,17 +108,20 @@ public class AuthService {
     // ---------- sign up ----------
 
     /** Creates an owner account after the owner code is checked. */
-    public Account signUpOwner(String username, String password, String displayName, String question,
+    public Account signUpOwner(String username, String password, String displayName,
+            String question,
                                String answer, String ownerCode) throws AuthException, SQLException {
         if (ownerCode == null || !OWNER_CODE.equals(ownerCode.trim())) {
-            throw new AuthException("The owner code is not correct. Ask the shop for the owner code.");
+            throw new AuthException(
+                    "The owner code is not correct. Ask the shop for the owner code.");
         }
         String nameMessage = Validators.check(Validators.Kind.NAME, displayName, true);
         if (nameMessage != null) {
             throw new AuthException(nameMessage);
         }
         checkNewAccount(username, password, question, answer);
-        Account account = buildAccount(username, Role.ADMIN, Validators.normalize(Validators.Kind.NAME, displayName),
+        Account account = buildAccount(username, Role.ADMIN,
+                Validators.normalize(Validators.Kind.NAME, displayName),
                 password, question, answer, null);
         try {
             db.insertAccount(account);
@@ -135,7 +148,8 @@ public class AuthService {
             throw new AuthException(message);
         }
         checkNewAccount(username, password, question, answer);
-        Account account = buildAccount(username, Role.RENTER, details.getName(), password, question, answer, null);
+        Account account = buildAccount(username, Role.RENTER, details.getName(), password,
+                question, answer, null);
         try {
             db.insertRenterWithAccount(details, account);
         } catch (SQLException e) {
@@ -168,8 +182,10 @@ public class AuthService {
                                  String question, String answer, Integer renterId) {
         String passSalt = PasswordHasher.newSalt();
         String answerSalt = PasswordHasher.newSalt();
-        return new Account(0, username.trim(), role, displayName, PasswordHasher.hash(password, passSalt), passSalt,
-                question, PasswordHasher.hash(normalizeAnswer(answer), answerSalt), answerSalt, renterId,
+        return new Account(0, username.trim(), role, displayName, PasswordHasher.hash(password,
+                passSalt), passSalt,
+                question, PasswordHasher.hash(normalizeAnswer(answer), answerSalt), answerSalt,
+                        renterId,
                 LocalDate.now());
     }
 
@@ -188,7 +204,8 @@ public class AuthService {
         String key = key(username);
         checkLock(key);
         Account account = db.findAccountByUsername(username);
-        if (account == null || !PasswordHasher.matches(password, account.getPasswordSalt(), account.getPasswordHash())) {
+        if (account == null || !PasswordHasher.matches(password, account.getPasswordSalt(),
+                account.getPasswordHash())) {
             registerFailure(key);
             throw new AuthException("The username or the password is not correct.");
         }
@@ -210,14 +227,16 @@ public class AuthService {
     }
 
     /** Sets a new password after the security answer is correct. */
-    public void resetPassword(String username, String answer, String newPassword) throws AuthException, SQLException {
+    public void resetPassword(String username, String answer,
+            String newPassword) throws AuthException, SQLException {
         String key = key(username);
         checkLock(key);
         Account account = db.findAccountByUsername(username);
         if (account == null) {
             throw new AuthException("There is no account with that username.");
         }
-        if (!PasswordHasher.matches(normalizeAnswer(answer), account.getAnswerSalt(), account.getAnswerHash())) {
+        if (!PasswordHasher.matches(normalizeAnswer(answer), account.getAnswerSalt(),
+                account.getAnswerHash())) {
             registerFailure(key);
             throw new AuthException("That answer is not correct.");
         }
@@ -230,14 +249,16 @@ public class AuthService {
     }
 
     /** Changes the password of a signed-in account after the old password is checked. */
-    public void changePassword(int accountId, String oldPassword, String newPassword) throws AuthException, SQLException {
+    public void changePassword(int accountId, String oldPassword,
+            String newPassword) throws AuthException, SQLException {
         Account account = db.getAccountById(accountId);
         if (account == null) {
             throw new AuthException("That account no longer exists.");
         }
         String key = key(account.getUsername());
         checkLock(key);
-        if (!PasswordHasher.matches(oldPassword, account.getPasswordSalt(), account.getPasswordHash())) {
+        if (!PasswordHasher.matches(oldPassword, account.getPasswordSalt(),
+                account.getPasswordHash())) {
             registerFailure(key);
             throw new AuthException("The current password is not correct.");
         }
@@ -267,7 +288,9 @@ public class AuthService {
         }
         long left = until - clock.getAsLong();
         if (left > 0) {
-            throw new AuthException("Too many wrong tries. Wait " + ((left + 999) / 1000) + " seconds and try again.");
+            throw new AuthException("Too many wrong tries. Wait " + ((left
+                    + MILLIS_PER_SECOND - 1) / MILLIS_PER_SECOND)
+                    + " seconds and try again.");
         }
         lockedUntil.remove(key);
         failures.remove(key);

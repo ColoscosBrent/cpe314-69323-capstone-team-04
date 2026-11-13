@@ -30,7 +30,8 @@ public class RentalService {
      * Starts a rental and returns it. If the vehicle is already rented out, the renter joins the
      * waiting list for that vehicle and the method returns null.
      */
-    public Rental startRental(int renterId, int vehicleId, LocalDate start, LocalDate end) throws SQLException {
+    public Rental startRental(int renterId, int vehicleId, LocalDate start,
+            LocalDate end) throws SQLException {
         RentalMath.billableDays(start, end);
         Vehicle vehicle = db.getVehicleById(vehicleId);
         if (vehicle == null) {
@@ -48,7 +49,8 @@ public class RentalService {
             return null;
         }
         if (db.hasReservationOverlap(vehicleId, start, end)) {
-            throw new IllegalStateException("That vehicle is reserved by a renter for some of those days. "
+            throw new IllegalStateException(
+                    "That vehicle is reserved by a renter for some of those days. "
                     + "Pick other dates or another vehicle.");
         }
         Rental rental = Rental.startNew(renterId, vehicleId, start, end);
@@ -66,7 +68,8 @@ public class RentalService {
      * Closes a rental and returns what the renter pays (the rental charge plus any late fee). The
      * payment is saved with the return. Works for an early return too.
      */
-    public double returnRental(int rentalId, LocalDate returnDate, int milesDriven) throws SQLException {
+    public double returnRental(int rentalId, LocalDate returnDate,
+            int milesDriven) throws SQLException {
         if (milesDriven < 0) {
             throw new IllegalArgumentException("Miles driven cannot be negative.");
         }
@@ -105,7 +108,8 @@ public class RentalService {
         }
         if (fresh.getStatus() == RentalStatus.RETURNED) {
             db.removeCheckoutLog(lastId);
-            throw new IllegalStateException("That rental was already returned, so it cannot be undone.");
+            throw new IllegalStateException(
+                    "That rental was already returned, so it cannot be undone.");
         }
         db.deleteRental(fresh.getId());
         return fresh;

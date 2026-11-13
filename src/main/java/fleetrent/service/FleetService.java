@@ -29,7 +29,8 @@ public class FleetService {
         if (!db.isVehicleActive(vehicleId)) {
             throw new IllegalStateException("That vehicle was already removed.");
         }
-        int cancelled = db.removeVehicle(vehicleId, "Cancelled: the owner removed the vehicle from the fleet");
+        int cancelled = db.removeVehicle(vehicleId,
+                "Cancelled: the owner removed the vehicle from the fleet");
         if (cancelled < 0) {
             throw new IllegalStateException(v.displayName() + " is rented out now. Return it first "
                     + "(Rentals tab), then remove it.");

@@ -114,16 +114,19 @@ public class BookingService {
      * Holds the vehicle for later dates. The first day must be after today (to rent today, use
      * rentNow).
      */
-    public Reservation reserve(int renterId, int vehicleId, LocalDate start, LocalDate end) throws SQLException {
+    public Reservation reserve(int renterId, int vehicleId, LocalDate start,
+            LocalDate end) throws SQLException {
         LocalDate now = today.get();
         if (start == null || end == null) {
             throw new IllegalArgumentException("Pick the first and the last day.");
         }
         if (!start.isAfter(now)) {
-            throw new IllegalArgumentException("A reservation starts tomorrow or later. To rent today, use Rent.");
+            throw new IllegalArgumentException(
+                    "A reservation starts tomorrow or later. To rent today, use Rent.");
         }
         if (start.isAfter(now.plusDays(MAX_DAYS_AHEAD))) {
-            throw new IllegalArgumentException("You can reserve up to " + MAX_DAYS_AHEAD + " days ahead.");
+            throw new IllegalArgumentException("You can reserve up to " + MAX_DAYS_AHEAD
+                    + " days ahead.");
         }
         checkSpan(start, end);
         checkParties(renterId, vehicleId);
@@ -144,9 +147,11 @@ public class BookingService {
             throw new IllegalArgumentException("That reservation was not found.");
         }
         if (r.getStatus() != ReservationStatus.ACTIVE) {
-            throw new IllegalStateException("That reservation is already " + r.getStatus().name().toLowerCase() + ".");
+            throw new IllegalStateException("That reservation is already " + r.getStatus().name()
+                    .toLowerCase() + ".");
         }
-        db.updateReservationStatus(reservationId, ReservationStatus.CANCELLED, "Cancelled by the renter");
+        db.updateReservationStatus(reservationId, ReservationStatus.CANCELLED,
+                "Cancelled by the renter");
     }
 
     /** Tells whether the last check-out can still be undone. */
@@ -166,16 +171,21 @@ public class BookingService {
         }
         if (action.reservation()) {
             Reservation r = db.getReservationById(action.id());
-            if (r == null || r.getRenterId() != renterId || r.getStatus() != ReservationStatus.ACTIVE) {
-                throw new IllegalStateException("That reservation can no longer be undone (it was already "
+            if (r == null || r.getRenterId() != renterId
+                    || r.getStatus() != ReservationStatus.ACTIVE) {
+                throw new IllegalStateException(
+                        "That reservation can no longer be undone (it was already "
                         + "cancelled or handed over).");
             }
-            db.updateReservationStatus(r.getId(), ReservationStatus.CANCELLED, "Cancelled by the renter (undo)");
+            db.updateReservationStatus(r.getId(), ReservationStatus.CANCELLED,
+                    "Cancelled by the renter (undo)");
             return "Reservation #" + r.getId() + " was cancelled.";
         }
         Rental rental = db.getRentalById(action.id());
-        if (rental == null || rental.getRenterId() != renterId || rental.getStatus() != RentalStatus.ONGOING) {
-            throw new IllegalStateException("That rental can no longer be undone (the owner already closed it).");
+        if (rental == null || rental.getRenterId() != renterId
+                || rental.getStatus() != RentalStatus.ONGOING) {
+            throw new IllegalStateException(
+                    "That rental can no longer be undone (the owner already closed it).");
         }
         db.deleteRental(rental.getId());
         return "Rental #" + rental.getId() + " was undone.";
@@ -206,22 +216,26 @@ public class BookingService {
             throw new IllegalArgumentException("That reservation does not exist.");
         }
         if (r.getStatus() != ReservationStatus.ACTIVE) {
-            throw new IllegalStateException("That reservation is already " + r.getStatus().name().toLowerCase() + ".");
+            throw new IllegalStateException("That reservation is already " + r.getStatus().name()
+                    .toLowerCase() + ".");
         }
         if (r.getStartDate().isAfter(now)) {
             throw new IllegalStateException("The reservation starts on " + r.getStartDate()
                     + ". The vehicle can be handed over on that day.");
         }
         if (r.getEndDate().isBefore(now)) {
-            throw new IllegalStateException("The reservation ended on " + r.getEndDate() + ". Cancel it instead.");
+            throw new IllegalStateException("The reservation ended on " + r.getEndDate()
+                    + ". Cancel it instead.");
         }
         if (!db.isVehicleActive(r.getVehicleId())) {
             throw new IllegalStateException("That vehicle was removed from the fleet.");
         }
         if (db.hasOngoingRental(r.getVehicleId())) {
-            throw new IllegalStateException("The vehicle is still rented out. Return it first (Rentals tab).");
+            throw new IllegalStateException(
+                    "The vehicle is still rented out. Return it first (Rentals tab).");
         }
-        Rental rental = Rental.startNew(r.getRenterId(), r.getVehicleId(), r.getStartDate(), r.getEndDate());
+        Rental rental = Rental.startNew(r.getRenterId(), r.getVehicleId(), r.getStartDate(),
+                r.getEndDate());
         db.convertReservationToRental(r, rental);
         return rental;
     }
@@ -233,9 +247,11 @@ public class BookingService {
             throw new IllegalArgumentException("That reservation does not exist.");
         }
         if (r.getStatus() != ReservationStatus.ACTIVE) {
-            throw new IllegalStateException("That reservation is already " + r.getStatus().name().toLowerCase() + ".");
+            throw new IllegalStateException("That reservation is already " + r.getStatus().name()
+                    .toLowerCase() + ".");
         }
-        db.updateReservationStatus(reservationId, ReservationStatus.CANCELLED, "Cancelled by the owner");
+        db.updateReservationStatus(reservationId, ReservationStatus.CANCELLED,
+                "Cancelled by the owner");
     }
 
     // ---------- checks ----------
@@ -252,7 +268,8 @@ public class BookingService {
     private void checkSpan(LocalDate start, LocalDate end) {
         checkOrder(start, end);
         if (ChronoUnit.DAYS.between(start, end) > MAX_DAYS) {
-            throw new IllegalArgumentException("You can book up to " + MAX_DAYS + " days at a time.");
+            throw new IllegalArgumentException("You can book up to " + MAX_DAYS
+                    + " days at a time.");
         }
     }
 
@@ -264,7 +281,8 @@ public class BookingService {
             throw new IllegalArgumentException("That vehicle does not exist.");
         }
         if (!db.isVehicleActive(vehicleId)) {
-            throw new IllegalStateException("That vehicle is not available anymore. It was removed from the fleet.");
+            throw new IllegalStateException(
+                    "That vehicle is not available anymore. It was removed from the fleet.");
         }
     }
 
@@ -274,8 +292,10 @@ public class BookingService {
             return "That vehicle is not available anymore. It was removed from the fleet.";
         }
         if (db.hasRentalOverlap(vehicleId, start, end, now)) {
-            return "That vehicle is rented out for some of those days. Pick other dates or another vehicle.";
+            return "That vehicle is rented out for some of those days. Pick other dates or "
+                    + "another vehicle.";
         }
-        return "That vehicle is already reserved for some of those days. Pick other dates or another vehicle.";
+        return "That vehicle is already reserved for some of those days. Pick other dates or "
+                + "another vehicle.";
     }
 }

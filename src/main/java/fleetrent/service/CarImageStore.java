@@ -12,6 +12,7 @@ import java.util.Locale;
  * The file name is vehicle-<id>.<ext>, so the database needs no new column.
  */
 public class CarImageStore {
+    private static final int MIN_IMAGE_BYTES = 4;
     public static final String DEFAULT_FOLDER = "vehicle_images";
     public static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
     private static final List<String> EXTENSIONS = List.of("jpg", "png", "gif", "bmp");
@@ -90,7 +91,7 @@ public class CarImageStore {
      * unknown.
      */
     public static String extensionFromBytes(byte[] b) {
-        if (b == null || b.length < 4) {
+        if (b == null || b.length < MIN_IMAGE_BYTES) {
             return null;
         }
         if ((b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8) {

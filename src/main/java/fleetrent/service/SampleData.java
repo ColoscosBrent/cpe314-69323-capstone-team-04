@@ -18,6 +18,9 @@ import java.util.Random;
  * Makes demo data so the dashboard has something to mine. The same seed always gives the same file.
  */
 public final class SampleData {
+    private static final int MIN_AGE_DAYS = 10;
+    private static final int SPREAD_DAYS = 355;
+    private static final int MAX_LENGTH_DAYS = 7;
     private static final String[] RENTERS = {"Ana Reyes", "Ben Cruz", "Carla Santos", "Dino Lopez",
             "Ella Tan", "Felix Go", "Gina Uy", "Hugo Lim", "Iris Chua", "Jun Diaz"};
 
@@ -29,19 +32,26 @@ public final class SampleData {
      */
     public static List<Vehicle> demoVehicles() {
         List<Vehicle> list = new ArrayList<>();
-        list.add(VehicleFactory.create(0, "SEDAN", "Toyota", "Camry", 2022, "DEMO-001", "White", 1800, 0, null, "Car > Sedan"));
-        list.add(VehicleFactory.create(0, "SEDAN", "Honda", "Civic", 2021, "DEMO-002", "Silver", 1600, 0, null, "Car > Sedan"));
-        list.add(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2022, "DEMO-003", "Black", 2800, 0, null, "Car > SUV"));
-        list.add(VehicleFactory.create(0, "SUV", "Toyota", "RAV4", 2023, "DEMO-004", "Gray", 2600, 0, null, "Car > SUV"));
-        list.add(VehicleFactory.create(0, "MOTORCYCLE", "Honda", "CB500F", 2021, "DEMO-005", "Red", 900, 0, null, "Motorcycle"));
-        list.add(VehicleFactory.create(0, "MOTORCYCLE", "Yamaha", "MT-07", 2022, "DEMO-006", "Blue", 1100, 0, null, "Motorcycle"));
+        list.add(VehicleFactory.create(0, "SEDAN", "Toyota", "Camry", 2022, "DEMO-001", "White",
+                1800, 0, null, "Car > Sedan"));
+        list.add(VehicleFactory.create(0, "SEDAN", "Honda", "Civic", 2021, "DEMO-002", "Silver",
+                1600, 0, null, "Car > Sedan"));
+        list.add(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2022, "DEMO-003", "Black",
+                2800, 0, null, "Car > SUV"));
+        list.add(VehicleFactory.create(0, "SUV", "Toyota", "RAV4", 2023, "DEMO-004", "Gray", 2600,
+                0, null, "Car > SUV"));
+        list.add(VehicleFactory.create(0, "MOTORCYCLE", "Honda", "CB500F", 2021, "DEMO-005", "Red",
+                900, 0, null, "Motorcycle"));
+        list.add(VehicleFactory.create(0, "MOTORCYCLE", "Yamaha", "MT-07", 2022, "DEMO-006",
+                "Blue", 1100, 0, null, "Motorcycle"));
         return list;
     }
 
     /**
      * Returns the CSV lines (with header). Dates are spread over the 12 months before endOfPeriod.
      */
-    public static List<String> rentalLines(List<Vehicle> vehicles, int rows, long seed, LocalDate endOfPeriod) {
+    public static List<String> rentalLines(List<Vehicle> vehicles, int rows, long seed,
+            LocalDate endOfPeriod) {
         if (vehicles.isEmpty()) {
             throw new IllegalArgumentException("Add at least one vehicle first.");
         }
@@ -53,9 +63,10 @@ public final class SampleData {
         lines.add(RentalCsvImporter.HEADER);
         for (int i = 0; i < rows; i++) {
             Vehicle v = vehicles.get(random.nextInt(vehicles.size()));
-            LocalDate start = endOfPeriod.minusDays(10 + random.nextInt(355));
-            LocalDate end = start.plusDays(1 + random.nextInt(7));
-            int miles = (1 + (end.toEpochDay() > start.toEpochDay() ? (int) (end.toEpochDay() - start.toEpochDay()) : 1))
+            LocalDate start = endOfPeriod.minusDays(MIN_AGE_DAYS + random.nextInt(SPREAD_DAYS));
+            LocalDate end = start.plusDays(1 + random.nextInt(MAX_LENGTH_DAYS));
+            int miles = (1 + (end.toEpochDay() > start.toEpochDay()
+                    ? (int) (end.toEpochDay() - start.toEpochDay()) : 1))
                     * (40 + random.nextInt(120));
             lines.add(v.getPlateNumber() + "," + RENTERS[random.nextInt(RENTERS.length)] + ","
                     + start + "," + end + "," + miles);

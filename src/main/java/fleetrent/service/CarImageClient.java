@@ -15,12 +15,17 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * Finds a real photo of a car model through the free Wikipedia web service (no key needed) and
  * downloads it. Always call it from a background thread, never from the JavaFX UI thread.
  */
 public class CarImageClient {
+    private static final long CONNECT_TIMEOUT_SECONDS = 10;
+    private static final long REQUEST_TIMEOUT_SECONDS = 30;
+    private static final int HTTP_OK = 200;
+    private static final Logger LOG = Logger.getLogger(CarImageClient.class.getName());
     public static final String DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php";
     public static final int MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -29,7 +34,7 @@ public class CarImageClient {
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.NORMAL)
             .proxy(ProxySelector.getDefault())
-            .connectTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
             .build();
 
     /** Creates a car image client. */
@@ -51,7 +56,8 @@ public class CarImageClient {
         }
         String term = make.trim() + " " + model.trim();
         return apiUrl + "?action=query&generator=search&gsrsearch=" + encode(term)
-                + "&gsrnamespace=0&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=600&format=json";
+                + "&gsrnamespace=0&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=600&fo"
+                        + "rmat=json";
     }
 
     /**
@@ -62,7 +68,8 @@ public class CarImageClient {
         try {
             return parseThumbnailUrl(body);
         } catch (IllegalArgumentException e) {
-            throw new IOException("Wikipedia sent an answer we could not read: " + e.getMessage(), e);
+            throw new IOException("Wikipedia sent an answer we could not read: " + e.getMessage(),
+                    e);
         }
     }
 
@@ -71,13 +78,13 @@ public class CarImageClient {
      */
     public byte[] download(String imageUrl) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(imageUrl))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
                 .header("User-Agent", "FleetRent-CPE314/1.0 (student project)")
                 .GET()
                 .build();
         HttpResponse<byte[]> response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        System.out.println("[photo] GET " + imageUrl + " -> HTTP " + response.statusCode());
-        if (response.statusCode() != 200) {
+        LOG.info("[photo] GET " + imageUrl + " -> HTTP " + response.statusCode());
+        if (response.statusCode() != HTTP_OK) {
             throw new IOException("Photo server answered with HTTP " + response.statusCode());
         }
         byte[] bytes = response.body();
@@ -92,16 +99,16 @@ public class CarImageClient {
 
     private String getText(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
                 .header("Accept", "application/json")
                 .header("User-Agent", "FleetRent-CPE314/1.0 (student project)")
                 .GET()
                 .build();
         long start = System.currentTimeMillis();
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("[photo] GET " + url + " -> HTTP " + response.statusCode()
+        LOG.info("[photo] GET " + url + " -> HTTP " + response.statusCode()
                 + " in " + (System.currentTimeMillis() - start) + " ms");
-        if (response.statusCode() != 200) {
+        if (response.statusCode() != HTTP_OK) {
             throw new IOException("Wikipedia answered with HTTP " + response.statusCode());
         }
         return response.body();

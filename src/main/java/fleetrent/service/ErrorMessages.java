@@ -53,7 +53,8 @@ public final class ErrorMessages {
         String message = error.getMessage() == null ? "" : error.getMessage();
         String lower = message.toLowerCase(Locale.ROOT);
         if (lower.contains("tunnel failed") || lower.contains("proxy")) {
-            return "A proxy or firewall blocked the connection to " + service + ". Try another network.";
+            return "A proxy or firewall blocked the connection to " + service
+                    + ". Try another network.";
         }
         if (lower.contains("http 5")) {
             return service + " is having problems right now (" + message + "). Try again later.";
@@ -65,7 +66,8 @@ public final class ErrorMessages {
             return service + " sent an answer the app could not read. Try again later.";
         }
         if (error instanceof IOException || error instanceof RuntimeException) {
-            return "Could not get data from " + service + (message.isEmpty() ? "." : ": " + message);
+            return "Could not get data from " + service + (message.isEmpty() ? "." : ": "
+                    + message);
         }
         return "Could not get data from " + service + ".";
     }
@@ -81,7 +83,9 @@ public final class ErrorMessages {
         String lower = message.toLowerCase(Locale.ROOT);
         String start = "Database error while " + action + ". ";
         if (lower.contains("locked") || lower.contains("busy")) {
-            return start + "The database file fleetrent.db is busy or locked. Close other programs that use it "
+            return start
+                    + "The database file fleetrent.db is busy or locked. Close other programs "
+                    + "that use it "
                     + "(for example DB Browser or a second copy of FleetRent) and try again.";
         }
         if (lower.contains("foreign key")) {
@@ -93,14 +97,20 @@ public final class ErrorMessages {
         if (lower.contains("constraint")) {
             return start + "The data does not follow the database rules (" + message + ").";
         }
-        if (lower.contains("readonly") || lower.contains("read-only") || lower.contains("permission")) {
+        if (lower.contains("readonly") || lower.contains("read-only")
+                || lower.contains("permission")) {
             return start + "The file fleetrent.db cannot be written. Check the folder permissions.";
         }
-        if (lower.contains("not a database") || lower.contains("malformed") || lower.contains("corrupt")) {
-            return start + "The file fleetrent.db is damaged. Close the app, rename the file and start again.";
+        if (lower.contains("not a database") || lower.contains("malformed")
+                || lower.contains("corrupt")) {
+            return start
+                    + "The file fleetrent.db is damaged. Close the app, rename the file and start "
+                    + "again.";
         }
         if (lower.contains("unable to open") || lower.contains("cannot open")) {
-            return start + "The file fleetrent.db cannot be opened. Check that the folder exists and can be written.";
+            return start
+                    + "The file fleetrent.db cannot be opened. Check that the folder exists and "
+                    + "can be written.";
         }
         return start + (message.isEmpty() ? "Please try again." : "Details: " + message);
     }

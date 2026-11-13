@@ -38,6 +38,20 @@ final class VehiclePictures {
         return stage;
     }
 
+    // A framed picture of any size, for the renter's cards: the saved photo or the drawn car.
+    Node stage(Vehicle v, double width, double height) {
+        Path photo = store.find(v.getId());
+        Image image = photo == null ? null : load(photo, width * 2);
+        Node inner = image != null ? photoNode(image, width - 16, height - 8)
+                : CarGraphic.create(v.getType(), v.getColor(), Math.min(width - 24, (height - 12) * 200.0 / 90.0));
+        StackPane stage = new StackPane(inner);
+        stage.getStyleClass().add("car-stage");
+        stage.setMinSize(width, height);
+        stage.setPrefSize(width, height);
+        stage.setMaxSize(width, height);
+        return stage;
+    }
+
     // Reads a picture file once and keeps it in memory. Returns null if the file cannot be read.
     Image load(Path file, double width) {
         try {

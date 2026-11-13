@@ -41,4 +41,30 @@ class VehicleCostTest {
             assertEquals(expected[i], fleet.get(i).computeRentalCost(1, 200), 0.001);
         }
     }
+
+    @Test
+    void feeRulesAreReadableForTheScreens() {
+        Vehicle sedan = new Sedan(1, "Toyota", "Vios", 2020, "A1", "White", 1000.0, 0, null, "Car > Sedan");
+        Vehicle suv = new Suv(2, "Ford", "Everest", 2021, "B2", "Black", 1000.0, 0, null, "Car > SUV");
+        Vehicle bike = new Motorcycle(3, "Honda", "Click", 2022, "C3", "Red", 1000.0, 0, null, "Motorcycle");
+        assertEquals(100, sedan.getFreeMilesPerDay());
+        assertEquals(0.20, sedan.getFeePerExtraMile(), 0.0001);
+        assertEquals(80, suv.getFreeMilesPerDay());
+        assertEquals(0.30, suv.getFeePerExtraMile(), 0.0001);
+        assertEquals(60, bike.getFreeMilesPerDay());
+        assertEquals(0.15, bike.getFeePerExtraMile(), 0.0001);
+        assertEquals("100 free miles a day, then 0.20 per extra mile", sedan.feeSummary());
+        assertEquals("Toyota Vios 2020", sedan.displayName());
+    }
+
+    @Test
+    void theFeeTextAndTheCostRuleAgree() {
+        for (String type : VehicleTypes.ALL) {
+            Vehicle v = VehicleFactory.create(1, type, "A", "B", 2020, "P1", "Red", 1000.0, 0, null,
+                    VehicleTypes.categoryOptions(type).get(0));
+            int free = v.getFreeMilesPerDay();
+            assertEquals(1000.0, v.computeRentalCost(1, free), 0.001);
+            assertEquals(1000.0 + 10 * v.getFeePerExtraMile(), v.computeRentalCost(1, free + 10), 0.001);
+        }
+    }
 }

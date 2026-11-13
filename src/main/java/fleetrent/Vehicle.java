@@ -2,7 +2,9 @@ package fleetrent;
 
 import java.time.LocalDate;
 
-// Parent class for every vehicle. It cannot be created directly (abstract).
+/**
+ * Parent class for every vehicle. It cannot be created directly (abstract).
+ */
 public abstract class Vehicle {
     private int id;
     private final String make;
@@ -33,6 +35,26 @@ public abstract class Vehicle {
     // Each subclass answers with its own type: SEDAN, SUV, or MOTORCYCLE.
     public abstract String getType();
 
+    // The extra-mile fee rule of the type, so the screens can show it to renters before they book.
+    public abstract int getFreeMilesPerDay();
+
+    public abstract double getFeePerExtraMile();
+
+    /**
+     * One line for the screen, for example "100 free miles a day, then 0.20 per extra mile".
+     */
+    public String feeSummary() {
+        return String.format(java.util.Locale.US, "%d free miles a day, then %.2f per extra mile",
+                getFreeMilesPerDay(), getFeePerExtraMile());
+    }
+
+    /**
+     * "Toyota Vios 2022": the name shown to people.
+     */
+    public String displayName() {
+        return make + " " + model + (year > 0 ? " " + year : "");
+    }
+
     // Each subclass has its own mileage fee rule, so each one writes its own version.
     public abstract double computeRentalCost(int days, int milesDriven);
 
@@ -48,16 +70,27 @@ public abstract class Vehicle {
         return dailyRate * days + extraMiles * feePerExtraMile;
     }
 
+    /** Returns the id. */
     public int getId() { return id; }
+    /** Sets the id. */
     public void setId(int id) { this.id = id; }
+    /** Returns the make. */
     public String getMake() { return make; }
+    /** Returns the model. */
     public String getModel() { return model; }
+    /** Returns the year. */
     public int getYear() { return year; }
+    /** Returns the plate number. */
     public String getPlateNumber() { return plateNumber; }
+    /** Returns the color. */
     public String getColor() { return color; }
+    /** Returns the daily rate. */
     public double getDailyRate() { return dailyRate; }
+    /** Returns the mileage. */
     public int getMileage() { return mileage; }
+    /** Returns the last p m s. */
     public LocalDate getLastPMS() { return lastPMS; }
+    /** Returns the category path. */
     public String getCategoryPath() { return categoryPath; }
 
     @Override

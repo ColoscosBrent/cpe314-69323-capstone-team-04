@@ -36,14 +36,17 @@ class AuthServiceTest {
         db.close();
     }
 
+    private static final String PHONE = "+63 9171234567";
+
     private Account owner() throws Exception {
-        return auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", Q, "Rex",
-                AuthService.OWNER_CODE);
+        return auth.signUpOwner("owner01", "Passw0rdX", "Santos, Maria Lopez", "+63 9171234567",
+                Q, "Rex");
     }
 
     private Account renter() throws Exception {
         return auth.signUpRenter("ana_reyes", "Passw0rdX",
-                new Renter(0, "Ana Reyes", "09171234567", "ana@example.com", "12 Rizal St, Cebu"),
+                new Renter(0, "Reyes, Ana Cruz", "+63 9171234567", "ana@example.com",
+                        "12 Rizal St, Cebu City, Philippines"),
                         Q, "Rex");
     }
 
@@ -56,12 +59,12 @@ class AuthServiceTest {
     }
 
     @Test
-    void ownerSignUpNeedsTheOwnerCode() {
+    void ownerSignUpNeedsAFullNameAndAPhone() {
         AuthException e = assertThrows(AuthException.class,
-                () -> auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", Q, "Rex", "nope"));
-        assertTrue(e.getMessage().contains("owner code"));
-        assertThrows(AuthException.class,
-                () -> auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", Q, "Rex", null));
+                () -> auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", PHONE, Q, "Rex"));
+        assertTrue(e.getMessage().contains("last name, first name and middle name"));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
+                "Santos, Maria Lopez", "", Q, "Rex"));
     }
 
     @Test
@@ -69,7 +72,7 @@ class AuthServiceTest {
         Account a = renter();
         assertEquals(Role.RENTER, a.getRole());
         assertNotNull(a.getRenterId());
-        assertEquals("Ana Reyes", db.getRenterById(a.getRenterId()).getName());
+        assertEquals("Reyes, Ana Cruz", db.getRenterById(a.getRenterId()).getName());
         assertEquals(1, db.getAllRenters().size());
     }
 
@@ -86,25 +89,26 @@ class AuthServiceTest {
         owner();
         AuthException e = assertThrows(AuthException.class, () -> auth.signUpRenter("OWNER01",
                 "Passw0rdX",
-                new Renter(0, "Ana Reyes", "09171234567", null, null), Q, "Rex"));
+                new Renter(0, "Reyes, Ana Cruz", "+63 9171234567", "ana@example.com",
+                        "12 Rizal St, Cebu City, Philippines"), Q, "Rex"));
         assertTrue(e.getMessage().contains("already taken"));
         assertEquals(0, db.getAllRenters().size(), "a refused sign-up must not leave a renter row");
     }
 
     @Test
     void badInputIsRefusedWithAMessage() {
-        assertThrows(AuthException.class, () -> auth.signUpOwner("ab", "Passw0rdX", "Maria Santos",
-                Q, "Rex", AuthService.OWNER_CODE));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("ab", "Passw0rdX",
+                "Santos, Maria Lopez", PHONE, Q, "Rex"));
         assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "short1",
-                "Maria Santos", Q, "Rex", AuthService.OWNER_CODE));
-        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX", "M", Q,
-                "Rex", AuthService.OWNER_CODE));
+                "Santos, Maria Lopez", PHONE, Q, "Rex"));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX", "M", PHONE,
+                Q, "Rex"));
         assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
-                "Maria Santos", "Made up?", "Rex", AuthService.OWNER_CODE));
+                "Santos, Maria Lopez", PHONE, "Made up?", "Rex"));
         assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
-                "Maria Santos", Q, " ", AuthService.OWNER_CODE));
+                "Santos, Maria Lopez", PHONE, Q, " "));
         assertThrows(AuthException.class, () -> auth.signUpRenter("ana_reyes", "Passw0rdX",
-                new Renter(0, "Ana Reyes", "123", null, null), Q, "Rex"));
+                new Renter(0, "Reyes, Ana Cruz", "123", null, null), Q, "Rex"));
     }
 
     @Test
@@ -132,10 +136,10 @@ class AuthServiceTest {
     @Test
     void loginFailsWithAWrongPasswordOrUnknownUser() throws Exception {
         owner();
-        assertEquals("The username or the password is not correct.",
+        assertEquals("The password is not correct.",
                 assertThrows(AuthException.class, () -> auth.login("owner01", "wrongPass1"))
                         .getMessage());
-        assertEquals("The username or the password is not correct.",
+        assertEquals("The username is not correct. No account has that username.",
                 assertThrows(AuthException.class, () -> auth.login("nobody1", "Passw0rdX"))
                         .getMessage());
     }
@@ -206,8 +210,36 @@ class AuthServiceTest {
     }
 
     @Test
-    void ownerCodeIsNotStoredAnywhere() throws Exception {
+    void anyoneCanSignUpAsAnOwnerWithoutACode() throws Exception {
         Account a = owner();
-        assertTrue(!a.getDisplayName().contains(AuthService.OWNER_CODE));
+        assertEquals(Role.ADMIN, a.getRole());
+        assertEquals("Santos, Maria Lopez", a.getDisplayName());
+        assertEquals("+63 9171234567", a.getPhone());
+        assertEquals("+63 9171234567", db.findAccountByUsername("owner01").getPhone(),
+                "the phone is saved in the database");
+    }
+
+    @Test
+    void loginSaysWhetherTheUsernameOrThePasswordIsWrong() throws Exception {
+        renter();
+        AuthException badUser = assertThrows(AuthException.class,
+                () -> auth.login("nobody99", "Passw0rdX"));
+        assertTrue(badUser.getMessage().contains("username is not correct"));
+        AuthException badPass = assertThrows(AuthException.class,
+                () -> auth.login("ana_reyes", "WrongPass1"));
+        assertTrue(badPass.getMessage().contains("password is not correct"));
+    }
+
+    @Test
+    void loginRefusesTheWrongRoleChoice() throws Exception {
+        owner();
+        renter();
+        AuthException e1 = assertThrows(AuthException.class,
+                () -> auth.login("ana_reyes", "Passw0rdX", Role.ADMIN));
+        assertTrue(e1.getMessage().contains("renter account"));
+        AuthException e2 = assertThrows(AuthException.class,
+                () -> auth.login("owner01", "Passw0rdX", Role.RENTER));
+        assertTrue(e2.getMessage().contains("owner account"));
+        assertNotNull(auth.login("owner01", "Passw0rdX", Role.ADMIN));
     }
 }

@@ -5,13 +5,10 @@ import fleetrent.controller.ControllerException;
 import fleetrent.controller.RuleException;
 import fleetrent.model.Account;
 import fleetrent.model.Renter;
+import fleetrent.model.Role;
 import fleetrent.service.Validators;
 
 import java.util.function.Consumer;
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -26,22 +23,17 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
-// The first screen: Log in, Sign up (renter or rental owner) and Forgot password. Nothing else of
-// the app can be seen until a login works.
+// The first screen: Log in (as an owner or as a renter), Sign up and Forgot password. It sits on a
+// photo, with a road of moving cars under the card. Nothing else of the app can be seen until a
+// login works.
 final class AuthScreen {
     private static final double SUB_MAX_WIDTH = 460;
-    private static final Insets HERO_PADDING = new Insets(10, 0, 6, 0);
+    private static final Insets HERO_PADDING = new Insets(4, 0, 2, 0);
     private static final double CARD_MAX_WIDTH = 520;
     private static final double CARD_MIN_WIDTH = 420;
-    private static final Insets CENTER_PADDING = new Insets(22, 18, 30, 18);
-    private static final double STRIP_MIN_HEIGHT = 70;
-    private static final double STRIP_PREF_HEIGHT = 70;
-    private static final double STRIP_MAX_WIDTH = 860;
-    private static final double DELAY_SECONDS = 0;
-    private static final double DELAY_SECONDS_2 = 16;
+    private static final Insets CENTER_PADDING = new Insets(10, 18, 18, 18);
     private static final double DELAY_MILLIS = 220;
     private static final double FIELD_PREF_WIDTH = 300;
     private static final double ERROR_MAX_WIDTH = 340;
@@ -53,7 +45,8 @@ final class AuthScreen {
     private final Runnable onNewWindow;
     private final VBox root = new VBox();
     private final VBox cardContent = new VBox(Layout.GAP_WIDE);
-    private Timeline roadAnimation;
+    private final LoadingRoad road = new LoadingRoad();
+    private Role chosenRole = Role.RENTER;
 
     AuthScreen(AuthController auth, Consumer<Account> onLogin, Runnable onNewWindow) {
         this.auth = auth;
@@ -74,17 +67,22 @@ final class AuthScreen {
         card.getStyleClass().add("auth-card");
         card.setMaxWidth(CARD_MAX_WIDTH);
         card.setMinWidth(CARD_MIN_WIDTH);
-        VBox center = new VBox(Layout.GAP_XLARGE, hero, card, road());
+        VBox center = new VBox(Layout.GAP_XLARGE, hero, card, road.node());
         center.setAlignment(Pos.TOP_CENTER);
         center.setPadding(CENTER_PADDING);
-        
+
         javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(center);
         scroll.setFitToWidth(true);
-        scroll.getStyleClass().add("page-scroll");
+        scroll.getStyleClass().addAll("page-scroll", "auth-scroll");
         scroll.setFocusTraversable(false);
-        VBox.setVgrow(scroll, Priority.ALWAYS);
+        Pane photo = new Pane();
+        photo.getStyleClass().add("auth-photo");
+        Pane shade = new Pane();
+        shade.getStyleClass().add("auth-shade");
+        StackPane stage = new StackPane(photo, shade, scroll);
+        VBox.setVgrow(stage, Priority.ALWAYS);
         root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management", null, null,
-                onNewWindow), scroll);
+                onNewWindow), stage);
         showLogin(null, null);
     }
 
@@ -94,42 +92,7 @@ final class AuthScreen {
 
     // Stops the moving cars when the screen is left.
     void dispose() {
-        if (roadAnimation != null) {
-            roadAnimation.stop();
-        }
-    }
-
-    // A strip where three cars drive by, so the first screen is not a plain form.
-    private Node road() {
-        Pane strip = new Pane();
-        strip.setMinHeight(STRIP_MIN_HEIGHT);
-        strip.setPrefHeight(STRIP_PREF_HEIGHT);
-        strip.setMaxWidth(STRIP_MAX_WIDTH);
-        Rectangle clip = new Rectangle();
-        clip.widthProperty().bind(strip.widthProperty());
-        clip.heightProperty().bind(strip.heightProperty());
-        strip.setClip(clip);
-        Node[] cars = {CarGraphic.create("SEDAN", "Gold", 110), CarGraphic.create("SUV", "Purple",
-                118),
-                CarGraphic.create("MOTORCYCLE", "Orange", 96)};
-        roadAnimation = new Timeline();
-        double offset = 0;
-        for (Node car : cars) {
-            car.setLayoutY(8);
-            car.setTranslateX(-200);
-            strip.getChildren().add(car);
-            roadAnimation.getKeyFrames().addAll(
-                    new KeyFrame(Duration.seconds(DELAY_SECONDS),
-                            new KeyValue(car.translateXProperty(),
-                            -200 - offset)),
-                    new KeyFrame(Duration.seconds(DELAY_SECONDS_2),
-                            new KeyValue(car.translateXProperty(),
-                            1000 - offset)));
-            offset += 260;
-        }
-        roadAnimation.setCycleCount(Animation.INDEFINITE);
-        roadAnimation.play();
-        return strip;
+        road.stop();
     }
 
     private void show(Node panel) {
@@ -202,6 +165,29 @@ final class AuthScreen {
 
     // ---------- log in ----------
 
+    // The two buttons "Owner" and "Renter" at the top of the login card.
+    private HBox roleChoice() {
+        ToggleGroup group = new ToggleGroup();
+        ToggleButton owner = new ToggleButton("Log in as Owner");
+        ToggleButton renter = new ToggleButton("Log in as Renter");
+        for (ToggleButton b : new ToggleButton[] {renter, owner}) {
+            b.setToggleGroup(group);
+            b.getStyleClass().add("segment");
+            b.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        }
+        (chosenRole == Role.ADMIN ? owner : renter).setSelected(true);
+        group.selectedToggleProperty().addListener((obs, old, now) -> {
+            if (now == null && old != null) {
+                old.setSelected(true);
+            } else if (now != null) {
+                chosenRole = now == owner ? Role.ADMIN : Role.RENTER;
+            }
+        });
+        HBox choice = new HBox(Layout.GAP_NORMAL, renter, owner);
+        choice.setAlignment(Pos.CENTER);
+        return choice;
+    }
+
     void showLogin(String message, String username) {
         Row user = new Row("Username");
         if (username != null) {
@@ -213,23 +199,7 @@ final class AuthScreen {
             UiHelper.setStatus(status, message, false);
         }
         Button go = primary("Log in");
-        Runnable doLogin = () -> {
-            if (user.text().isEmpty()) {
-                UiHelper.setError(user.error, "Type your username.");
-                return;
-            }
-            if (pass.text().isEmpty()) {
-                pass.showError("Type your password.");
-                return;
-            }
-            try {
-                Account account = auth.login(user.text(), pass.text());
-                pass.clear();
-                onLogin.accept(account);
-            } catch (ControllerException e) {
-                UiHelper.setStatus(status, e.getMessage(), true);
-            }
-        };
+        Runnable doLogin = () -> logIn(user, pass, status);
         go.setOnAction(e -> doLogin.run());
         user.field.setOnAction(e -> pass.requestFocus());
         pass.onEnter(doLogin);
@@ -237,70 +207,86 @@ final class AuthScreen {
                 showForgot(user.text())),
                 link("Create an account", () -> showSignUp()));
         links.setAlignment(Pos.CENTER);
-        Label title = UiHelper.title("Log in");
-        show(new VBox(Layout.GAP_WIDE, title, labeled("Username", user.node), labeled("Password",
-                pass.node()),
-                status, go, links));
+        show(new VBox(Layout.GAP_WIDE, UiHelper.title("Log in"), roleChoice(),
+                labeled("Username", user.node), labeled("Password", pass.node()), status, go,
+                links));
         javafx.application.Platform.runLater(user.field::requestFocus);
+    }
+
+    // Checks the two boxes and logs in. The message says what is wrong: the username, the password
+    // or the role that was chosen.
+    private void logIn(Row user, PasswordInput pass, Label status) {
+        if (user.text().isEmpty()) {
+            UiHelper.setError(user.error, "Type your username.");
+            return;
+        }
+        if (pass.text().isEmpty()) {
+            pass.showError("Type your password.");
+            return;
+        }
+        try {
+            Account account = auth.login(user.text(), pass.text(), chosenRole);
+            pass.clear();
+            onLogin.accept(account);
+        } catch (ControllerException e) {
+            String text = e.getMessage();
+            if (text.startsWith("The username is not correct")) {
+                UiHelper.setError(user.error, text);
+            } else if (text.startsWith("The password is not correct")) {
+                pass.showError(text);
+            }
+            UiHelper.setStatus(status, text, true);
+        }
     }
 
     // ---------- sign up ----------
 
-    void showSignUp() {
-        ToggleGroup group = new ToggleGroup();
-        ToggleButton renterTab = new ToggleButton("I want to rent");
-        ToggleButton ownerTab = new ToggleButton("I own the rental shop");
-        for (ToggleButton b : new ToggleButton[] {renterTab, ownerTab}) {
-            b.setToggleGroup(group);
-            b.getStyleClass().add("segment");
-            b.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-        }
-        renterTab.setSelected(true);
-        // A segment cannot be switched off by clicking it again.
-        group.selectedToggleProperty().addListener((obs, old, now) -> {
-            if (now == null && old != null) {
-                old.setSelected(true);
+    // The boxes of the sign-up form. The name and the phone are for owners and renters; the email
+    // and the address are only for renters.
+    private final class SignUpForm {
+        final ToggleButton renterTab = new ToggleButton("I want to rent");
+        final ToggleButton ownerTab = new ToggleButton("I own the rental shop");
+        final Row user = new Row("4 to 20 letters, digits, _ or .");
+        final PasswordInput pass = new PasswordInput("8+ characters, a letter and a digit");
+        final PasswordInput confirm = new PasswordInput("Type the password again");
+        final ChoiceBox<String> question = new ChoiceBox<>();
+        final Label questionError = UiHelper.errorLabel();
+        final Row answer = new Row("Your answer");
+        final NameFields name = new NameFields();
+        final PhoneField phone = new PhoneField();
+        final ValidatedField email = new ValidatedField(Validators.Kind.EMAIL, "ana@example.com",
+                true);
+        final AddressFields address = new AddressFields();
+        final VBox renterOnly = new VBox(Layout.GAP_MEDIUM, labeled("Email", email.node()),
+                address.node());
+        final Label status = status();
+
+        SignUpForm() {
+            ToggleGroup group = new ToggleGroup();
+            for (ToggleButton b : new ToggleButton[] {renterTab, ownerTab}) {
+                b.setToggleGroup(group);
+                b.getStyleClass().add("segment");
+                b.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
             }
-        });
-        HBox segments = new HBox(Layout.GAP_NORMAL, renterTab, ownerTab);
-        segments.setAlignment(Pos.CENTER);
+            renterTab.setSelected(true);
+            // A segment cannot be switched off by clicking it again.
+            group.selectedToggleProperty().addListener((obs, old, now) -> {
+                if (now == null && old != null) {
+                    old.setSelected(true);
+                }
+            });
+            ownerTab.selectedProperty().addListener((obs, was, now) -> {
+                renterOnly.setManaged(!now);
+                renterOnly.setVisible(!now);
+            });
+            question.getItems().setAll(AuthController.securityQuestions());
+            question.setPrefWidth(QUESTION_PREF_WIDTH);
+            question.valueProperty().addListener((obs, o, n) ->
+                    UiHelper.setError(questionError, null));
+        }
 
-        Row user = new Row("4 to 20 letters, digits, _ or .");
-        PasswordInput pass = new PasswordInput("8+ characters, a letter and a digit");
-        PasswordInput confirm = new PasswordInput("Type the password again");
-        ChoiceBox<String> question = new ChoiceBox<>();
-        question.getItems().setAll(AuthController.securityQuestions());
-        question.setPrefWidth(QUESTION_PREF_WIDTH);
-        Label questionError = UiHelper.errorLabel();
-        question.valueProperty().addListener((obs, o, n) -> UiHelper.setError(questionError, null));
-        Row answer = new Row("Your answer");
-
-        ValidatedField name = new ValidatedField(Validators.Kind.NAME, "Ana Reyes", true);
-        ValidatedField contact = new ValidatedField(Validators.Kind.CONTACT, "0917 123 4567", true);
-        ValidatedField email = new ValidatedField(Validators.Kind.EMAIL,
-                "ana@example.com (optional)", false);
-        ValidatedField address = new ValidatedField(Validators.Kind.ADDRESS,
-                "12 Rizal St, Cebu City (optional)", false);
-        VBox renterFields = new VBox(Layout.GAP_MEDIUM, labeled("Full name", name.node()),
-                labeled("Contact number", contact.node()),
-                labeled("Email", email.node()), labeled("Address", address.node()));
-
-        ValidatedField ownerName = new ValidatedField(Validators.Kind.NAME, "Maria Santos", true);
-        PasswordInput ownerCode = new PasswordInput("Ask the shop for the owner code");
-        VBox ownerFields = new VBox(Layout.GAP_MEDIUM, labeled("Your name", ownerName.node()),
-                labeled("Owner code", ownerCode.node()));
-        ownerFields.setManaged(false);
-        ownerFields.setVisible(false);
-        ownerTab.selectedProperty().addListener((obs, was, now) -> {
-            ownerFields.setManaged(now);
-            ownerFields.setVisible(now);
-            renterFields.setManaged(!now);
-            renterFields.setVisible(!now);
-        });
-
-        Label status = status();
-        Button create = primary("Create account");
-        create.setOnAction(e -> {
+        // Checks every box and shows a red message under each one that is wrong.
+        boolean validate() {
             boolean owner = ownerTab.isSelected();
             boolean ok = true;
             String m = AuthController.checkUsername(user.text());
@@ -316,6 +302,12 @@ final class AuthScreen {
                 confirm.showError("The two passwords are not the same.");
                 ok = false;
             }
+            ok = name.validate() && ok;
+            ok = phone.validate() && ok;
+            if (!owner) {
+                ok = email.validate() && ok;
+                ok = address.validate() && ok;
+            }
             if (question.getValue() == null) {
                 UiHelper.setError(questionError, "Pick a question.");
                 ok = false;
@@ -325,55 +317,54 @@ final class AuthScreen {
                 UiHelper.setError(answer.error, m);
                 ok = false;
             }
-            if (owner) {
-                ok = ownerName.validate() && ok;
-                if (ownerCode.text().isBlank()) {
-                    ownerCode.showError("Type the owner code.");
-                    ok = false;
-                }
-            } else {
-                ok = name.validate() && ok;
-                ok = contact.validate() && ok;
-                ok = email.validate() && ok;
-                ok = address.validate() && ok;
-            }
-            if (!ok) {
-                UiHelper.setStatus(status, "Please fix the red messages first.", true);
+            return ok;
+        }
+
+        VBox node() {
+            HBox segments = new HBox(Layout.GAP_NORMAL, renterTab, ownerTab);
+            segments.setAlignment(Pos.CENTER);
+            VBox form = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Create an account"), segments,
+                    labeled("Username", user.node), labeled("Password", pass.node()),
+                    labeled("Confirm password", confirm.node()), name.node(),
+                    labeled("Phone number", phone.node()), renterOnly,
+                    labeled("Security question (for Forgot password)",
+                            new VBox(Layout.GAP_HAIR, question, questionError)),
+                    labeled("Your answer", answer.node), status);
+            return form;
+        }
+    }
+
+    void showSignUp() {
+        SignUpForm f = new SignUpForm();
+        Button create = primary("Create account");
+        create.setOnAction(e -> {
+            if (!f.validate()) {
+                UiHelper.setStatus(f.status, "Please fix the red messages first.", true);
                 return;
             }
             try {
-                if (owner) {
-                    auth.signUpOwner(user.text(), pass.text(), ownerName.text(),
-                            question.getValue(), answer.text(),
-                            ownerCode.text());
+                if (f.ownerTab.isSelected()) {
+                    auth.signUpOwner(f.user.text(), f.pass.text(), f.name.value(), f.phone.value(),
+                            f.question.getValue(), f.answer.text());
                 } else {
-                    auth.signUpRenter(user.text(), pass.text(), new Renter(0, name.text(),
-                            contact.text(),
-                            email.textOrNull(), address.textOrNull()), question.getValue(),
-                                    answer.text());
+                    auth.signUpRenter(f.user.text(), f.pass.text(), new Renter(0, f.name.value(),
+                            f.phone.value(), f.email.text(), f.address.value()),
+                            f.question.getValue(), f.answer.text());
                 }
                 showLogin("Account created. Log in with your new username and password.",
-                        user.text());
+                        f.user.text());
             } catch (RuleException ex) {
-                String text = ex.getMessage();
-                if (text.contains("owner code")) {
-                    ownerCode.showError(text);
-                } else if (text.contains("username")) {
-                    UiHelper.setError(user.error, text);
+                if (ex.getMessage().contains("username")) {
+                    UiHelper.setError(f.user.error, ex.getMessage());
                 }
-                UiHelper.setStatus(status, text, true);
+                UiHelper.setStatus(f.status, ex.getMessage(), true);
             } catch (ControllerException ex) {
-                UiHelper.setStatus(status, ex.getMessage(), true);
+                UiHelper.setStatus(f.status, ex.getMessage(), true);
             }
         });
-        VBox form = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Create an account"), segments,
-                labeled("Username", user.node), labeled("Password", pass.node()),
-                labeled("Confirm password", confirm.node()), renterFields, ownerFields,
-                labeled("Security question (for Forgot password)", new VBox(Layout.GAP_HAIR,
-                        question,
-                        questionError)),
-                labeled("Your answer", answer.node), status, create,
-                link("I already have an account", () -> showLogin(null, user.text())));
+        VBox form = f.node();
+        form.getChildren().addAll(create,
+                link("I already have an account", () -> showLogin(null, f.user.text())));
         form.getChildren().get(form.getChildren().size() - 1).setStyle("-fx-alignment: center;");
         show(form);
     }

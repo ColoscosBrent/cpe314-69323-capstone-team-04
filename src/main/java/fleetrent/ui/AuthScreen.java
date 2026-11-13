@@ -33,7 +33,10 @@ final class AuthScreen {
     private static final Insets HERO_PADDING = new Insets(4, 0, 2, 0);
     private static final double CARD_MAX_WIDTH = 520;
     private static final double CARD_MIN_WIDTH = 420;
-    private static final Insets CENTER_PADDING = new Insets(10, 18, 18, 18);
+    // Small gaps and padding keep the login card and its button inside a 860 x 560 window, also
+    // with the wider fonts of Windows.
+    private static final Insets CENTER_PADDING = new Insets(4, 18, 4, 18);
+    private static final double SECTION_GAP = 8;
     private static final double DELAY_MILLIS = 220;
     private static final double FIELD_PREF_WIDTH = 300;
     private static final double ERROR_MAX_WIDTH = 340;
@@ -67,7 +70,7 @@ final class AuthScreen {
         card.getStyleClass().add("auth-card");
         card.setMaxWidth(CARD_MAX_WIDTH);
         card.setMinWidth(CARD_MIN_WIDTH);
-        VBox center = new VBox(Layout.GAP_XLARGE, hero, card, road.node());
+        VBox center = new VBox(SECTION_GAP, hero, card, road.node());
         center.setAlignment(Pos.TOP_CENTER);
         center.setPadding(CENTER_PADDING);
 

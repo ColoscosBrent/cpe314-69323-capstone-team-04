@@ -15,8 +15,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 
-// Finds a real photo of a car model through the free Wikipedia web service (no key needed)
-// and downloads it. Always call it from a background thread, never from the JavaFX UI thread.
+/**
+ * Finds a real photo of a car model through the free Wikipedia web service (no key needed) and
+ * downloads it. Always call it from a background thread, never from the JavaFX UI thread.
+ */
 public class CarImageClient {
     public static final String DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php";
     public static final int MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -29,15 +31,19 @@ public class CarImageClient {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    /** Creates a car image client. */
     public CarImageClient() {
         this(DEFAULT_API_URL);
     }
 
-    // The second constructor lets a test point the client at a fake local server.
+    /**
+     * The second constructor lets a test point the client at a fake local server.
+     */
     public CarImageClient(String apiUrl) {
         this.apiUrl = apiUrl;
     }
 
+    /** Builds the Wikipedia search address for a make and model. */
     public String searchUrl(String make, String model) {
         if (make == null || make.isBlank() || model == null || model.isBlank()) {
             throw new IllegalArgumentException("make and model are required");
@@ -47,7 +53,9 @@ public class CarImageClient {
                 + "&gsrnamespace=0&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=600&format=json";
     }
 
-    // Returns the address of a photo, or null when Wikipedia has no picture for that car.
+    /**
+     * Returns the address of a photo, or null when Wikipedia has no picture for that car.
+     */
     public String findImageUrl(String make, String model) throws IOException, InterruptedException {
         String body = getText(searchUrl(make, model));
         try {
@@ -57,7 +65,9 @@ public class CarImageClient {
         }
     }
 
-    // Downloads the picture. Throws IOException if it is too big or is not a picture.
+    /**
+     * Downloads the picture. Throws IOException if it is too big or is not a picture.
+     */
     public byte[] download(String imageUrl) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(imageUrl))
                 .timeout(Duration.ofSeconds(30))
@@ -96,8 +106,10 @@ public class CarImageClient {
         return response.body();
     }
 
-    // Reads the JSON and returns the thumbnail of the best search hit that has one, or null.
-    // Throws IllegalArgumentException if the text is not what we expect.
+    /**
+     * Reads the JSON and returns the thumbnail of the best search hit that has one, or null. Throws
+     * IllegalArgumentException if the text is not what we expect.
+     */
     public static String parseThumbnailUrl(String json) {
         if (json == null || json.isBlank()) {
             throw new IllegalArgumentException("empty answer");

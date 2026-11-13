@@ -11,13 +11,17 @@ import java.sql.SQLException;
 import java.util.Locale;
 import javax.net.ssl.SSLException;
 
-// Turns technical errors into plain messages for the screen. One place, so every tab says the
-// same thing for the same problem. It has no screen code, so it can be unit tested.
+/**
+ * Turns technical errors into plain messages for the screen. One place, so every tab says the same
+ * thing for the same problem. It has no screen code, so it can be unit tested.
+ */
 public final class ErrorMessages {
     private ErrorMessages() {
     }
 
-    // service is a short name such as "NHTSA" or "Wikipedia".
+    /**
+     * service is a short name such as "NHTSA" or "Wikipedia".
+     */
     public static String forApi(String service, Throwable error) {
         if (error == null) {
             return "Could not get data from " + service + ".";
@@ -63,8 +67,13 @@ public final class ErrorMessages {
         return "Could not get data from " + service + ".";
     }
 
-    // action is a short phrase such as "saving the vehicle".
+    /**
+     * action is a short phrase such as "saving the vehicle".
+     */
     public static String forDatabase(String action, SQLException error) {
+        if (error instanceof DuplicatePlateException) {
+            return error.getMessage();
+        }
         String message = error == null || error.getMessage() == null ? "" : error.getMessage();
         String lower = message.toLowerCase(Locale.ROOT);
         String start = "Database error while " + action + ". ";

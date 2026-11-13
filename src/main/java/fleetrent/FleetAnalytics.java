@@ -11,13 +11,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-// Data mining on the saved rentals. Every method takes the data and a date range, so changing the
-// range changes the answer. Only RETURNED rentals are counted, because only they have a final cost.
+/**
+ * Data mining on the saved rentals. Every method takes the data and a date range, so changing the
+ * range changes the answer. Only RETURNED rentals are counted, because only they have a final cost.
+ */
 public final class FleetAnalytics {
     private FleetAnalytics() {
     }
 
-    // Keeps returned rentals whose start date is inside from..to. A null limit means "no limit".
+    /**
+     * Keeps returned rentals whose start date is inside from..to. A null limit means "no limit".
+     */
     public static List<Rental> filter(List<Rental> rentals, LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new IllegalArgumentException("The 'from' date is after the 'to' date.");
@@ -38,6 +42,7 @@ public final class FleetAnalytics {
         return kept;
     }
 
+    /** Returns the money a rental earned. */
     public static double costOf(Rental r, Vehicle v) {
         int days = RentalMath.billableDays(r.getStartDate(), r.getReturnedOn());
         return v.computeRentalCost(days, r.getMilesDriven());
@@ -51,7 +56,9 @@ public final class FleetAnalytics {
         return map;
     }
 
-    // Total money earned per vehicle type. All three types are always in the result (0.0 if none).
+    /**
+     * Total money earned per vehicle type. All three types are always in the result (0.0 if none).
+     */
     public static Map<String, Double> revenueByType(List<Rental> rentals, List<Vehicle> vehicles,
                                                     LocalDate from, LocalDate to) {
         Map<String, Double> result = new LinkedHashMap<>();
@@ -69,8 +76,10 @@ public final class FleetAnalytics {
         return result;
     }
 
-    // Number of rentals per month, in time order. Months with no rentals between the first and
-    // the last month are shown as 0 so the chart has no holes.
+    /**
+     * Number of rentals per month, in time order. Months with no rentals between the first and the
+     * last month are shown as 0 so the chart has no holes.
+     */
     public static Map<YearMonth, Integer> rentalsPerMonth(List<Rental> rentals, LocalDate from, LocalDate to) {
         TreeMap<YearMonth, Integer> counts = new TreeMap<>();
         for (Rental r : filter(rentals, from, to)) {
@@ -87,8 +96,10 @@ public final class FleetAnalytics {
         return counts;
     }
 
-    // How many rentals each vehicle type had: the "most rented type" question. All three types are
-    // always in the result (0 if none).
+    /**
+     * How many rentals each vehicle type had: the "most rented type" question. All three types are
+     * always in the result (0 if none).
+     */
     public static Map<String, Integer> rentalsByType(List<Rental> rentals, List<Vehicle> vehicles,
                                                      LocalDate from, LocalDate to) {
         Map<String, Integer> result = new LinkedHashMap<>();
@@ -105,9 +116,11 @@ public final class FleetAnalytics {
         return result;
     }
 
-    // Fleet utilization per month, in percent: (vehicle-days that were rented) / (vehicles x days in
-    // the month) x 100. A vehicle counts once per day even if two rentals overlap, so it never passes
-    // 100. Months between the first and the last busy month with no rentals show as 0.
+    /**
+     * Fleet utilization per month, in percent: (vehicle-days that were rented) / (vehicles x days
+     * in the month) x 100. A vehicle counts once per day even if two rentals overlap, so it never
+     * passes 100. Months between the first and the last busy month with no rentals show as 0.
+     */
     public static Map<YearMonth, Double> utilizationByMonth(List<Rental> rentals, List<Vehicle> vehicles,
                                                             LocalDate from, LocalDate to) {
         TreeMap<YearMonth, Double> result = new TreeMap<>();
@@ -138,7 +151,9 @@ public final class FleetAnalytics {
         return result;
     }
 
-    // The n most rented models (make + model), biggest first. A tie is sorted by name.
+    /**
+     * The n most rented models (make + model), biggest first. A tie is sorted by name.
+     */
     public static List<Map.Entry<String, Integer>> topModels(List<Rental> rentals, List<Vehicle> vehicles,
                                                              LocalDate from, LocalDate to, int n) {
         if (n < 1) {
@@ -160,7 +175,9 @@ public final class FleetAnalytics {
         return list.size() > n ? new ArrayList<>(list.subList(0, n)) : list;
     }
 
-    // Average billable days of the counted rentals, or 0 when there are none.
+    /**
+     * Average billable days of the counted rentals, or 0 when there are none.
+     */
     public static double averageDays(List<Rental> rentals, LocalDate from, LocalDate to) {
         List<Rental> kept = filter(rentals, from, to);
         if (kept.isEmpty()) {
@@ -173,7 +190,9 @@ public final class FleetAnalytics {
         return (double) total / kept.size();
     }
 
-    // One readable sentence block about what the mining found.
+    /**
+     * One readable sentence block about what the mining found.
+     */
     public static String summary(List<Rental> rentals, List<Vehicle> vehicles, LocalDate from, LocalDate to) {
         List<Rental> kept = filter(rentals, from, to);
         if (kept.isEmpty()) {
@@ -199,7 +218,10 @@ public final class FleetAnalytics {
                 kept.size(), total, bestType, busiest, months.get(busiest), averageDays(rentals, from, to));
     }
 
-    // Builds the category tree (Car > Sedan > ...) with each vehicle's mileage, for the recursive total.
+    /**
+     * Builds the category tree (Car > Sedan > ...) with each vehicle's mileage, for the recursive
+     * total.
+     */
     public static CategoryNode mileageTree(List<Vehicle> vehicles) {
         CategoryNode root = new CategoryNode("Fleet");
         for (Vehicle v : vehicles) {

@@ -31,8 +31,10 @@ class FleetAnalyticsTest {
     @BeforeEach
     void setUp() {
         vehicles = new ArrayList<>();
-        vehicles.add(VehicleFactory.create(1, "SEDAN", "Toyota", "Camry", 2022, "A", "White", 1000, 500, null, "Car > Sedan"));
-        vehicles.add(VehicleFactory.create(2, "SUV", "Ford", "Everest", 2022, "B", "Black", 2000, 300, null, "Car > SUV"));
+        vehicles.add(VehicleFactory.create(1, "SEDAN", "Toyota", "Camry", 2022, "A", "White", 1000,
+                500, null, "Car > Sedan"));
+        vehicles.add(VehicleFactory.create(2, "SUV", "Ford", "Everest", 2022, "B", "Black", 2000,
+                300, null, "Car > SUV"));
         rentals = new ArrayList<>();
         rentals.add(returned(1, "2026-01-10", "2026-01-12", 100));
         rentals.add(returned(1, "2026-01-20", "2026-01-21", 50));
@@ -59,13 +61,15 @@ class FleetAnalyticsTest {
 
     @Test
     void rangeLimitsAreInclusive() {
-        List<Rental> kept = FleetAnalytics.filter(rentals, LocalDate.of(2026, 1, 10), LocalDate.of(2026, 1, 20));
+        List<Rental> kept = FleetAnalytics.filter(rentals, LocalDate.of(2026, 1, 10),
+                LocalDate.of(2026, 1, 20));
         assertEquals(2, kept.size());
     }
 
     @Test
     void emptyDataGivesZerosNotErrors() {
-        Map<String, Double> revenue = FleetAnalytics.revenueByType(new ArrayList<>(), vehicles, null, null);
+        Map<String, Double> revenue = FleetAnalytics.revenueByType(new ArrayList<>(), vehicles,
+                null, null);
         assertEquals(3, revenue.size());
         assertEquals(0.0, revenue.get("SUV"), 0.001);
         assertTrue(FleetAnalytics.rentalsPerMonth(new ArrayList<>(), null, null).isEmpty());
@@ -77,7 +81,8 @@ class FleetAnalyticsTest {
     @Test
     void fromAfterToIsRejected() {
         assertThrows(IllegalArgumentException.class,
-                () -> FleetAnalytics.filter(rentals, LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 1)));
+                () -> FleetAnalytics.filter(rentals, LocalDate.of(2026, 2, 1), LocalDate.of(2026,
+                        1, 1)));
     }
 
     @Test
@@ -104,12 +109,14 @@ class FleetAnalyticsTest {
 
     @Test
     void topModelsIsSortedAndLimited() {
-        List<Map.Entry<String, Integer>> top = FleetAnalytics.topModels(rentals, vehicles, null, null, 1);
+        List<Map.Entry<String, Integer>> top = FleetAnalytics.topModels(rentals, vehicles, null,
+                null, 1);
         assertEquals(1, top.size());
         assertEquals("Toyota Camry", top.get(0).getKey());
         assertEquals(2, top.get(0).getValue());
         assertEquals(2, FleetAnalytics.topModels(rentals, vehicles, null, null, 10).size());
-        assertThrows(IllegalArgumentException.class, () -> FleetAnalytics.topModels(rentals, vehicles, null, null, 0));
+        assertThrows(IllegalArgumentException.class, () -> FleetAnalytics.topModels(rentals,
+                vehicles, null, null, 0));
     }
 
     @Test
@@ -143,7 +150,8 @@ class FleetAnalyticsTest {
 
     @Test
     void rentalsByTypeWithNoDataIsAllZero() {
-        Map<String, Integer> counts = FleetAnalytics.rentalsByType(new ArrayList<>(), vehicles, null, null);
+        Map<String, Integer> counts = FleetAnalytics.rentalsByType(new ArrayList<>(), vehicles,
+                null, null);
         assertEquals(3, counts.size());
         assertEquals(0, counts.get("SEDAN"));
     }
@@ -178,7 +186,9 @@ class FleetAnalyticsTest {
 
     @Test
     void utilizationWithNoVehiclesOrNoRentalsIsEmpty() {
-        assertTrue(FleetAnalytics.utilizationByMonth(rentals, new ArrayList<>(), null, null).isEmpty());
-        assertTrue(FleetAnalytics.utilizationByMonth(new ArrayList<>(), vehicles, null, null).isEmpty());
+        assertTrue(FleetAnalytics.utilizationByMonth(rentals, new ArrayList<>(), null, null)
+                .isEmpty());
+        assertTrue(FleetAnalytics.utilizationByMonth(new ArrayList<>(), vehicles, null, null)
+                .isEmpty());
     }
 }

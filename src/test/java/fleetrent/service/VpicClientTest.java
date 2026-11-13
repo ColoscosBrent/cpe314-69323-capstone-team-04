@@ -17,11 +17,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class VpicClientTest {
-    private static final String SAMPLE = "{\"Count\":3,\"Message\":\"Response returned successfully\","
+    private static final String SAMPLE =
+            "{\"Count\":3,\"Message\":\"Response returned successfully\","
             + "\"SearchCriteria\":\"Make:toyota\",\"Results\":["
-            + "{\"Make_ID\":448,\"Make_Name\":\"TOYOTA\",\"Model_ID\":2208,\"Model_Name\":\"Corolla\"},"
-            + "{\"Make_ID\":448,\"Make_Name\":\"TOYOTA\",\"Model_ID\":2209,\"Model_Name\":\"camry\"},"
-            + "{\"Make_ID\":448,\"Make_Name\":\"TOYOTA\",\"Model_ID\":2210,\"Model_Name\":\"4Runner\"}]}";
+            + "{\"Make_ID\":448,\"Make_Name\":\"TOYOTA\",\"Model_ID\":2208,\"Model_Name\":\"Corol"
+                    + "la\"},"
+            + "{\"Make_ID\":448,\"Make_Name\":\"TOYOTA\",\"Model_ID\":2209,\"Model_Name\":\"camr"
+                    + "y\"},"
+            + "{\"Make_ID\":448,\"Make_Name\":\"TOYOTA\",\"Model_ID\":2210,\"Model_Name\":\"4Runn"
+                    + "er\"}]}";
 
     private HttpServer server;
     private int status;
@@ -69,7 +73,8 @@ class VpicClientTest {
 
     @Test
     void parseModelsSkipsEntriesWithoutAModelName() {
-        String json = "{\"Results\":[{\"Model_ID\":1},{\"Model_Name\":null},{\"Model_Name\":\"  \"},"
+        String json =
+                "{\"Results\":[{\"Model_ID\":1},{\"Model_Name\":null},{\"Model_Name\":\"  \"},"
                 + "{\"Make_Name\":\"FORD\",\"Model_ID\":5,\"Model_Name\":\"Everest\"}]}";
         List<VehicleModelInfo> models = VpicClient.parseModels(json);
         assertEquals(1, models.size());
@@ -80,7 +85,8 @@ class VpicClientTest {
     void parseModelsRejectsBadInput() {
         assertThrows(IllegalArgumentException.class, () -> VpicClient.parseModels(null));
         assertThrows(IllegalArgumentException.class, () -> VpicClient.parseModels("   "));
-        assertThrows(IllegalArgumentException.class, () -> VpicClient.parseModels("<html>oops</html>"));
+        assertThrows(IllegalArgumentException.class, () ->
+                VpicClient.parseModels("<html>oops</html>"));
         assertThrows(IllegalArgumentException.class, () -> VpicClient.parseModels("{\"Count\":1}"));
         assertThrows(IllegalArgumentException.class, () -> VpicClient.parseModels("[1,2,3]"));
     }
@@ -90,9 +96,12 @@ class VpicClientTest {
         VpicClient c = new VpicClient();
         assertEquals("https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/Toyota?format=json",
                 c.modelsUrl(" Toyota "));
-        assertEquals("https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/Land%20Rover?format=json",
+        assertEquals(
+                "https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/Land%20Rover?format=json",
                 c.modelsUrl("Land Rover"));
-        assertEquals("https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/Honda/modelyear/2020?format=json",
+        assertEquals(
+                "https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/Honda/modelyear"
+                        + "/2020?format=json",
                 c.modelsUrl("Honda", 2020));
     }
 
@@ -114,7 +123,8 @@ class VpicClientTest {
     @Test
     void fetchModelsWithYearUsesTheYearEndpoint() throws Exception {
         client().fetchModels("Toyota", 2021);
-        assertEquals("/api/vehicles/GetModelsForMakeYear/make/Toyota/modelyear/2021?format=json", lastPath);
+        assertEquals("/api/vehicles/GetModelsForMakeYear/make/Toyota/modelyear/2021?format=json",
+                lastPath);
     }
 
     @Test
@@ -137,9 +147,12 @@ class VpicClientTest {
     }
 
     private static final String MAKES = "{\"Count\":3,\"Results\":["
-            + "{\"MakeId\":474,\"MakeName\":\"HONDA\",\"VehicleTypeId\":2,\"VehicleTypeName\":\"Motorcycle\"},"
-            + "{\"MakeId\":1,\"MakeName\":\"Aprilia\",\"VehicleTypeId\":2,\"VehicleTypeName\":\"Motorcycle\"},"
-            + "{\"MakeId\":2,\"MakeName\":\"honda\",\"VehicleTypeId\":2,\"VehicleTypeName\":\"Motorcycle\"}]}";
+            + "{\"MakeId\":474,\"MakeName\":\"HONDA\",\"VehicleTypeId\":2,\"VehicleTypeName\":\"M"
+                    + "otorcycle\"},"
+            + "{\"MakeId\":1,\"MakeName\":\"Aprilia\",\"VehicleTypeId\":2,\"VehicleTypeName\":\"M"
+                    + "otorcycle\"},"
+            + "{\"MakeId\":2,\"MakeName\":\"honda\",\"VehicleTypeId\":2,\"VehicleTypeName\":\"Mot"
+                    + "orcycle\"}]}";
 
     @Test
     void parseMakesSortsAndRemovesDuplicates() {
@@ -175,7 +188,8 @@ class VpicClientTest {
 
     @Test
     void modelsUrlRejectsOldYearAndMissingType() {
-        assertThrows(IllegalArgumentException.class, () -> client().modelsUrl("Honda", 1990, "car"));
+        assertThrows(IllegalArgumentException.class, () -> client().modelsUrl("Honda", 1990,
+                "car"));
         assertThrows(IllegalArgumentException.class, () -> client().modelsUrl("Honda", null, " "));
     }
 

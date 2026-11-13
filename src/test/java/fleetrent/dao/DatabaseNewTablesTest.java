@@ -37,7 +37,8 @@ class DatabaseNewTablesTest {
         service = new RentalService(db);
         renterA = db.insertRenter(new Renter(0, "Ana", null, null, null));
         renterB = db.insertRenter(new Renter(0, "Ben", null, null, null));
-        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020, "ABC 123",
+        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020,
+                "ABC 123",
                 "White", 1000, 0, null, "Car > Sedan"));
     }
 
@@ -80,15 +81,18 @@ class DatabaseNewTablesTest {
     void pmsRecordMovesLastPmsForwardOnly() throws SQLException {
         db.insertMaintenance(new Maintenance(0, vehicleId, START, MaintenanceType.PMS, 2500, null));
         assertEquals(START, db.getVehicleById(vehicleId).getLastPMS());
-        db.insertMaintenance(new Maintenance(0, vehicleId, START.minusDays(30), MaintenanceType.PMS, 1, null));
+        db.insertMaintenance(new Maintenance(0, vehicleId, START.minusDays(30),
+                MaintenanceType.PMS, 1, null));
         assertEquals(START, db.getVehicleById(vehicleId).getLastPMS());
-        db.insertMaintenance(new Maintenance(0, vehicleId, START.plusDays(9), MaintenanceType.PMS, 1, null));
+        db.insertMaintenance(new Maintenance(0, vehicleId, START.plusDays(9), MaintenanceType.PMS,
+                1, null));
         assertEquals(START.plusDays(9), db.getVehicleById(vehicleId).getLastPMS());
     }
 
     @Test
     void repairDoesNotChangeLastPms() throws SQLException {
-        db.insertMaintenance(new Maintenance(0, vehicleId, START, MaintenanceType.REPAIR, 900, "brakes"));
+        db.insertMaintenance(new Maintenance(0, vehicleId, START, MaintenanceType.REPAIR, 900,
+                "brakes"));
         assertNull(db.getVehicleById(vehicleId).getLastPMS());
         List<Maintenance> list = db.getMaintenanceByVehicle(vehicleId);
         assertEquals(1, list.size());
@@ -98,7 +102,8 @@ class DatabaseNewTablesTest {
     @Test
     void maintenanceListIsNewestFirst() throws SQLException {
         db.insertMaintenance(new Maintenance(0, vehicleId, START, MaintenanceType.TIRES, 1, null));
-        db.insertMaintenance(new Maintenance(0, vehicleId, START.plusDays(5), MaintenanceType.OTHER, 1, null));
+        db.insertMaintenance(new Maintenance(0, vehicleId, START.plusDays(5),
+                MaintenanceType.OTHER, 1, null));
         assertEquals(MaintenanceType.OTHER, db.getMaintenanceByVehicle(vehicleId).get(0).getType());
     }
 

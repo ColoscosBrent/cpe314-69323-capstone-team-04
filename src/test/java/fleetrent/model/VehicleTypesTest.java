@@ -36,15 +36,20 @@ class VehicleTypesTest {
             }
         }
         assertFalse(VehicleTypes.isCategoryOf("SUV", "Motorcycle"));
-        assertEquals(VehicleFactory.defaultCategoryPath("SEDAN"), VehicleTypes.categoryOptions("SEDAN").get(0));
-        assertEquals(VehicleFactory.defaultCategoryPath("SUV"), VehicleTypes.categoryOptions("SUV").get(0));
-        assertEquals(VehicleFactory.defaultCategoryPath("MOTORCYCLE"), VehicleTypes.categoryOptions("MOTORCYCLE").get(0));
+        assertEquals(VehicleFactory.defaultCategoryPath("SEDAN"),
+                VehicleTypes.categoryOptions("SEDAN").get(0));
+        assertEquals(VehicleFactory.defaultCategoryPath("SUV"), VehicleTypes.categoryOptions("SUV")
+                .get(0));
+        assertEquals(VehicleFactory.defaultCategoryPath("MOTORCYCLE"),
+                VehicleTypes.categoryOptions("MOTORCYCLE").get(0));
     }
 
     @Test
     void toStringHidesAnUnknownYear() {
-        Vehicle withYear = VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "AAA 111", "Black", 2000, 0, null, "Car > SUV");
-        Vehicle noYear = VehicleFactory.create(0, "SUV", "Ford", "Everest", 0, "AAA 111", "Black", 2000, 0, null, "Car > SUV");
+        Vehicle withYear = VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "AAA 111",
+                "Black", 2000, 0, null, "Car > SUV");
+        Vehicle noYear = VehicleFactory.create(0, "SUV", "Ford", "Everest", 0, "AAA 111", "Black",
+                2000, 0, null, "Car > SUV");
         assertEquals("SUV - Ford Everest 2021 (AAA 111)", withYear.toString());
         assertEquals("SUV - Ford Everest (AAA 111)", noYear.toString());
     }

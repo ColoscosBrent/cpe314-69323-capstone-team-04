@@ -504,7 +504,11 @@ public class Database implements AutoCloseable {
     // ---------- Milestone 3 (Week 10 review): accounts ----------
 
     private static final String ACCOUNT_COLUMNS =
+<<<<<<< HEAD
             "id, username, role, displayName, phone, passwordHash, passwordSalt, "
+=======
+            "id, username, role, displayName, passwordHash, passwordSalt, "
+>>>>>>> origin/project/milestone-2
             + "securityQuestion, answerHash, answerSalt, renterId, createdOn";
 
     private Account readAccount(ResultSet rs) throws SQLException {
@@ -512,19 +516,32 @@ public class Database implements AutoCloseable {
         Integer renterId = rs.wasNull() ? null : renter;
         return new Account(rs.getInt("id"), rs.getString("username"),
                 Role.valueOf(rs.getString("role")),
+<<<<<<< HEAD
                 rs.getString("displayName"), rs.getString("phone"), rs.getString("passwordHash"),
                 rs.getString("passwordSalt"),
                 rs.getString("securityQuestion"), rs.getString("answerHash"),
                 rs.getString("answerSalt"),
+=======
+                rs.getString("displayName"), rs.getString("passwordHash"),
+                        rs.getString("passwordSalt"),
+                rs.getString("securityQuestion"), rs.getString("answerHash"),
+                        rs.getString("answerSalt"),
+>>>>>>> origin/project/milestone-2
                 renterId, LocalDate.parse(rs.getString("createdOn")));
     }
 
     /** Saves a new account and gives it its new id. */
     public synchronized int insertAccount(Account a) throws SQLException {
         String sql =
+<<<<<<< HEAD
                 "INSERT INTO Account (username, role, displayName, phone, passwordHash, "
                 + "passwordSalt, securityQuestion, answerHash, answerSalt, renterId, createdOn) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+=======
+                "INSERT INTO Account (username, role, displayName, passwordHash, passwordSalt, "
+                + "securityQuestion, answerHash, answerSalt, renterId, createdOn) VALUES (?, ?, "
+                        + "?, ?, ?, ?, ?, ?, ?, ?)";
+>>>>>>> origin/project/milestone-2
         try (PreparedStatement ps = connection.prepareStatement(sql,
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, a.getUsername());
@@ -558,11 +575,19 @@ public class Database implements AutoCloseable {
         try {
             insertRenter(renter);
             Account linked = new Account(0, account.getUsername(), account.getRole(),
+<<<<<<< HEAD
                     account.getDisplayName(), account.getPhone(),
                     account.getPasswordHash(), account.getPasswordSalt(),
                     account.getSecurityQuestion(),
                     account.getAnswerHash(), account.getAnswerSalt(), renter.getId(),
                     account.getCreatedOn());
+=======
+                    account.getDisplayName(),
+                    account.getPasswordHash(), account.getPasswordSalt(),
+                            account.getSecurityQuestion(),
+                    account.getAnswerHash(), account.getAnswerSalt(), renter.getId(),
+                            account.getCreatedOn());
+>>>>>>> origin/project/milestone-2
             insertAccount(linked);
             commitWrite();
             account.setId(linked.getId());

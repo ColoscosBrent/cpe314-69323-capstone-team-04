@@ -19,8 +19,10 @@ class SampleDataTest {
     @Test
     void sameSeedGivesSameLinesAndDifferentSeedDoesNot() {
         List<Vehicle> v = SampleData.demoVehicles();
-        assertEquals(SampleData.rentalLines(v, 20, 5L, END), SampleData.rentalLines(v, 20, 5L, END));
-        assertNotEquals(SampleData.rentalLines(v, 20, 5L, END), SampleData.rentalLines(v, 20, 6L, END));
+        assertEquals(SampleData.rentalLines(v, 20, 5L, END), SampleData.rentalLines(v, 20, 5L,
+                END));
+        assertNotEquals(SampleData.rentalLines(v, 20, 5L, END), SampleData.rentalLines(v, 20, 6L,
+                END));
     }
 
     @Test
@@ -45,8 +47,10 @@ class SampleDataTest {
 
     @Test
     void badArgumentsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> SampleData.rentalLines(new ArrayList<>(), 5, 1L, END));
-        assertThrows(IllegalArgumentException.class, () -> SampleData.rentalLines(SampleData.demoVehicles(), 0, 1L, END));
+        assertThrows(IllegalArgumentException.class, () ->
+                SampleData.rentalLines(new ArrayList<>(), 5, 1L, END));
+        assertThrows(IllegalArgumentException.class, () ->
+                SampleData.rentalLines(SampleData.demoVehicles(), 0, 1L, END));
     }
 
     @Test

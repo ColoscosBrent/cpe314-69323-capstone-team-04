@@ -32,7 +32,8 @@ class RentalServiceTest {
         service = new RentalService(db);
         renterA = db.insertRenter(new Renter(0, "Ana", null, null, null));
         renterB = db.insertRenter(new Renter(0, "Ben", null, null, null));
-        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020, "ABC 123",
+        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020,
+                "ABC 123",
                 "White", 1000, 0, null, "Car > Sedan"));
     }
 
@@ -86,12 +87,17 @@ class RentalServiceTest {
 
     @Test
     void badInputIsRejected() throws SQLException {
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterA, vehicleId, d(5), d(4)));
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterA, 999, d(1), d(2)));
-        assertThrows(IllegalArgumentException.class, () -> service.startRental(999, vehicleId, d(1), d(2)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterA, vehicleId,
+                d(5), d(4)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(renterA, 999, d(1),
+                d(2)));
+        assertThrows(IllegalArgumentException.class, () -> service.startRental(999, vehicleId,
+                d(1), d(2)));
         Rental r = service.startRental(renterA, vehicleId, d(5), d(8));
-        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), d(6), -1));
-        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), d(4), 10));
+        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), d(6),
+                -1));
+        assertThrows(IllegalArgumentException.class, () -> service.returnRental(r.getId(), d(4),
+                10));
         assertThrows(IllegalArgumentException.class, () -> service.returnRental(999, d(6), 10));
     }
 
@@ -132,7 +138,8 @@ class RentalServiceTest {
 
     @Test
     void waitingListBelongsToOneVehicleOnly() throws SQLException {
-        int otherVehicle = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "XYZ 789",
+        int otherVehicle = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest",
+                2021, "XYZ 789",
                 "Black", 2500, 0, null, "Car > SUV"));
         service.startRental(renterA, vehicleId, d(1), d(4));
         assertNull(service.startRental(renterB, vehicleId, d(2), d(5)));

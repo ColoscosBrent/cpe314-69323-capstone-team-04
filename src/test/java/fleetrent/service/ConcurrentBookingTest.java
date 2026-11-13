@@ -24,7 +24,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 // Several windows (each with its own connection to the same file) try to book the same days at the
-// same moment. No matter how the timing falls, only one booking may be saved, and nothing may crash.
+// same moment. No matter how the timing falls, only one booking may be saved, and nothing may
+// crash.
 class ConcurrentBookingTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 10);
     private Path file;
@@ -38,7 +39,8 @@ class ConcurrentBookingTest {
         url = "jdbc:sqlite:" + file.toAbsolutePath();
         try (Database db = new Database(url)) {
             db.createTables();
-            vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "RACE 1", "White",
+            vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022,
+                    "RACE 1", "White",
                     1500, 0, null, "Car > Sedan"));
             for (int i = 0; i < 6; i++) {
                 renterIds.add(db.insertRenter(new Renter(0, "Renter " + i, "0917", null, null)));
@@ -51,7 +53,8 @@ class ConcurrentBookingTest {
         Files.deleteIfExists(file);
     }
 
-    // Starts one thread per renter. Each thread has its own Database (its own connection) and waits for
+    // Starts one thread per renter. Each thread has its own Database (its own connection) and waits
+    // for
     // the same signal, then runs the action. Returns how many threads booked successfully.
     private int race(int threads, boolean reserveInsteadOfRent) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(threads);
@@ -69,7 +72,8 @@ class ConcurrentBookingTest {
                     go.await();
                     try {
                         if (reserveInsteadOfRent) {
-                            booking.reserve(renterId, vehicleId, TODAY.plusDays(3), TODAY.plusDays(5));
+                            booking.reserve(renterId, vehicleId, TODAY.plusDays(3),
+                                    TODAY.plusDays(5));
                         } else {
                             booking.rentNow(renterId, vehicleId, TODAY.plusDays(2));
                         }
@@ -115,7 +119,8 @@ class ConcurrentBookingTest {
             try (Database own = new Database(url)) {
                 go.await();
                 try {
-                    new BookingService(own, () -> TODAY).rentNow(renterIds.get(0), vehicleId, TODAY.plusDays(4));
+                    new BookingService(own, () -> TODAY).rentNow(renterIds.get(0), vehicleId,
+                            TODAY.plusDays(4));
                     return true;
                 } catch (IllegalStateException e) {
                     return false;
@@ -126,7 +131,8 @@ class ConcurrentBookingTest {
             try (Database own = new Database(url)) {
                 go.await();
                 try {
-                    new BookingService(own, () -> TODAY).reserve(renterIds.get(1), vehicleId, TODAY.plusDays(1),
+                    new BookingService(own, () -> TODAY).reserve(renterIds.get(1), vehicleId,
+                            TODAY.plusDays(1),
                             TODAY.plusDays(3));
                     return true;
                 } catch (IllegalStateException e) {
@@ -146,7 +152,8 @@ class ConcurrentBookingTest {
         List<Integer> cars = new ArrayList<>();
         try (Database db = new Database(url)) {
             for (int i = 0; i < 5; i++) {
-                cars.add(db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "CAR " + i, "Black",
+                cars.add(db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021,
+                        "CAR " + i, "Black",
                         2500, 0, null, "Car > SUV")));
             }
         }
@@ -177,9 +184,11 @@ class ConcurrentBookingTest {
     @Test
     void aSecondWindowSeesWhatTheFirstWindowSavedAndRefusesTheSameDays() throws Exception {
         try (Database first = new Database(url); Database second = new Database(url)) {
-            new BookingService(first, () -> TODAY).reserve(renterIds.get(0), vehicleId, TODAY.plusDays(1), TODAY.plusDays(2));
+            new BookingService(first, () -> TODAY).reserve(renterIds.get(0), vehicleId,
+                    TODAY.plusDays(1), TODAY.plusDays(2));
             org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                    () -> new BookingService(second, () -> TODAY).reserve(renterIds.get(1), vehicleId,
+                    () -> new BookingService(second, () -> TODAY).reserve(renterIds.get(1),
+                            vehicleId,
                             TODAY.plusDays(2), TODAY.plusDays(3)));
         }
     }

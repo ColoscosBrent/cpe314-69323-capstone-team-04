@@ -40,7 +40,8 @@ class DatabaseEdgeCaseTest {
     void setUp() throws SQLException {
         db = new Database("jdbc:sqlite::memory:");
         db.createTables();
-        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022,
+                "ABC 123", "White",
                 1500, 1000, null, "Car > Sedan"));
         renterId = db.insertRenter(new Renter(0, "Ana Reyes", "0917", null, null));
     }
@@ -51,12 +52,14 @@ class DatabaseEdgeCaseTest {
     }
 
     private Rental rental(int renter, int vehicle, int startOffset, int endOffset) {
-        return new Rental(0, renter, vehicle, TODAY.plusDays(startOffset), TODAY.plusDays(endOffset), null, 0,
+        return new Rental(0, renter, vehicle, TODAY.plusDays(startOffset),
+                TODAY.plusDays(endOffset), null, 0,
                 RentalStatus.ONGOING);
     }
 
     private Reservation reservation(int renter, int vehicle, int startOffset, int endOffset) {
-        return new Reservation(0, renter, vehicle, TODAY.plusDays(startOffset), TODAY.plusDays(endOffset),
+        return new Reservation(0, renter, vehicle, TODAY.plusDays(startOffset),
+                TODAY.plusDays(endOffset),
                 ReservationStatus.ACTIVE, null, TODAY);
     }
 
@@ -77,8 +80,10 @@ class DatabaseEdgeCaseTest {
     void aRentalForAVehicleOrRenterThatDoesNotExistIsRefusedByTheDatabase() {
         assertThrows(SQLException.class, () -> db.insertRental(rental(renterId, 999, 0, 1)));
         assertThrows(SQLException.class, () -> db.insertRental(rental(999, vehicleId, 0, 1)));
-        assertThrows(SQLException.class, () -> db.insertReservation(reservation(999, vehicleId, 1, 2)));
-        assertThrows(SQLException.class, () -> db.insertReservation(reservation(renterId, 999, 1, 2)));
+        assertThrows(SQLException.class, () -> db.insertReservation(reservation(999, vehicleId, 1,
+                2)));
+        assertThrows(SQLException.class, () -> db.insertReservation(reservation(renterId, 999, 1,
+                2)));
     }
 
     @Test
@@ -90,9 +95,11 @@ class DatabaseEdgeCaseTest {
     @Test
     void aBatchWithOneBadRentalSavesNothingAndKeepsTheMileage() throws SQLException {
         List<Rental> batch = List.of(
-                new Rental(0, renterId, vehicleId, TODAY.minusDays(5), TODAY.minusDays(4), TODAY.minusDays(4), 100,
+                new Rental(0, renterId, vehicleId, TODAY.minusDays(5), TODAY.minusDays(4),
+                        TODAY.minusDays(4), 100,
                         RentalStatus.RETURNED),
-                new Rental(0, renterId, 999, TODAY.minusDays(3), TODAY.minusDays(2), TODAY.minusDays(2), 50,
+                new Rental(0, renterId, 999, TODAY.minusDays(3), TODAY.minusDays(2),
+                        TODAY.minusDays(2), 50,
                         RentalStatus.RETURNED));
         assertThrows(SQLException.class, () -> db.insertRentalBatch(batch));
         assertTrue(db.getAllRentals().isEmpty());
@@ -153,24 +160,29 @@ class DatabaseEdgeCaseTest {
 
     @Test
     void oneAccountPerUsernameEvenWithOtherCapitals() throws SQLException {
-        Account a = new Account(0, "maria_s", Role.ADMIN, "Maria", "h", "s", "q", "ah", "as", null, TODAY);
+        Account a = new Account(0, "maria_s", Role.ADMIN, "Maria", "h", "s", "q", "ah", "as", null,
+                TODAY);
         db.insertAccount(a);
-        Account same = new Account(0, "MARIA_S", Role.ADMIN, "Maria 2", "h", "s", "q", "ah", "as", null, TODAY);
+        Account same = new Account(0, "MARIA_S", Role.ADMIN, "Maria 2", "h", "s", "q", "ah", "as",
+                null, TODAY);
         assertThrows(SQLException.class, () -> db.insertAccount(same));
         assertEquals("maria_s", db.findAccountByUsername("Maria_S").getUsername());
     }
 
     @Test
     void anAccountForARenterThatDoesNotExistIsRefused() {
-        Account a = new Account(0, "ghost_user", Role.RENTER, "Ghost", "h", "s", "q", "ah", "as", 999, TODAY);
+        Account a = new Account(0, "ghost_user", Role.RENTER, "Ghost", "h", "s", "q", "ah", "as",
+                999, TODAY);
         assertThrows(SQLException.class, () -> db.insertAccount(a));
     }
 
     @Test
     void signingUpARenterIsAllOrNothing() throws SQLException {
-        db.insertAccount(new Account(0, "taken_name", Role.ADMIN, "Owner", "h", "s", "q", "ah", "as", null, TODAY));
+        db.insertAccount(new Account(0, "taken_name", Role.ADMIN, "Owner", "h", "s", "q", "ah",
+                "as", null, TODAY));
         Renter r = new Renter(0, "Half Made", "1", null, null);
-        Account clash = new Account(0, "TAKEN_NAME", Role.RENTER, "Half Made", "h", "s", "q", "ah", "as", null, TODAY);
+        Account clash = new Account(0, "TAKEN_NAME", Role.RENTER, "Half Made", "h", "s", "q", "ah",
+                "as", null, TODAY);
         assertThrows(SQLException.class, () -> db.insertRenterWithAccount(r, clash));
         assertEquals(1, db.getAllRenters().size());
     }
@@ -201,7 +213,8 @@ class DatabaseEdgeCaseTest {
         int cancelled = db.insertReservation(reservation(renterId, vehicleId, 20, 22));
         db.updateReservationStatus(cancelled, ReservationStatus.CANCELLED, "x");
         db.insertReservation(reservation(renterId, vehicleId, 30, 31));
-        db.insertRental(new Rental(0, renterId, vehicleId, TODAY.minusDays(4), TODAY.minusDays(3), TODAY.minusDays(3), 0,
+        db.insertRental(new Rental(0, renterId, vehicleId, TODAY.minusDays(4), TODAY.minusDays(3),
+                TODAY.minusDays(3), 0,
                 RentalStatus.RETURNED));
         Map<Integer, List<BusySpan>> spans = db.getBusySpans(TODAY);
         assertEquals(1, spans.get(vehicleId).size());
@@ -255,7 +268,8 @@ class DatabaseEdgeCaseTest {
 
     @Test
     void aVehicleWithoutYearOrServiceDateRoundTrips() throws SQLException {
-        int id = db.insertVehicle(VehicleFactory.create(0, "MOTORCYCLE", "Honda", "Click", 0, "MOTO 1", "Red", 500, 0,
+        int id = db.insertVehicle(VehicleFactory.create(0, "MOTORCYCLE", "Honda", "Click", 0,
+                "MOTO 1", "Red", 500, 0,
                 null, "Motorcycle"));
         Vehicle v = db.getVehicleById(id);
         assertEquals(0, v.getYear());

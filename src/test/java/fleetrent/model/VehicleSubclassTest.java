@@ -12,15 +12,18 @@ class VehicleSubclassTest {
     private static final LocalDate PMS = LocalDate.of(2026, 1, 15);
 
     private static Vehicle sedan() {
-        return new Sedan(1, "Toyota", "Vios", 2020, "ABC 123", "White", 1000, 500, PMS, "Car > Sedan");
+        return new Sedan(1, "Toyota", "Vios", 2020, "ABC 123", "White", 1000, 500, PMS,
+                "Car > Sedan");
     }
 
     private static Vehicle suv() {
-        return new Suv(2, "Ford", "Everest", 2021, "DEF 456", "Black", 2000, 900, null, "Car > SUV");
+        return new Suv(2, "Ford", "Everest", 2021, "DEF 456", "Black", 2000, 900, null,
+                "Car > SUV");
     }
 
     private static Vehicle bike() {
-        return new Motorcycle(3, "Honda", "Click", 2022, "GHI 789", "Red", 400, 100, PMS, "Motorcycle");
+        return new Motorcycle(3, "Honda", "Click", 2022, "GHI 789", "Red", 400, 100, PMS,
+                "Motorcycle");
     }
 
     @Test

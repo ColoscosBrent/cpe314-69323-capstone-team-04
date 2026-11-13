@@ -36,8 +36,10 @@ class CarImageClientTest {
         imageBytes = CarImageStoreTest.PNG;
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         base = "http://127.0.0.1:" + server.getAddress().getPort();
-        apiBody = "{\"query\":{\"pages\":{\"11\":{\"index\":2,\"thumbnail\":{\"source\":\"" + base + "/other.png\"}},"
-                + "\"22\":{\"index\":1,\"title\":\"Toyota Vios\",\"thumbnail\":{\"source\":\"" + base + "/car.png\"}}}}}";
+        apiBody = "{\"query\":{\"pages\":{\"11\":{\"index\":2,\"thumbnail\":{\"source\":\"" + base
+                + "/other.png\"}},"
+                + "\"22\":{\"index\":1,\"title\":\"Toyota Vios\",\"thumbnail\":{\"source\":\""
+                        + base + "/car.png\"}}}}}";
         server.createContext("/w/api.php", ex -> {
             lastQuery = ex.getRequestURI().getRawQuery();
             byte[] b = apiBody.getBytes(StandardCharsets.UTF_8);
@@ -70,14 +72,17 @@ class CarImageClientTest {
     @Test
     void parseReturnsNullWhenNothingMatchedOrNoThumbnail() {
         assertNull(CarImageClient.parseThumbnailUrl("{\"batchcomplete\":\"\"}"));
-        assertNull(CarImageClient.parseThumbnailUrl("{\"query\":{\"pages\":{\"1\":{\"title\":\"x\"}}}}"));
+        assertNull(CarImageClient.parseThumbnailUrl(
+                "{\"query\":{\"pages\":{\"1\":{\"title\":\"x\"}}}}"));
     }
 
     @Test
     void parseRejectsBrokenAnswers() {
         assertThrows(IllegalArgumentException.class, () -> CarImageClient.parseThumbnailUrl(""));
-        assertThrows(IllegalArgumentException.class, () -> CarImageClient.parseThumbnailUrl("<html>"));
-        assertThrows(IllegalArgumentException.class, () -> CarImageClient.parseThumbnailUrl("[1,2]"));
+        assertThrows(IllegalArgumentException.class, () ->
+                CarImageClient.parseThumbnailUrl("<html>"));
+        assertThrows(IllegalArgumentException.class, () ->
+                CarImageClient.parseThumbnailUrl("[1,2]"));
     }
 
     @Test

@@ -24,6 +24,7 @@ public class Account {
     /** Creates an account without a phone number (an account made by an older version). */
     public Account(int id, String username, Role role, String displayName, String passwordHash,
                    String passwordSalt, String securityQuestion, String answerHash,
+<<<<<<< HEAD
                    String answerSalt, Integer renterId, LocalDate createdOn) {
         this(id, username, role, displayName, null, passwordHash, passwordSalt, securityQuestion,
                 answerHash, answerSalt, renterId, createdOn);
@@ -34,6 +35,10 @@ public class Account {
                    String passwordHash, String passwordSalt, String securityQuestion,
                    String answerHash, String answerSalt, Integer renterId,
                    LocalDate createdOn) {
+=======
+                           String answerSalt,
+                   Integer renterId, LocalDate createdOn) {
+>>>>>>> origin/project/milestone-2
         this.id = id;
         this.username = username;
         this.role = role;

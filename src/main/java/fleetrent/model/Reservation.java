@@ -33,7 +33,8 @@ public class Reservation {
     /** Creates a new active reservation that is not saved yet. */
     public static Reservation startNew(int renterId, int vehicleId, LocalDate start, LocalDate end,
                                        LocalDate today) {
-        return new Reservation(0, renterId, vehicleId, start, end, ReservationStatus.ACTIVE, null, today);
+        return new Reservation(0, renterId, vehicleId, start, end, ReservationStatus.ACTIVE, null,
+                today);
     }
 
     /** Returns the id. */

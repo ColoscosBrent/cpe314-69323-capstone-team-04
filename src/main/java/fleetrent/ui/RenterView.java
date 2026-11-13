@@ -23,7 +23,8 @@ final class RenterView {
         RenterController booking = app.renter();
         int renterId = account.getRenterId();
         RenterBookingsTab[] bookings = new RenterBookingsTab[1];
-        RenterBrowseTab browse = new RenterBrowseTab(booking, pictures, renterId, () -> bookings[0].refresh());
+        RenterBrowseTab browse = new RenterBrowseTab(booking, pictures, renterId, () ->
+                bookings[0].refresh());
         bookings[0] = new RenterBookingsTab(booking, pictures, renterId, browse::refresh);
         RenterAccountTab accountTab = new RenterAccountTab(app.auth(), booking, account);
 
@@ -38,12 +39,14 @@ final class RenterView {
                 bookings[0].refresh();
             }
         };
-        tabs.getSelectionModel().selectedItemProperty().addListener((obs, o, n) -> refreshSelected.run());
+        tabs.getSelectionModel().selectedItemProperty().addListener((obs, o, n) ->
+                refreshSelected.run());
         poller = new SyncPoller(app.changes(), () -> {
             browse.refresh();
             bookings[0].refresh();
         }, 3);
-        root.getChildren().addAll(Chrome.header("Vehicle rental  |  Renter", account, signOut, newWindow), tabs);
+        root.getChildren().addAll(Chrome.header("Vehicle rental  |  Renter", account, signOut,
+                newWindow), tabs);
         poller.start();
     }
 

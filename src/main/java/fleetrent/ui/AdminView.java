@@ -16,7 +16,8 @@ final class AdminView {
     private final VBox root = new VBox();
     private final SyncPoller poller;
 
-    AdminView(AppController app, Account account, VehiclePictures pictures, Runnable signOut, Runnable newWindow) {
+    AdminView(AppController app, Account account, VehiclePictures pictures, Runnable signOut,
+            Runnable newWindow) {
         VehicleTab vehicleTab = new VehicleTab(app.vehicles(), pictures);
         RentalTab rentalTab = new RentalTab(app.rentals(), pictures);
         ReservationTab reservationTab = new ReservationTab(app.reservations(), pictures);
@@ -44,7 +45,8 @@ final class AdminView {
             }
         });
         poller = new SyncPoller(app.changes(), refreshSelected, 3);
-        root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management  |  Owner", account, signOut, newWindow), tabs);
+        root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management  |  Owner",
+                account, signOut, newWindow), tabs);
         poller.start();
     }
 

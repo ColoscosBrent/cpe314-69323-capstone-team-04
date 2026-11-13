@@ -37,10 +37,12 @@ final class Guard {
         } catch (SQLException e) {
             throw ControllerException.database(action, e);
         } catch (IOException e) {
-            throw new ControllerException("A file problem stopped " + action + ": " + e.getMessage(), e);
+            throw new ControllerException("A file problem stopped " + action + ": "
+                    + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new ControllerException("The work was stopped before " + action + " finished.", e);
+            throw new ControllerException("The work was stopped before " + action + " finished.",
+                    e);
         }
     }
 

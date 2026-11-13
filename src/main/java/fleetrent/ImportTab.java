@@ -1,6 +1,7 @@
 package fleetrent;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -17,7 +18,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 
-// Tab 3: load many rentals from a CSV file. The import runs on a background thread with a progress bar.
+/**
+ * Tab 3: load many rentals from a CSV file. The import runs on a background thread with a progress
+ * bar.
+ */
 public class ImportTab extends Tab {
     private final Database db;
     private final Label fileLabel = new Label("No file chosen.");
@@ -30,6 +34,7 @@ public class ImportTab extends Tab {
     private final Button sampleButton = new Button("Create sample CSV...");
     private File chosen;
 
+    /** Creates an import tab. */
     public ImportTab(Database db) {
         super("Import");
         this.db = db;
@@ -40,7 +45,7 @@ public class ImportTab extends Tab {
         fileLabel.getStyleClass().add("hint-label");
         status.getStyleClass().add("status-label");
         status.setMaxWidth(560);
-        bar.setPrefWidth(560);
+        bar.setMaxWidth(Double.MAX_VALUE);
         importButton.getStyleClass().add("primary-button");
         importButton.setDisable(true);
         log.setEditable(false);
@@ -70,7 +75,8 @@ public class ImportTab extends Tab {
                 step1, new HBox(10, demoVehiclesButton, sampleButton),
                 step2, new HBox(10, chooseButton, importButton), fileLabel, bar, status, log);
         card.getStyleClass().add("card");
-        card.setMaxWidth(640);
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
         HBox content = new HBox(card);
         content.setPadding(new javafx.geometry.Insets(18));
         setContent(UiHelper.scroll(content));
@@ -89,7 +95,8 @@ public class ImportTab extends Tab {
         Task<RentalCsvImporter.ImportResult> task = new Task<RentalCsvImporter.ImportResult>() {
             @Override
             protected RentalCsvImporter.ImportResult call() throws Exception {
-                // This code runs on the background thread. It only touches the window through Platform.runLater.
+                // This code runs on the background thread. It only touches the window through
+                // Platform.runLater.
                 return new RentalCsvImporter().importFile(file.toPath(), db,
                         percent -> Platform.runLater(() -> bar.setProgress(percent / 100.0)));
             }
@@ -144,7 +151,7 @@ public class ImportTab extends Tab {
             fileLabel.setText(file.getAbsolutePath());
             importButton.setDisable(false);
             status.setText("Created a CSV with 50,000 rentals for your current vehicles. Press Import.");
-        } catch (Exception ex) {
+        } catch (IOException | SQLException ex) {
             status.setText("Could not create the file: " + ex.getMessage());
         }
     }

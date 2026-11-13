@@ -72,12 +72,4 @@ public final class ColorNames {
                 "Teal",
             "Green", "Yellow", "Gold", "Orange", "Brown", "Beige", "Purple", "Pink"};
     }
-
-    /**
-     * The color names shown as quick swatches in the Add Vehicle form.
-     */
-    public static String[] swatchNames() {
-        return new String[] {"White", "Black", "Silver", "Red", "Blue", "Green", "Orange",
-                "Purple"};
-    }
 }

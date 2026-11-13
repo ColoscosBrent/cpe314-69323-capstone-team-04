@@ -26,12 +26,11 @@ public class VehicleController {
     private static final Logger LOG = Logger.getLogger(VehicleController.class.getName());
 
     /**
-     * The models NHTSA lists for a make.
+     * The models NHTSA lists for a make in one model year.
      *
-     * @param models   the models found
-     * @param fellBack true when none were listed for the chosen year, so the list is for any year
+     * @param models the models found (empty when none were made that year)
      */
-    public record Models(List<VehicleModelInfo> models, boolean fellBack) {
+    public record Models(List<VehicleModelInfo> models) {
     }
 
     private final Database db;
@@ -134,20 +133,13 @@ public class VehicleController {
     }
 
     /**
-     * Asks NHTSA for the models of a make. When the year has no models, it asks again for any
-     * year. Slow, so call it from a background job.
+     * Asks NHTSA for the models of a make that were made in one model year (the vehicle type
+     * narrows the list too). A year with no models gives an empty list: a model must not be
+     * offered for a year it was not made. Slow, so call it from a background job.
      */
-    public Models fetchModels(String make, Integer year,
-            String apiType) throws ControllerException {
-        return Guard.web("NHTSA", () -> {
-            List<VehicleModelInfo> list = vpic.fetchModels(make, year, apiType);
-            boolean fellBack = false;
-            if (list.isEmpty() && year != null) {
-                list = vpic.fetchModels(make, null, apiType);
-                fellBack = true;
-            }
-            return new Models(list, fellBack);
-        });
+    public Models fetchModels(String make, int year, String apiType) throws ControllerException {
+        return Guard.web("NHTSA",
+                () -> new Models(vpic.fetchModels(make, Integer.valueOf(year), apiType)));
     }
 
     // ---------- photos ----------

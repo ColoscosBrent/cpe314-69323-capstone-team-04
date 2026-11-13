@@ -37,8 +37,8 @@ class ColorNamesTest {
     }
 
     @Test
-    void everySwatchNameHasARealColor() {
-        for (String name : ColorNames.swatchNames()) {
+    void everyColorChoiceHasARealColor() {
+        for (String name : ColorNames.choices()) {
             assertNotNull(ColorNames.toColor(name));
             assertNotEquals(ColorNames.FALLBACK, ColorNames.toColor(name), name);
         }

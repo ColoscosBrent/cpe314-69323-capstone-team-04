@@ -28,6 +28,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -83,7 +84,9 @@ public class VehicleTab extends Tab {
     private static final double INFO_MAX_WIDTH = 460;
     private static final double MAINTENANCE_WIDTH = 460;
     private static final double MAINTENANCE_LIST_HEIGHT = 200;
-    private static final String NO_YEAR = "Not specified";
+    private static final int OLDEST_YEAR = 1996;
+    private static final double SWATCH_RADIUS = 8;
+    private static final String YEAR_FIRST = "Choose the year first. Then pick the make and model.";
     private static final String PHOTO_HINT =
             "No photo chosen. FleetRent will try to find one online.";
 
@@ -119,9 +122,9 @@ public class VehicleTab extends Tab {
             "Pick from the NHTSA list", true);
     private final ValidatedField modelField = new ValidatedField(Validators.Kind.VEHICLE_TEXT,
             "Pick from the NHTSA list", true);
-    private final ChoiceBox<String> yearBox = new ChoiceBox<>();
-    private final ChoiceBox<String> colorBox =
-            new ChoiceBox<>(FXCollections.observableArrayList(ColorNames.choices()));
+    private final ComboBox<String> yearBox = new ComboBox<>();
+    private final ComboBox<String> colorBox =
+            new ComboBox<>(FXCollections.observableArrayList(ColorNames.choices()));
     private final ValidatedField plateField = new ValidatedField(Validators.Kind.PLATE, "ABC 123",
             true);
     private final ValidatedField rateField = new ValidatedField(Validators.Kind.MONEY, "1500",
@@ -130,6 +133,8 @@ public class VehicleTab extends Tab {
             false);
     private final DatePicker pmsPicker = new DatePicker();
     private final ChoiceBox<String> categoryBox = new ChoiceBox<>();
+    private final ChoiceBox<String> gearBox = new ChoiceBox<>();
+    private final Label yearError = UiHelper.errorLabel();
     private final Label colorError = UiHelper.errorLabel();
     private final Label categoryError = UiHelper.errorLabel();
     private final Label yearNote = new Label();
@@ -163,19 +168,23 @@ public class VehicleTab extends Tab {
         typeBox.setValue(VehicleTypes.ALL.get(0));
         typeBox.setPrefWidth(TYPE_BOX_PREF_WIDTH);
         typeBox.setMinWidth(TYPE_BOX_MIN_WIDTH);
-        yearBox.getItems().add(NO_YEAR);
-        for (int y = LocalDate.now().getYear() + 1; y >= 1996; y--) {
+        for (int y = LocalDate.now().getYear(); y >= OLDEST_YEAR; y--) {
             yearBox.getItems().add(String.valueOf(y));
         }
-        yearBox.setValue(NO_YEAR);
+        yearBox.setPromptText("Choose the year");
         yearBox.setPrefWidth(YEAR_BOX_PREF_WIDTH);
         yearBox.setMinWidth(YEAR_BOX_MIN_WIDTH);
+        colorBox.setPromptText("Pick a color");
+        colorBox.setCellFactory(list -> new ColorCell());
+        colorBox.setButtonCell(new ColorCell());
         colorBox.setPrefWidth(COLOR_BOX_PREF_WIDTH);
         colorBox.setMinWidth(COLOR_BOX_MIN_WIDTH);
         categoryBox.setPrefWidth(CATEGORY_BOX_PREF_WIDTH);
         categoryBox.setMinWidth(CATEGORY_BOX_MIN_WIDTH);
-        categoryBox.getItems().setAll(VehicleTypes.categoryOptions(typeBox.getValue()));
-        categoryBox.setValue(categoryBox.getItems().get(0));
+        gearBox.setPrefWidth(CATEGORY_BOX_PREF_WIDTH);
+        gearBox.setMinWidth(CATEGORY_BOX_MIN_WIDTH);
+        categoryBox.valueProperty().addListener((obs, o, n) -> onStyleChanged());
+        fillStyles();
         pmsPicker.setEditable(false);
         pmsPicker.setPromptText("Optional");
         pmsPicker.setPrefWidth(PMS_PICKER_PREF_WIDTH);
@@ -201,14 +210,6 @@ public class VehicleTab extends Tab {
         preview.getStyleClass().add("preview-stage");
         previewName = new Label("Pick a color below");
         previewName.getStyleClass().add("hint-label");
-        HBox swatches = new HBox(7);
-        for (String name : ColorNames.swatchNames()) {
-            Circle dot = new Circle(11, ColorNames.toColor(name));
-            dot.setStroke(Color.web("#f5b800"));
-            dot.setStrokeWidth(1.5);
-            dot.setOnMouseClicked(e -> colorBox.setValue(name));
-            swatches.getChildren().add(dot);
-        }
         colorBox.valueProperty().addListener((obs, o, n) -> {
             UiHelper.setError(colorError, null);
             redraw();
@@ -257,15 +258,17 @@ public class VehicleTab extends Tab {
         form.setVgap(FORM_VGAP);
         int r = 0;
         UiHelper.addRow(form, r++, "Type", typeBox);
+        UiHelper.addRow(form, r++, "Year", new VBox(Layout.GAP_HAIR, yearBox, yearNote,
+                yearError));
         UiHelper.addRow(form, r++, "Make", makeField.node());
         UiHelper.addRow(form, r++, "Model", modelField.node());
-        UiHelper.addRow(form, r++, "Year", new VBox(Layout.GAP_HAIR, yearBox, yearNote));
         UiHelper.addRow(form, r++, "Color", UiHelper.withError(colorBox, colorError));
         UiHelper.addRow(form, r++, "Plate number", plateField.node());
         UiHelper.addRow(form, r++, "Daily rate", rateField.node());
         UiHelper.addRow(form, r++, "Mileage", mileageField.node());
         UiHelper.addRow(form, r++, "Last PMS", new HBox(Layout.GAP_NORMAL, pmsPicker, clearPms));
         UiHelper.addRow(form, r++, "Category", UiHelper.withError(categoryBox, categoryError));
+        UiHelper.addRow(form, r++, "Transmission", gearBox);
 
         addButton.getStyleClass().add("primary-button");
         cancelEditButton.getStyleClass().add("secondary-button");
@@ -282,7 +285,7 @@ public class VehicleTab extends Tab {
 
         HBox saveRow = new HBox(Layout.GAP_MEDIUM, addButton, cancelEditButton);
         saveRow.setAlignment(Pos.CENTER_LEFT);
-        VBox formCard = new VBox(Layout.GAP_NORMAL, formTitle, preview, previewName, swatches,
+        VBox formCard = new VBox(Layout.GAP_NORMAL, formTitle, preview, previewName,
                 typeNote, form,
                 photoRow, photoName, saveRow, status);
         formCard.getStyleClass().add("card");
@@ -292,11 +295,7 @@ public class VehicleTab extends Tab {
         addButton.setOnAction(event -> saveVehicle());
 
         typeBox.valueProperty().addListener((obs, o, n) -> onTypeChanged());
-        yearBox.valueProperty().addListener((obs, o, n) -> {
-            if (!busyChangingForm && !makeField.field().getText().isEmpty() && apiReady) {
-                loadModels();
-            }
-        });
+        yearBox.valueProperty().addListener((obs, o, n) -> onYearChanged(n));
 
         // ----- NHTSA picker card -----
         reloadButton.getStyleClass().add("secondary-button");
@@ -307,7 +306,7 @@ public class VehicleTab extends Tab {
         lookupStatus.setWrapText(true);
         lookupStatus.setMaxWidth(LOOKUP_STATUS_MAX_WIDTH);
         Label lookupHint = new Label("The Type decides the list. Click a make, then click a model. "
-                + "Choosing a Year narrows the models.");
+                + "Choose the Year first: only models made in that year are listed.");
         lookupHint.getStyleClass().add("hint-label");
         lookupHint.setWrapText(true);
         lookupHint.setMaxWidth(LOOKUP_HINT_MAX_WIDTH);
@@ -385,6 +384,24 @@ public class VehicleTab extends Tab {
         setContent(UiHelper.scroll(content));
         refresh();
         loadMakes();
+        onYearChanged(null);
+    }
+
+    // One row of the color list: the color dot beside the color name.
+    private static final class ColorCell extends ListCell<String> {
+        @Override
+        protected void updateItem(String name, boolean empty) {
+            super.updateItem(name, empty);
+            if (empty || name == null) {
+                setText("Pick a color");
+                setGraphic(null);
+                return;
+            }
+            Circle dot = new Circle(SWATCH_RADIUS, ColorNames.toColor(name));
+            dot.setStroke(Color.web("#8a8f9c"));
+            setText(name);
+            setGraphic(dot);
+        }
     }
 
     // "Extra-mile fees: Sedan 100 free miles a day then 0.20 per mile, ..." built from the vehicle
@@ -438,12 +455,55 @@ public class VehicleTab extends Tab {
     }
 
     private void onTypeChanged() {
-        categoryBox.getItems().setAll(VehicleTypes.categoryOptions(typeBox.getValue()));
-        categoryBox.setValue(categoryBox.getItems().get(0));
+        fillStyles();
         UiHelper.setError(categoryError, null);
         clearMakeAndModel();
         redraw();
         loadMakes();
+    }
+
+    // The Category box lists the styles of the chosen type (Sedan: Compact, Luxury ...; Motorcycle:
+    // Scooter, Sport, Cruiser ...).
+    private void fillStyles() {
+        categoryBox.getItems().setAll(VehicleTypes.styles(typeBox.getValue()));
+        categoryBox.setValue(categoryBox.getItems().get(0));
+        onStyleChanged();
+    }
+
+    // The Transmission box lists the gearboxes that exist for the chosen style.
+    private void onStyleChanged() {
+        String style = categoryBox.getValue();
+        if (style == null) {
+            return;
+        }
+        gearBox.getItems().setAll(VehicleTypes.transmissions(typeBox.getValue(), style));
+        gearBox.setValue(gearBox.getItems().get(0));
+    }
+
+    // The make and model can only be chosen after the year, because a model may not exist in
+    // every year.
+    private void onYearChanged(String year) {
+        boolean chosen = year != null;
+        for (javafx.scene.Node n : new javafx.scene.Node[] {makeField.node(), modelField.node(),
+                makeSearch.node(), modelSearch.node(), makeList, modelList}) {
+            n.setDisable(!chosen);
+        }
+        UiHelper.setError(yearError, null);
+        if (!chosen) {
+            showYearNote(YEAR_FIRST);
+            return;
+        }
+        showYearNote(null);
+        if (busyChangingForm) {
+            return;
+        }
+        pickedModel = null;
+        modelField.reset();
+        allModels = new ArrayList<>();
+        modelList.getItems().clear();
+        if (!makeField.field().getText().isEmpty() && apiReady) {
+            loadModels();
+        }
     }
 
     private void clearMakeAndModel() {
@@ -456,7 +516,7 @@ public class VehicleTab extends Tab {
         makeList.getSelectionModel().clearSelection();
         allModels = new ArrayList<>();
         modelList.getItems().clear();
-        showYearNote(null);
+        showYearNote(yearBox.getValue() == null ? YEAR_FIRST : null);
     }
 
     private void showYearNote(String text) {
@@ -548,16 +608,17 @@ public class VehicleTab extends Tab {
     }
 
     // Asks NHTSA for the models of the chosen make, for the chosen type and (if chosen) year.
-    // If NHTSA has nothing for that year, the list falls back to all years and says so.
+    // If NHTSA has no model of that make for that year, the list stays empty.
     private void loadModels() {
         final String make = makeField.field().getText().trim();
         if (make.isEmpty()) {
             return;
         }
         final String apiType = VehicleTypes.apiType(typeBox.getValue());
-        final String yearText = yearBox.getValue();
-        final Integer year = (yearText == null || NO_YEAR.equals(yearText)) ? null
-                : Integer.valueOf(yearText);
+        if (yearBox.getValue() == null) {
+            return;
+        }
+        final int year = Integer.parseInt(yearBox.getValue());
         final int request = ++modelsRequest;
         lookupBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
         lookupBar.setVisible(true);
@@ -579,23 +640,14 @@ public class VehicleTab extends Tab {
             allModels = result.models();
             modelSearch.reset();
             filterModels();
-            showYearNote(null);
             if (result.models().isEmpty()) {
                 modelField.field().clear();
                 UiHelper.setStatus(lookupStatus, "NHTSA has no " + typeBox.getValue()
-                        + " models for " + make
-                        + ". Pick another make.", true);
-            } else if (result.fellBack()) {
-                busyChangingForm = true;
-                yearBox.setValue(NO_YEAR);
-                busyChangingForm = false;
-                showYearNote("NHTSA has no " + make + " models for " + year
-                        + ", so Year was set to \"" + NO_YEAR + "\".");
-                UiHelper.setStatus(lookupStatus, "No models listed for " + year + ". Showing all "
-                        + result.models().size() + " " + make + " models. Click one.", false);
+                        + " model of " + make + " for " + year
+                        + ". Pick another make or another year.", true);
             } else {
-                UiHelper.setStatus(lookupStatus, result.models().size() + " models for " + make
-                        + (year == null ? "" : " " + year) + ". Click one.", false);
+                UiHelper.setStatus(lookupStatus, result.models().size() + " models of " + make
+                        + " for " + year + ". Click one.", false);
             }
             lookupBar.setVisible(false);
         });
@@ -631,16 +683,24 @@ public class VehicleTab extends Tab {
                 || allModels.stream().anyMatch(m -> Validators.sameName(m.getModelName(), text));
     }
 
-    // The button under the form: it adds a new vehicle, or saves the changes of the vehicle being
-    // edited.
-    private void saveVehicle() {
+    // The saved category: the style and the transmission of the type, or null when one is missing.
+    private String categoryPathOrNull(String type) {
+        return categoryBox.getValue() == null || gearBox.getValue() == null ? null
+                : VehicleTypes.categoryPath(type, categoryBox.getValue(), gearBox.getValue());
+    }
+
+    // Checks every box of the form and shows a red message under each one that is wrong.
+    private boolean formIsValid(String type) {
         boolean ok = true;
-        String type = typeBox.getValue();
         // While editing, the make and model that the vehicle already has are always fine.
         boolean makeUnchanged = editing != null && Validators.sameName(makeField.text(),
                 editing.getMake());
         boolean modelUnchanged = editing != null && Validators.sameName(modelField.text(),
                 editing.getModel());
+        if (yearBox.getValue() == null) {
+            UiHelper.setError(yearError, "Choose the year first.");
+            ok = false;
+        }
         if (!makeField.validate()) {
             ok = false;
         } else if (apiReady && !makeUnchanged && !isKnownMake(makeField.text())) {
@@ -666,8 +726,8 @@ public class VehicleTab extends Tab {
         if (!mileageField.validate()) {
             ok = false;
         }
-        if (categoryBox.getValue() == null || !VehicleTypes.isCategoryOf(type,
-                categoryBox.getValue())) {
+        String path = categoryPathOrNull(type);
+        if (path == null || !VehicleTypes.isCategoryOf(type, path)) {
             UiHelper.setError(categoryError, "Pick a category that belongs to " + type + ".");
             ok = false;
         }
@@ -676,22 +736,30 @@ public class VehicleTab extends Tab {
             UiHelper.setStatus(status, "The last PMS date cannot be in the future.", true);
             ok = false;
         }
-        if (!ok) {
+        return ok;
+    }
+
+    // The button under the form: it adds a new vehicle, or saves the changes of the vehicle being
+    // edited.
+    private void saveVehicle() {
+        String type = typeBox.getValue();
+        if (!formIsValid(type)) {
             if (!status.getText().startsWith("The last PMS")) {
                 UiHelper.setStatus(status, "Please fix the red messages first.", true);
             }
             return;
         }
+        String path = categoryPathOrNull(type);
+        LocalDate pms = pmsPicker.getValue();
         try {
-            int year = (yearBox.getValue() == null || NO_YEAR.equals(yearBox.getValue())) ? 0
-                    : Integer.parseInt(yearBox.getValue());
+            int year = Integer.parseInt(yearBox.getValue());
             String mileageText = mileageField.text();
             int mileage = mileageText.isEmpty() ? 0 : Integer.parseInt(mileageText);
             int id = editing == null ? 0 : editing.getId();
             Vehicle vehicle = VehicleFactory.create(id, type, makeField.text(), modelField.text(),
                     year,
                     plateField.text(), colorBox.getValue(), Double.parseDouble(rateField.text()),
-                    mileage, pms, categoryBox.getValue());
+                    mileage, pms, path);
             Vehicle samePlate = controller.findByPlate(vehicle.getPlateNumber());
             if (samePlate != null && samePlate.getId() != id) {
                 plateField.showError("A vehicle with that plate number already exists.");
@@ -769,8 +837,8 @@ public class VehicleTab extends Tab {
         makeField.setValue(v.getMake());
         modelField.setValue(v.getModel());
         busyChangingForm = true;
-        String yearText = v.getYear() > 0 ? String.valueOf(v.getYear()) : NO_YEAR;
-        if (!yearBox.getItems().contains(yearText)) {
+        String yearText = v.getYear() > 0 ? String.valueOf(v.getYear()) : null;
+        if (yearText != null && !yearBox.getItems().contains(yearText)) {
             yearBox.getItems().add(yearText);
         }
         yearBox.setValue(yearText);
@@ -781,8 +849,14 @@ public class VehicleTab extends Tab {
                 .stripTrailingZeros().toPlainString());
         mileageField.setValue(String.valueOf(v.getMileage()));
         pmsPicker.setValue(v.getLastPMS());
-        categoryBox.setValue(VehicleTypes.isCategoryOf(v.getType(), v.getCategoryPath())
-                ? v.getCategoryPath() : categoryBox.getItems().get(0));
+        String style = VehicleTypes.styleOf(v.getType(), v.getCategoryPath());
+        if (style != null) {
+            categoryBox.setValue(style);
+            String gear = VehicleTypes.transmissionOf(v.getType(), v.getCategoryPath());
+            if (gear != null) {
+                gearBox.setValue(gear);
+            }
+        }
         UiHelper.setError(colorError, null);
         UiHelper.setError(categoryError, null);
         chosenPhoto = null;
@@ -1018,17 +1092,17 @@ public class VehicleTab extends Tab {
         mileageField.field().setText("0");
         mileageField.showError(null);
         busyChangingForm = true;
-        yearBox.setValue(NO_YEAR);
+        yearBox.setValue(null);
         busyChangingForm = false;
         colorBox.setValue(null);
         pmsPicker.setValue(null);
-        categoryBox.setValue(categoryBox.getItems().get(0));
+        fillStyles();
         chosenPhoto = null;
         photoName.setText(PHOTO_HINT);
         UiHelper.setError(colorError, null);
         UiHelper.setError(categoryError, null);
         redraw();
-        UiHelper.setStatus(lookupStatus, "Click a make to see its models.", false);
+        UiHelper.setStatus(lookupStatus, "Choose the year, then click a make.", false);
     }
 
     /** Reloads the data of this tab from the database. */

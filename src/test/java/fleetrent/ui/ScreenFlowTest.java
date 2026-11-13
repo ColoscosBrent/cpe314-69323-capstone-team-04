@@ -1,4 +1,17 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.app.App;
+import fleetrent.dao.Database;
+import fleetrent.dto.VehicleModelInfo;
+import fleetrent.model.Account;
+import fleetrent.model.Renter;
+import fleetrent.model.Reservation;
+import fleetrent.model.Vehicle;
+import fleetrent.service.AuthService;
+import fleetrent.service.BookingService;
+import fleetrent.service.FleetService;
+import fleetrent.service.SampleData;
+import fleetrent.service.Validators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

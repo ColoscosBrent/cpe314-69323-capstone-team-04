@@ -1,4 +1,7 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.model.Vehicle;
+import fleetrent.service.SampleData;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;

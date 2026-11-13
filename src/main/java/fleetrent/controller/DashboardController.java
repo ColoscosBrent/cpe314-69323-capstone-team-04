@@ -120,11 +120,14 @@ public class DashboardController {
                         .forEach(data::put);
                 case UTILIZATION -> {
                     for (Map.Entry<YearMonth, Double> e
-                            : FleetAnalytics.utilizationByMonth(rentals, vehicles, from, to).entrySet()) {
-                        data.put(e.getKey().toString(), Math.round(e.getValue() * ROUND_TO_TENTH) / ROUND_TO_TENTH);
+                            : FleetAnalytics.utilizationByMonth(rentals, vehicles, from, to)
+                                    .entrySet()) {
+                        data.put(e.getKey().toString(),
+                                Math.round(e.getValue() * ROUND_TO_TENTH) / ROUND_TO_TENTH);
                     }
                 }
-                case REVENUE -> FleetAnalytics.revenueByType(rentals, everAdded, from, to).forEach(data::put);
+                case REVENUE -> FleetAnalytics.revenueByType(rentals, everAdded, from, to)
+                        .forEach(data::put);
                 case MONTHLY -> {
                     for (Map.Entry<YearMonth, Integer> e
                             : FleetAnalytics.rentalsPerMonth(rentals, from, to).entrySet()) {

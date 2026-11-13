@@ -47,7 +47,7 @@ public class RenterAccountTab extends Tab {
         UiHelper.addRow(info, 0, "Name", value(renter == null ? account.getDisplayName()
                 : renter.getName()));
         UiHelper.addRow(info, 1, "Username", value(account.getUsername()));
-        UiHelper.addRow(info, 2, "Contact", value(renter == null ? "" : renter.getContact()));
+        UiHelper.addRow(info, 2, "Phone", value(renter == null ? "" : renter.getContact()));
         UiHelper.addRow(info, 3, "Email", value(renter == null || renter.getEmail() == null ? "-"
                 : renter.getEmail()));
         UiHelper.addRow(info, 4, "Address", value(renter == null || renter.getAddress() == null

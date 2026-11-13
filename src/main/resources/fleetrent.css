@@ -652,3 +652,17 @@
     -fx-padding: 4 14 4 14;
     -fx-font-size: 12px;
 }
+.auth-photo {
+    -fx-background-color: #0b0618;
+    -fx-background-image: url("images/login-background.jpg");
+    -fx-background-size: cover;
+    -fx-background-position: center center;
+    -fx-background-repeat: no-repeat;
+}
+.auth-shade {
+    -fx-background-color: linear-gradient(to bottom, rgba(11, 6, 24, 0.55),
+            rgba(11, 6, 24, 0.78));
+}
+.auth-scroll, .auth-scroll > .viewport {
+    -fx-background-color: transparent;
+}

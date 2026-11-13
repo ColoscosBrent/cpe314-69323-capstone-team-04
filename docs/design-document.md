@@ -763,7 +763,7 @@ Table 20 lists each member's main area and the main classes and files of the fin
 
 ### 9.1 Commits and Pull Requests
 
-The final work was added to `project/milestone-2` in 19 pull requests, one after the other, each merged with a merge commit; the last one has 452 tests. Step 0 first brought `main` into the milestone branch, so the pull request into `main` has no conflicts. One of the 19 is a small repair: the step 11 merge left merge markers in `Database.java` and `Account.java`, and one commit by Coloscos restored the correct files. Every member committed their own area from their own GitHub account. Table 21 shows the commits per member before and after these steps.
+The final work was added to `project/milestone-2` in 20 pull requests (#36 to #55), one after the other, each merged with a merge commit; the last one has 452 tests. Step 0 first brought `main` into the milestone branch, so the pull request into `main` has no conflicts. One of the 20 (#54) is a small repair: the step 11 merge left merge markers in `Database.java` and `Account.java`, and Coloscos restored the correct files and made the login screen fit the smallest window with Windows fonts. Every member committed their own area from their own GitHub account. Table 21 shows the commits per member before and after these steps.
 
 **Table 21: Commits per Member**
 
@@ -771,7 +771,7 @@ The final work was added to `project/milestone-2` in 19 pull requests, one after
 | --- | --- | --- | --- |
 | Gabasa, Dexter | 3 | 37 | 40 |
 | Rosal, Wendil | 7 | 29 | 36 |
-| Coloscos, Brent | 17 | 12 | 29 |
+| Coloscos, Brent | 8 | 12 | 20 |
 | Lagaya, John Carlo | 7 | 25 | 32 |
 | Labra, Simone | 2 | 43 | 45 |
 

@@ -11,7 +11,7 @@ This page lists each point from the instructor's reviews, what we changed, and w
 | 2 | Handle `IllegalArgumentException` in the Add Vehicle handler | The handler now catches it and shows a red message. The form also stops blank makes and a daily rate of 0 or less with red messages before the handler runs. | `VehicleTab.java`, method `addVehicle` | Labra, Simone |
 | 3 | Add a second GUI control that makes the Queue and Stack visible | The Rentals tab has **Start rental** (if the vehicle is out, the renter joins the `WaitingList` and the screen shows how many are waiting) and **Undo last check-out** (the `CheckoutHistory` stack). Done in Milestone 2. | `RentalTab.java`, `RentalService.java` | Lagaya, John Carlo; Labra, Simone |
 | 4 | Spread the commits | Brent had 63 of 121 commits at the first review. On November 6 it was 65 of 133 (49%). The fixes in this list are committed by the other four members; Brent only merges and opens the final pull request. | Git history | All |
-| 5 | Re-export the PDFs with 1-inch margins; keep one `design-document.md` | The Week 10 Design Document PDF is exported with 1-inch margins on all four sides. The folder `Contributions/` (copies of the sections) is deleted, so `docs/design-document.md` is the only copy. | `docs/`, `Contributions/` | Rosal, Wendil; Coloscos, Brent |
+| 5 | Re-export the PDFs with 1-inch margins; keep one `design-document.md` | The Design Document PDF is exported with 1-inch margins on all four sides. The folder `Contributions/` (copies of the sections) is deleted, so `docs/design-document.md` is the only copy. | `docs/`, `Contributions/` | Rosal, Wendil; Coloscos, Brent |
 
 ## Bugs and risks the review found
 

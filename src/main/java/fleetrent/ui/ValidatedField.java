@@ -11,11 +11,14 @@ import javafx.scene.layout.VBox;
 // Blocked keys show the message at once; the finished text is checked when the user leaves the
 // field or presses a button (validate()). The rules live in Validators, which is unit tested.
 final class ValidatedField {
+    private static final double FIELD_PREF_WIDTH = 280;
+    private static final double FIELD_MIN_WIDTH = 280;
+    private static final double ERROR_MAX_WIDTH = 300;
     private final Validators.Kind kind;
     private final boolean required;
     private final TextField field = new TextField();
     private final Label error = new Label();
-    private final VBox node = new VBox(3);
+    private final VBox node = new VBox(Layout.GAP_HAIR);
     private boolean touched;
     private boolean programmatic;
 
@@ -23,11 +26,11 @@ final class ValidatedField {
         this.kind = kind;
         this.required = required;
         field.setPromptText(hint);
-        field.setPrefWidth(280);
-        field.setMinWidth(280);
+        field.setPrefWidth(FIELD_PREF_WIDTH);
+        field.setMinWidth(FIELD_MIN_WIDTH);
         error.getStyleClass().add("error-label");
         error.setWrapText(true);
-        error.setMaxWidth(300);
+        error.setMaxWidth(ERROR_MAX_WIDTH);
         error.setVisible(false);
         error.setManaged(false);
         node.getChildren().addAll(field, error);

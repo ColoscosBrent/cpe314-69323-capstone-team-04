@@ -11,6 +11,9 @@ import javafx.scene.layout.VBox;
 // A password box with a "Show password" check box. The dots box and the plain box share one text,
 // and only one of them is visible, so the person can check what was typed.
 final class PasswordInput {
+    private static final double HIDDEN_PREF_WIDTH = 300;
+    private static final double SHOWN_PREF_WIDTH = 300;
+    private static final double ERROR_MAX_WIDTH = 340;
     private final PasswordField hidden = new PasswordField();
     private final TextField shown = new TextField();
     private final CheckBox toggle = new CheckBox("Show");
@@ -23,17 +26,17 @@ final class PasswordInput {
         shown.textProperty().bindBidirectional(hidden.textProperty());
         shown.setVisible(false);
         shown.setManaged(false);
-        hidden.setPrefWidth(300);
-        shown.setPrefWidth(300);
+        hidden.setPrefWidth(HIDDEN_PREF_WIDTH);
+        shown.setPrefWidth(SHOWN_PREF_WIDTH);
         toggle.selectedProperty().addListener((obs, was, now) -> {
             shown.setVisible(now);
             shown.setManaged(now);
             hidden.setVisible(!now);
             hidden.setManaged(!now);
         });
-        error.setMaxWidth(340);
+        error.setMaxWidth(ERROR_MAX_WIDTH);
         StackPane box = new StackPane(hidden, shown);
-        node = new VBox(4, box, toggle, error);
+        node = new VBox(Layout.GAP_TINY, box, toggle, error);
         hidden.textProperty().addListener((obs, o, n) -> showError(null));
     }
 

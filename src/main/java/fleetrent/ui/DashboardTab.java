@@ -32,6 +32,12 @@ import javafx.scene.layout.VBox;
  * calculated from the saved rentals (or from live NHTSA data) every time, never typed in.
  */
 public class DashboardTab extends Tab {
+    private static final double METRIC_BOX_PREF_WIDTH = 300;
+    private static final double BAR_PREF_WIDTH = 200;
+    private static final double SUMMARY_MAX_WIDTH = 900;
+    private static final double CHART_HOLDER_PREF_HEIGHT = 290;
+    private static final double CHART_HOLDER_MIN_HEIGHT = 220;
+    private static final double TREE_TEXT_MIN_HEIGHT = 130;
     private final DashboardController controller;
 
     private final ChoiceBox<String> metricBox = new ChoiceBox<>(FXCollections.observableArrayList(
@@ -60,24 +66,45 @@ public class DashboardTab extends Tab {
         setClosable(false);
 
         metricBox.setValue(Metric.MOST_RENTED.label());
-        metricBox.setPrefWidth(300);
+        metricBox.setPrefWidth(METRIC_BOX_PREF_WIDTH);
         showButton.getStyleClass().add("primary-button");
         bar.setVisible(false);
-        bar.setPrefWidth(200);
+        bar.setPrefWidth(BAR_PREF_WIDTH);
         summary.getStyleClass().add("status-label");
-        summary.setMaxWidth(900);
+        summary.setMaxWidth(SUMMARY_MAX_WIDTH);
         statusLabel.getStyleClass().add("hint-label");
         barChart.setAnimated(false);
         barChart.setLegendVisible(false);
         lineChart.setAnimated(false);
         lineChart.setLegendVisible(false);
-        chartHolder.setPrefHeight(290);
-        chartHolder.setMinHeight(220);
+        chartHolder.setPrefHeight(CHART_HOLDER_PREF_HEIGHT);
+        chartHolder.setMinHeight(CHART_HOLDER_MIN_HEIGHT);
         VBox.setVgrow(chartHolder, Priority.ALWAYS);
         treeText.setEditable(false);
         treeText.setPrefRowCount(7);
-        treeText.setMinHeight(130);
+        treeText.setMinHeight(TREE_TEXT_MIN_HEIGHT);
 
+        javafx.scene.layout.FlowPane controls = buildControls();
+
+        // The chart updates by itself whenever any control changes.
+        metricBox.setOnAction(e -> refresh());
+        fromPicker.setOnAction(e -> refresh());
+        toPicker.setOnAction(e -> refresh());
+        showButton.setOnAction(e -> refresh());
+
+        Label treeTitle = UiHelper.title("Mileage by category (recursive total)");
+        VBox card = new VBox(Layout.GAP_WIDE, UiHelper.title("Fleet dashboard"), controls, summary,
+                statusLabel,
+                chartHolder, treeTitle, treeText);
+        card.getStyleClass().add("card");
+        HBox.setHgrow(card, Priority.ALWAYS);
+        HBox content = new HBox(card);
+        content.setPadding(new javafx.geometry.Insets(18));
+        setContent(UiHelper.scroll(content));
+    }
+
+    // The row of controls above the chart.
+    private javafx.scene.layout.FlowPane buildControls() {
         Label q = new Label("Question");
         q.getStyleClass().add("field-label");
         Label f = new Label("From");
@@ -88,25 +115,12 @@ public class DashboardTab extends Tab {
         toPicker.setEditable(false);
         // A FlowPane wraps to a second line on a narrow window, so no button is squeezed to
         // "Sh...".
-        javafx.scene.layout.FlowPane controls = new javafx.scene.layout.FlowPane(10, 8, q, metricBox, f, fromPicker, t, toPicker, showButton, bar);
+        javafx.scene.layout.FlowPane controls = new javafx.scene.layout.FlowPane(10, 8, q,
+                metricBox, f, fromPicker, t, toPicker, showButton, bar);
         controls.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         controls.setColumnHalignment(javafx.geometry.HPos.LEFT);
         controls.setRowValignment(javafx.geometry.VPos.CENTER);
-
-        // The chart updates by itself whenever any control changes.
-        metricBox.setOnAction(e -> refresh());
-        fromPicker.setOnAction(e -> refresh());
-        toPicker.setOnAction(e -> refresh());
-        showButton.setOnAction(e -> refresh());
-
-        Label treeTitle = UiHelper.title("Mileage by category (recursive total)");
-        VBox card = new VBox(12, UiHelper.title("Fleet dashboard"), controls, summary, statusLabel,
-                chartHolder, treeTitle, treeText);
-        card.getStyleClass().add("card");
-        HBox.setHgrow(card, Priority.ALWAYS);
-        HBox content = new HBox(card);
-        content.setPadding(new javafx.geometry.Insets(18));
-        setContent(UiHelper.scroll(content));
+        return controls;
     }
 
     /** Reloads the data of this tab from the database. */
@@ -161,14 +175,16 @@ public class DashboardTab extends Tab {
                     top = en.getKey();
                 }
             }
-            summary.setText("NHTSA lists the most models for " + top + " (" + counts.get(top) + ").");
+            summary.setText("NHTSA lists the most models for " + top + " (" + counts.get(top)
+                    + ").");
             draw(Metric.LIVE, counts);
             bar.setVisible(false);
             showButton.setDisable(false);
         });
         task.setOnFailed(e -> {
             Throwable error = task.getException();
-            UiHelper.setStatus(summary, error == null ? "NHTSA could not be reached." : error.getMessage(), true);
+            UiHelper.setStatus(summary, error == null ? "NHTSA could not be reached."
+                    : error.getMessage(), true);
             clearCharts();
             bar.setVisible(false);
             showButton.setDisable(false);

@@ -33,7 +33,14 @@ import javafx.scene.layout.VBox;
  * their own.
  */
 public class RenterBookingsTab extends Tab {
-    private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
+    private static final double CURRENT_MIN_HEIGHT = 180;
+    private static final double CURRENT_PREF_HEIGHT = 240;
+    private static final double HISTORY_MIN_HEIGHT = 160;
+    private static final double HISTORY_PREF_HEIGHT = 200;
+    private static final Insets CONTENT_PADDING = new Insets(16, 18, 16, 18);
+    private static final double CONTENT_MIN_WIDTH = 960;
+    private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy",
+            Locale.ENGLISH);
 
     private final RenterController controller;
     private final VehiclePictures pictures;
@@ -56,12 +63,12 @@ public class RenterBookingsTab extends Tab {
 
         current.getStyleClass().add("vehicle-list");
         current.setCellFactory(l -> new BookingCell());
-        current.setMinHeight(180);
-        current.setPrefHeight(240);
+        current.setMinHeight(CURRENT_MIN_HEIGHT);
+        current.setPrefHeight(CURRENT_PREF_HEIGHT);
         history.getStyleClass().add("vehicle-list");
         history.setCellFactory(l -> new BookingCell());
-        history.setMinHeight(160);
-        history.setPrefHeight(200);
+        history.setMinHeight(HISTORY_MIN_HEIGHT);
+        history.setPrefHeight(HISTORY_PREF_HEIGHT);
         history.setFocusTraversable(false);
         VBox.setVgrow(current, Priority.ALWAYS);
 
@@ -70,20 +77,23 @@ public class RenterBookingsTab extends Tab {
         cancel.setOnAction(e -> cancelSelected());
         status.getStyleClass().add("status-label");
         status.setWrapText(true);
-        Label hint = new Label("Return the car to the shop. The owner closes the rental, and the final price "
+        Label hint = new Label(
+                "Return the car to the shop. The owner closes the rental, and the final price "
                 + "(with any extra miles) shows here under Past bookings.");
         hint.getStyleClass().add("hint-label");
         hint.setWrapText(true);
 
-        VBox left = new VBox(10, UiHelper.title("Current and upcoming"), current, cancel, status, hint);
+        VBox left = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Current and upcoming"), current,
+                cancel, status,
+                hint);
         left.getStyleClass().add("card");
-        VBox right = new VBox(10, UiHelper.title("Past bookings"), history);
+        VBox right = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Past bookings"), history);
         right.getStyleClass().add("card");
         HBox.setHgrow(left, Priority.ALWAYS);
         HBox.setHgrow(right, Priority.ALWAYS);
-        HBox content = new HBox(16, left, right);
-        content.setPadding(new Insets(16, 18, 16, 18));
-        content.setMinWidth(960);
+        HBox content = new HBox(Layout.GAP_LARGE, left, right);
+        content.setPadding(CONTENT_PADDING);
+        content.setMinWidth(CONTENT_MIN_WIDTH);
         setContent(UiHelper.scroll(content));
         refresh();
     }
@@ -91,13 +101,15 @@ public class RenterBookingsTab extends Tab {
     private void cancelSelected() {
         Object picked = current.getSelectionModel().getSelectedItem();
         if (!(picked instanceof Reservation)) {
-            UiHelper.setStatus(status, "Pick one of your reservations first. A rental that already started is "
+            UiHelper.setStatus(status,
+                    "Pick one of your reservations first. A rental that already started is "
                     + "closed by the owner when you return the car.", true);
             return;
         }
         try {
             controller.cancelReservation(renterId, ((Reservation) picked).getId());
-            UiHelper.setStatus(status, "Reservation #" + ((Reservation) picked).getId() + " was cancelled.", false);
+            UiHelper.setStatus(status, "Reservation #" + ((Reservation) picked).getId()
+                    + " was cancelled.", false);
             refresh();
             onChanged.run();
         } catch (ControllerException ex) {
@@ -130,7 +142,8 @@ public class RenterBookingsTab extends Tab {
             history.getItems().setAll(past);
             if (keep != null) {
                 for (Object o : now) {
-                    if (o.getClass() == keep.getClass() && BookingCell.idOf(o) == BookingCell.idOf(keep)) {
+                    if (o.getClass() == keep.getClass()
+                            && BookingCell.idOf(o) == BookingCell.idOf(keep)) {
                         current.getSelectionModel().select(o);
                         break;
                     }
@@ -147,7 +160,8 @@ public class RenterBookingsTab extends Tab {
 
     private class BookingCell extends ListCell<Object> {
         static LocalDate startOf(Object o) {
-            return o instanceof Reservation ? ((Reservation) o).getStartDate() : ((Rental) o).getStartDate();
+            return o instanceof Reservation ? ((Reservation) o).getStartDate() : ((Rental) o)
+                    .getStartDate();
         }
 
         static int idOf(Object o) {
@@ -162,51 +176,27 @@ public class RenterBookingsTab extends Tab {
                 setGraphic(null);
                 return;
             }
-            int vehicleId = item instanceof Reservation ? ((Reservation) item).getVehicleId() : ((Rental) item).getVehicleId();
+            int vehicleId = item instanceof Reservation ? ((Reservation) item).getVehicleId()
+                    : ((Rental) item).getVehicleId();
             Vehicle v = vehicles.get(vehicleId);
             LocalDate start = startOf(item);
-            LocalDate end = item instanceof Reservation ? ((Reservation) item).getEndDate() : ((Rental) item).getEndDate();
-            Label title = new Label((item instanceof Reservation ? "Reservation #" : "Rental #") + idOf(item) + "  "
+            LocalDate end = item instanceof Reservation ? ((Reservation) item).getEndDate()
+                    : ((Rental) item).getEndDate();
+            Label title = new Label((item instanceof Reservation ? "Reservation #" : "Rental #")
+                    + idOf(item) + "  "
                     + (v == null ? "?" : v.displayName()));
             title.getStyleClass().add("vehicle-name");
             title.setWrapText(true);
             Label dates = new Label(start.format(SHORT) + " to " + end.format(SHORT));
             dates.getStyleClass().add("vehicle-details");
             Label badge = new Label();
-            VBox text = new VBox(4, title, dates, badge);
+            VBox text = new VBox(Layout.GAP_TINY, title, dates, badge);
             if (item instanceof Reservation) {
-                Reservation r = (Reservation) item;
-                badge.setText(r.getStatus().name());
-                badge.getStyleClass().addAll("badge", "badge-" + r.getStatus().name().toLowerCase(Locale.ROOT));
-                if (v != null && r.getStatus() == ReservationStatus.ACTIVE) {
-                    text.getChildren().add(hint("Price for these days: " + money(RenterController.estimate(v, start, end))
-                            + "  (+ extra miles)"));
-                }
-                if (r.getStatus() == ReservationStatus.CANCELLED && r.getNote() != null) {
-                    text.getChildren().add(hint(r.getNote()));
-                }
+                addReservationInfo((Reservation) item, v, start, end, text, badge);
             } else {
-                Rental r = (Rental) item;
-                if (r.getStatus() == RentalStatus.ONGOING) {
-                    boolean late = end.isBefore(LocalDate.now());
-                    badge.setText(late ? "OVERDUE - RETURN IT" : "RENTED NOW");
-                    badge.getStyleClass().addAll("badge", late ? "badge-late" : "badge-rented");
-                    if (v != null) {
-                        text.getChildren().add(hint("Price for these days: " + money(RenterController.estimate(v, start, end))
-                                + "  (+ extra miles)"));
-                    }
-                } else {
-                    badge.setText("RETURNED");
-                    badge.getStyleClass().addAll("badge", "badge-converted");
-                    String cost = "";
-                    if (v != null && r.getReturnedOn() != null) {
-                        int days = RentalMath.billableDays(r.getStartDate(), r.getReturnedOn());
-                        cost = "  |  final price " + money(v.computeRentalCost(days, r.getMilesDriven()));
-                    }
-                    text.getChildren().add(hint("Returned " + r.getReturnedOn() + "  |  " + r.getMilesDriven() + " mi" + cost));
-                }
+                addRentalInfo((Rental) item, v, start, end, text, badge);
             }
-            HBox card = new HBox(12);
+            HBox card = new HBox(Layout.GAP_WIDE);
             if (v != null) {
                 card.getChildren().add(pictures.stage(v));
             }
@@ -215,6 +205,48 @@ public class RenterBookingsTab extends Tab {
             card.getStyleClass().add("vehicle-card");
             setText(null);
             setGraphic(card);
+        }
+
+        private void addReservationInfo(Reservation r, Vehicle v, LocalDate start, LocalDate end,
+                VBox text, Label badge) {
+            badge.setText(r.getStatus().name());
+            badge.getStyleClass().addAll("badge", "badge-" + r.getStatus().name()
+                    .toLowerCase(Locale.ROOT));
+            if (v != null && r.getStatus() == ReservationStatus.ACTIVE) {
+                text.getChildren().add(hint("Price for these days: "
+                        + money(RenterController.estimate(v, start, end))
+                        + "  (+ extra miles)"));
+            }
+            if (r.getStatus() == ReservationStatus.CANCELLED && r.getNote() != null) {
+                text.getChildren().add(hint(r.getNote()));
+            }
+        }
+
+        private void addRentalInfo(Rental r, Vehicle v, LocalDate start, LocalDate end, VBox text,
+                Label badge) {
+            if (r.getStatus() == RentalStatus.ONGOING) {
+                boolean late = end.isBefore(LocalDate.now());
+                badge.setText(late ? "OVERDUE - RETURN IT" : "RENTED NOW");
+                badge.getStyleClass().addAll("badge", late ? "badge-late" : "badge-rented");
+                if (v != null) {
+                    text.getChildren().add(hint("Price for these days: "
+                            + money(RenterController.estimate(v, start, end))
+                            + "  (+ extra miles)"));
+                }
+                return;
+            }
+            badge.setText("RETURNED");
+            badge.getStyleClass().addAll("badge", "badge-converted");
+            String cost = "";
+            if (v != null && r.getReturnedOn() != null) {
+                int days = RentalMath.billableDays(r.getStartDate(), r.getReturnedOn());
+                double lateFee = RentalMath.lateFee(v.getDailyRate(),
+                        RentalMath.lateDays(r.getEndDate(), r.getReturnedOn()));
+                cost = "  |  final price " + money(v.computeRentalCost(days, r.getMilesDriven())
+                        + lateFee);
+            }
+            text.getChildren().add(hint("Returned " + r.getReturnedOn() + "  |  "
+                    + r.getMilesDriven() + " mi" + cost));
         }
 
         private Label hint(String text) {

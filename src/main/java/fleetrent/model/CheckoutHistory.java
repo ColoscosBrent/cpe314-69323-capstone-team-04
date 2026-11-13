@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.model;
+
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -7,17 +8,17 @@ import java.util.Deque;
  * Stack: the last check-out is the first one undone (LIFO).
  */
 public class CheckoutHistory {
-    private final Deque<Rental> stack = new ArrayDeque<>();
+    private final Deque<Integer> stack = new ArrayDeque<>();
 
-    /** Puts a rental on top of the stack. */
-    public void record(Rental rental) {
-        stack.push(rental);
+    /** Puts a rental id on top of the stack. */
+    public void record(int rentalId) {
+        stack.push(rentalId);
     }
 
     /**
-     * Returns the rental that was undone, or null if there is nothing to undo.
+     * Returns the id of the rental that was undone, or null if there is nothing to undo.
      */
-    public Rental undoLast() {
+    public Integer undoLast() {
         return stack.poll();
     }
 

@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.model;
+
 
 /**
  * ACTIVE: the vehicle is held for the dates. CANCELLED: the renter or the owner cancelled it.

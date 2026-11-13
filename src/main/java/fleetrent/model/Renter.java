@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.model;
+
 
 /**
  * One customer who rents vehicles.

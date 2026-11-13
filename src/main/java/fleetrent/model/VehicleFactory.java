@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.model;
+
 
 import java.time.LocalDate;
 

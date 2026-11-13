@@ -136,7 +136,7 @@
 }
 
 /* ---------- inputs ---------- */
-.text-field, .date-picker .text-field {
+.text-field, .password-field, .date-picker .text-field {
     -fx-background-color: #0e0820;
     -fx-text-fill: #f3eefc;
     -fx-prompt-text-fill: #7d6fa6;
@@ -145,7 +145,7 @@
     -fx-border-radius: 10;
     -fx-padding: 8 11 8 11;
 }
-.text-field:focused, .date-picker .text-field:focused {
+.text-field:focused, .password-field:focused, .date-picker .text-field:focused {
     -fx-border-color: #f5b800;
     -fx-effect: dropshadow(gaussian, rgba(245, 184, 0, 0.35), 8, 0.1, 0, 0);
 }
@@ -458,4 +458,197 @@
 }
 .text-field:disabled, .choice-box:disabled {
     -fx-opacity: 0.6;
+}
+
+
+/* ---------- Week 10 review: accounts, owner and renter screens ---------- */
+.danger-button {
+    -fx-background-color: rgba(220, 38, 38, 0.18);
+    -fx-text-fill: #ffc9c9;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-border-color: #ef4444;
+    -fx-border-radius: 12;
+    -fx-border-width: 1.5;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+}
+.danger-button:hover {
+    -fx-background-color: rgba(239, 68, 68, 0.55);
+    -fx-text-fill: white;
+}
+.danger-button:disabled {
+    -fx-opacity: 0.4;
+}
+.link-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #f5b800;
+    -fx-underline: true;
+    -fx-border-color: transparent;
+    -fx-padding: 2 4 2 4;
+    -fx-cursor: hand;
+}
+.link-button:hover {
+    -fx-text-fill: #ffe066;
+}
+.user-chip {
+    -fx-background-color: rgba(0, 0, 0, 0.35);
+    -fx-background-radius: 22;
+    -fx-border-color: rgba(245, 184, 0, 0.55);
+    -fx-border-radius: 22;
+    -fx-padding: 6 8 6 16;
+}
+.user-name {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
+.role-badge-admin {
+    -fx-background-color: #f5b800;
+}
+.role-badge-renter {
+    -fx-background-color: #c4a1ff;
+}
+.auth-wrap {
+    -fx-background-color: transparent;
+}
+.auth-card {
+    -fx-background-color: linear-gradient(to bottom, #25174a, #170e2e);
+    -fx-background-radius: 24;
+    -fx-border-color: rgba(245, 184, 0, 0.5);
+    -fx-border-radius: 24;
+    -fx-padding: 26;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 28, 0.12, 0, 8);
+}
+.hero-title {
+    -fx-text-fill: #f5b800;
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+}
+.hero-sub {
+    -fx-text-fill: #d9c8ff;
+    -fx-font-size: 14px;
+}
+.segment {
+    -fx-background-color: #0e0820;
+    -fx-text-fill: #cdbdf2;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-border-color: #43297f;
+    -fx-border-radius: 12;
+    -fx-padding: 8 18 8 18;
+    -fx-cursor: hand;
+}
+.segment:selected {
+    -fx-background-color: linear-gradient(to bottom, #ffd23f, #e0a100);
+    -fx-text-fill: #120b24;
+    -fx-border-color: #fff0a8;
+}
+.check-box {
+    -fx-text-fill: #cdbdf2;
+}
+.check-box .box {
+    -fx-background-color: #0e0820;
+    -fx-border-color: #43297f;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+.check-box:selected .box {
+    -fx-background-color: #f5b800;
+}
+.check-box:selected .mark {
+    -fx-background-color: #120b24;
+}
+.badge-available {
+    -fx-background-color: #34d399;
+}
+.badge-rented {
+    -fx-background-color: #fb923c;
+}
+.badge-reserved {
+    -fx-background-color: #c4a1ff;
+}
+.badge-cancelled {
+    -fx-background-color: #94a3b8;
+}
+.badge-converted {
+    -fx-background-color: #60a5fa;
+}
+.badge-late {
+    -fx-background-color: #f87171;
+}
+.offer-card {
+    -fx-background-color: linear-gradient(to bottom, #25174a, #170e2e);
+    -fx-background-radius: 18;
+    -fx-border-color: #4a2d8f;
+    -fx-border-radius: 18;
+    -fx-border-width: 1.5;
+    -fx-padding: 10;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 14, 0.1, 0, 4);
+}
+.offer-card:hover {
+    -fx-border-color: #c4a1ff;
+    -fx-translate-y: -3;
+    -fx-effect: dropshadow(gaussian, rgba(139, 61, 255, 0.55), 20, 0.15, 0, 6);
+}
+.offer-card-selected {
+    -fx-border-color: #f5b800;
+    -fx-border-width: 2.5;
+}
+.offer-dim {
+    -fx-opacity: 0.62;
+}
+.stat-tile {
+    -fx-background-color: rgba(245, 184, 0, 0.12);
+    -fx-background-radius: 14;
+    -fx-border-color: rgba(245, 184, 0, 0.45);
+    -fx-border-radius: 14;
+    -fx-padding: 8 16 8 16;
+}
+.stat-number {
+    -fx-text-fill: #f5b800;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+.price-big {
+    -fx-text-fill: #f5b800;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+.fee-text {
+    -fx-text-fill: #b9a8e6;
+    -fx-font-size: 11px;
+    -fx-wrap-text: true;
+}
+.dialog-pane {
+    -fx-background-color: #1b1233;
+}
+.dialog-pane .header-panel {
+    -fx-background-color: #2a1157;
+}
+.dialog-pane .header-panel .label {
+    -fx-text-fill: #f5b800;
+    -fx-font-weight: bold;
+}
+.dialog-pane > .button-bar > .container {
+    -fx-background-color: #1b1233;
+}
+.dialog-pane .content.label {
+    -fx-text-fill: #f3eefc;
+}
+.titled-pane, .separator .line {
+    -fx-border-color: #43297f;
+}
+.tooltip {
+    -fx-background-color: #2a1157;
+    -fx-text-fill: #f3eefc;
+    -fx-border-color: #f5b800;
+}
+
+.badge-active {
+    -fx-background-color: #f5b800;
+}
+.mini-button {
+    -fx-padding: 4 14 4 14;
+    -fx-font-size: 12px;
 }

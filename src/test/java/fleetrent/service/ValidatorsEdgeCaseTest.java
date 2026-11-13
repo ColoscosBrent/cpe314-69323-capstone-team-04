@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.service;
+
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -6,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import fleetrent.Validators.Kind;
+import fleetrent.service.Validators.Kind;
 import org.junit.jupiter.api.Test;
 
 // The exact edges of every input rule: the longest allowed text, one more, nothing at all, and null.

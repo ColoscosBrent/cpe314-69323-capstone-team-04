@@ -1,4 +1,7 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dto.VehicleModelInfo;
+import fleetrent.model.Motorcycle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

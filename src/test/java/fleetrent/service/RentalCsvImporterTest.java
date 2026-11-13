@@ -1,4 +1,10 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.ImportResult;
+import fleetrent.dao.Database;
+import fleetrent.model.Sedan;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -72,7 +78,7 @@ class RentalCsvImporterTest {
                 "ZZZ 000,Ben,2026-04-01,2026-04-02,100",
                 "garbage");
         List<Integer> progress = new ArrayList<>();
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(lines, db, progress::add);
+        ImportResult result = new RentalCsvImporter().importLines(lines, db, progress::add);
         assertEquals(2, result.getImported());
         assertEquals(2, result.getSkipped());
         assertEquals(2, result.getErrors().size());
@@ -85,14 +91,14 @@ class RentalCsvImporterTest {
 
     @Test
     void emptyFileImportsNothing() throws SQLException {
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(new ArrayList<>(), db, null);
+        ImportResult result = new RentalCsvImporter().importLines(new ArrayList<>(), db, null);
         assertEquals(0, result.getImported());
         assertEquals(0, result.getSkipped());
     }
 
     @Test
     void headerOnlyFileImportsNothing() throws SQLException {
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter()
+        ImportResult result = new RentalCsvImporter()
                 .importLines(Arrays.asList(RentalCsvImporter.HEADER), db, null);
         assertEquals(0, result.getImported());
         assertEquals(0, result.getSkipped());
@@ -102,7 +108,7 @@ class RentalCsvImporterTest {
     void bigFileIsSavedInBatches() throws SQLException {
         List<Vehicle> vehicles = db.getAllVehicles();
         List<String> lines = SampleData.rentalLines(vehicles, 450, 1L, LocalDate.of(2026, 10, 1));
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
+        ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
         assertEquals(450, result.getImported());
         assertEquals(450, db.getAllRentals().size());
     }

@@ -1,4 +1,15 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.Offer;
+import fleetrent.dao.Database;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Reservation;
+import fleetrent.model.ReservationStatus;
+import fleetrent.model.Sedan;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -122,7 +133,7 @@ class FleetEdgeCaseTest {
     @Test
     void theNewDailyRateIsUsedByTheNextBookingPrice() throws SQLException {
         fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", 2000, 1000));
-        BookingService.Offer offer = booking.browse(TODAY, TODAY.plusDays(1)).stream()
+        Offer offer = booking.browse(TODAY, TODAY.plusDays(1)).stream()
                 .filter(o -> o.vehicle().getId() == carId).findFirst().orElseThrow();
         assertEquals(2000, offer.vehicle().getDailyRate(), 0.001);
     }

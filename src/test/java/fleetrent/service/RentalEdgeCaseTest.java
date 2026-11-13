@@ -1,4 +1,12 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.ImportResult;
+import fleetrent.dao.Database;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Sedan;
+import fleetrent.model.VehicleFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -128,7 +136,7 @@ class RentalEdgeCaseTest {
     @Test
     void aFileFromExcelWithAnInvisibleMarkAtTheStartStillHasItsHeaderSkipped() throws SQLException {
         List<String> lines = Arrays.asList("﻿" + RentalCsvImporter.HEADER, "ABC 123,Ana Reyes,2026-03-01,2026-03-04,100");
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
+        ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
         assertEquals(1, result.getImported());
         assertEquals(0, result.getSkipped());
     }
@@ -137,7 +145,7 @@ class RentalEdgeCaseTest {
     void blankLinesSpacesAndLowerCasePlatesAreAccepted() throws SQLException {
         List<String> lines = Arrays.asList(RentalCsvImporter.HEADER, "", "   ", " abc 123 , Ana Reyes ,2026-03-01,2026-03-04, 100 ",
                 "");
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
+        ImportResult result = new RentalCsvImporter().importLines(lines, db, null);
         assertEquals(1, result.getImported());
         assertEquals(0, result.getSkipped());
     }
@@ -145,7 +153,7 @@ class RentalEdgeCaseTest {
     @Test
     void aRemovedVehiclesPlateIsNotImportedInto() throws SQLException {
         new FleetService(db).removeVehicle(vehicleId);
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(
+        ImportResult result = new RentalCsvImporter().importLines(
                 Arrays.asList(RentalCsvImporter.HEADER, "ABC 123,Ana Reyes,2026-03-01,2026-03-04,100"), db, null);
         assertEquals(0, result.getImported());
         assertEquals(1, result.getSkipped());
@@ -164,7 +172,7 @@ class RentalEdgeCaseTest {
 
     @Test
     void aTextLineWithQuotesOrTheWrongNumberOfColumnsIsSkippedWithItsLineNumber() throws SQLException {
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(Arrays.asList(
+        ImportResult result = new RentalCsvImporter().importLines(Arrays.asList(
                 RentalCsvImporter.HEADER,
                 "ABC 123,\"Cruz, Maria\",2026-03-01,2026-03-02,10",
                 "ABC 123,Ben,2026-03-01,2026-03-02,10"), db, null);
@@ -175,7 +183,7 @@ class RentalEdgeCaseTest {
 
     @Test
     void impossibleDatesAndHugeMilesAreSkippedNotCrashed() throws SQLException {
-        RentalCsvImporter.ImportResult result = new RentalCsvImporter().importLines(Arrays.asList(
+        ImportResult result = new RentalCsvImporter().importLines(Arrays.asList(
                 "ABC 123,Ana,2026-02-30,2026-03-02,10",
                 "ABC 123,Ana,2026-13-01,2026-03-02,10",
                 "ABC 123,Ana,2026-03-01,2026-03-02,99999999999"), db, null);

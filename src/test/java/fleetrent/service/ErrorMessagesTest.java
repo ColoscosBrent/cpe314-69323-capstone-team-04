@@ -1,4 +1,6 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

@@ -1,4 +1,17 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.Availability;
+import fleetrent.model.Offer;
+import fleetrent.dao.Database;
+import fleetrent.model.BusySpan;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Reservation;
+import fleetrent.model.ReservationStatus;
+import fleetrent.model.Sedan;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -41,7 +54,7 @@ class BookingServiceTest {
         db.close();
     }
 
-    private BookingService.Offer offerOf(int vehicleId, LocalDate s, LocalDate e) throws SQLException {
+    private Offer offerOf(int vehicleId, LocalDate s, LocalDate e) throws SQLException {
         return booking.browse(s, e).stream().filter(o -> o.vehicle().getId() == vehicleId).findFirst().orElseThrow();
     }
 
@@ -140,9 +153,9 @@ class BookingServiceTest {
     @Test
     void aLateRentalStillBlocksTodayButNotTomorrow() throws SQLException {
         db.insertRental(new Rental(0, ana, car, TODAY.minusDays(10), TODAY.minusDays(5), null, 0, RentalStatus.ONGOING));
-        assertEquals(BookingService.Availability.RENTED, offerOf(car, TODAY, TODAY).availability());
+        assertEquals(Availability.RENTED, offerOf(car, TODAY, TODAY).availability());
         assertThrows(IllegalStateException.class, () -> booking.rentNow(ben, car, TODAY.plusDays(1)));
-        assertEquals(BookingService.Availability.AVAILABLE, offerOf(car, TODAY.plusDays(1), TODAY.plusDays(2)).availability());
+        assertEquals(Availability.AVAILABLE, offerOf(car, TODAY.plusDays(1), TODAY.plusDays(2)).availability());
     }
 
     @Test
@@ -160,11 +173,11 @@ class BookingServiceTest {
     void browseShowsEveryVehicleInTheFleetWithItsStatus() throws SQLException {
         booking.rentNow(ana, car, TODAY.plusDays(2));
         booking.reserve(ben, suv, TODAY.plusDays(5), TODAY.plusDays(6));
-        List<BookingService.Offer> offers = booking.browse(TODAY.plusDays(5), TODAY.plusDays(6));
+        List<Offer> offers = booking.browse(TODAY.plusDays(5), TODAY.plusDays(6));
         assertEquals(2, offers.size());
-        assertEquals(BookingService.Availability.AVAILABLE, offerOf(car, TODAY.plusDays(5), TODAY.plusDays(6)).availability());
-        assertEquals(BookingService.Availability.RESERVED, offerOf(suv, TODAY.plusDays(5), TODAY.plusDays(6)).availability());
-        assertEquals(BookingService.Availability.RENTED, offerOf(car, TODAY, TODAY.plusDays(1)).availability());
+        assertEquals(Availability.AVAILABLE, offerOf(car, TODAY.plusDays(5), TODAY.plusDays(6)).availability());
+        assertEquals(Availability.RESERVED, offerOf(suv, TODAY.plusDays(5), TODAY.plusDays(6)).availability());
+        assertEquals(Availability.RENTED, offerOf(car, TODAY, TODAY.plusDays(1)).availability());
     }
 
     @Test
@@ -177,7 +190,7 @@ class BookingServiceTest {
     @Test
     void browseDoesNotShowRemovedVehiclesOrWhoRentsWhat() throws SQLException {
         new FleetService(db).removeVehicle(suv);
-        List<BookingService.Offer> offers = booking.browse(TODAY, TODAY);
+        List<Offer> offers = booking.browse(TODAY, TODAY);
         assertEquals(1, offers.size());
         assertEquals(car, offers.get(0).vehicle().getId());
     }

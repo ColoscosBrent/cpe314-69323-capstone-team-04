@@ -1,4 +1,15 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.Offer;
+import fleetrent.dao.Database;
+import fleetrent.model.Motorcycle;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Reservation;
+import fleetrent.model.Sedan;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -207,7 +218,7 @@ class BookingEdgeCaseTest {
     @Test
     void theRentersOwnRentalDoesNotShowWhoHasIt() throws SQLException {
         booking.rentNow(ana, car, TODAY.plusDays(2));
-        BookingService.Offer o = booking.browse(TODAY, TODAY.plusDays(1)).stream()
+        Offer o = booking.browse(TODAY, TODAY.plusDays(1)).stream()
                 .filter(x -> x.vehicle().getId() == car).findFirst().orElseThrow();
         assertFalse(o.toString().contains("Ana"));
         assertFalse(o.busy().toString().contains("Ana"));

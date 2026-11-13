@@ -3,16 +3,20 @@ package fleetrent;
 import java.util.List;
 import java.util.Locale;
 
-// What we know about the three vehicle types outside the cost rules: the name NHTSA uses for each
-// type, and the category paths a vehicle of that type can have (Car > Sedan > Compact Sedan ...).
+/**
+ * What we know about the three vehicle types outside the cost rules: the name NHTSA uses for each
+ * type, and the category paths a vehicle of that type can have (Car > Sedan > Compact Sedan ...).
+ */
 public final class VehicleTypes {
     public static final List<String> ALL = List.of("SEDAN", "SUV", "MOTORCYCLE");
 
     private VehicleTypes() {
     }
 
-    // The vehicle type word the NHTSA vPIC API understands for each of our types.
-    // NHTSA files SUVs under "Multipurpose Passenger Vehicle (MPV)".
+    /**
+     * The vehicle type word the NHTSA vPIC API understands for each of our types. NHTSA files SUVs
+     * under "Multipurpose Passenger Vehicle (MPV)".
+     */
     public static String apiType(String type) {
         switch (type) {
             case "SEDAN":
@@ -26,8 +30,10 @@ public final class VehicleTypes {
         }
     }
 
-    // Our type for a vehicle type name that NHTSA sends back, or null if we do not support it
-    // (trucks, buses, trailers ...).
+    /**
+     * Our type for a vehicle type name that NHTSA sends back, or null if we do not support it
+     * (trucks, buses, trailers ...).
+     */
     public static String fromApiName(String apiName) {
         if (apiName == null) {
             return null;
@@ -45,7 +51,9 @@ public final class VehicleTypes {
         return null;
     }
 
-    // The category paths offered for a type. The first one is the default.
+    /**
+     * The category paths offered for a type. The first one is the default.
+     */
     public static List<String> categoryOptions(String type) {
         switch (type) {
             case "SEDAN":
@@ -60,7 +68,9 @@ public final class VehicleTypes {
         }
     }
 
-    // True if the category path belongs to the type.
+    /**
+     * True if the category path belongs to the type.
+     */
     public static boolean isCategoryOf(String type, String categoryPath) {
         return categoryOptions(type).contains(categoryPath);
     }

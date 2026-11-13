@@ -3,22 +3,28 @@ package fleetrent;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-// One box in the vehicle category tree, for example Car > Sedan > Compact Sedan.
+/**
+ * One box in the vehicle category tree, for example Car > Sedan > Compact Sedan.
+ */
 public class CategoryNode {
     private final String name;
     private int ownMileage;
     private final Map<String, CategoryNode> children = new LinkedHashMap<>();
 
+    /** Creates a category node. */
     public CategoryNode(String name) {
         this.name = name;
     }
 
+    /** Returns the name of this category. */
     public String getName() {
         return name;
     }
 
-    // Adds a vehicle's mileage under a path like "Car > Sedan > Compact Sedan".
-    // Missing boxes on the way are created.
+    /**
+     * Adds a vehicle's mileage under a path like "Car > Sedan > Compact Sedan". Missing boxes on
+     * the way are created.
+     */
     public void addVehicle(String categoryPath, int mileage) {
         CategoryNode current = this;
         for (String part : categoryPath.split(">")) {
@@ -36,8 +42,10 @@ public class CategoryNode {
         current.ownMileage += mileage;
     }
 
-    // Recursive method. Base case: a box with no children returns only its own mileage.
-    // Otherwise it adds its own mileage to the total of every child below it.
+    /**
+     * Recursive method. Base case: a box with no children returns only its own mileage. Otherwise
+     * it adds its own mileage to the total of every child below it.
+     */
     public int totalMileage() {
         int total = ownMileage;
         for (CategoryNode child : children.values()) {
@@ -46,7 +54,9 @@ public class CategoryNode {
         return total;
     }
 
-    // Recursive method that prints the tree, one level deeper for each child.
+    /**
+     * Recursive method that prints the tree, one level deeper for each child.
+     */
     public String toText(int depth) {
         StringBuilder text = new StringBuilder();
         text.append("  ".repeat(depth)).append(name)

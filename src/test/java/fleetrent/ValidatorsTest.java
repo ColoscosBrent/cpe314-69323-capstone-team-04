@@ -82,4 +82,21 @@ class ValidatorsTest {
         assertEquals("a@b.com", Validators.normalize(Validators.Kind.EMAIL, " A@B.com "));
         assertEquals("Juan dela Cruz", Validators.normalize(Validators.Kind.NAME, "Juan  dela Cruz"));
     }
+
+    @Test
+    void sameNameIgnoresCapitalsAndExtraSpaces() {
+        assertTrue(Validators.sameName("CB1000  Hornet", "CB1000 Hornet"));
+        assertTrue(Validators.sameName(" f-150 ", "F-150"));
+        assertTrue(Validators.sameName("Honda", "HONDA"));
+        assertFalse(Validators.sameName("Civic", "Accord"));
+        assertFalse(Validators.sameName(null, "Civic"));
+        assertFalse(Validators.sameName("Civic", null));
+    }
+
+    @Test
+    void aLongModelNameFromNhtsaIsValidEvenWhenItCannotBeTyped() {
+        String longName = "Sprinter 2500 Cargo Van Extended Length High Roof Diesel Engine Edition";
+        assertFalse(Validators.Kind.VEHICLE_TEXT.typingAllowed(longName));
+        assertNull(Validators.check(Validators.Kind.VEHICLE_TEXT, longName, true));
+    }
 }

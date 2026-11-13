@@ -22,8 +22,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
-// Tab 2: add renters (every Renter field of the ERD), start a rental, return it and see the final
-// cost. Ongoing and returned rentals show the picture of the vehicle, like the Vehicles tab.
+/**
+ * Tab 2: add renters (every Renter field of the ERD), start a rental, return it and see the final
+ * cost. Ongoing and returned rentals show the picture of the vehicle, like the Vehicles tab.
+ */
 public class RentalTab extends Tab {
     private final Database db;
     private final RentalService service;
@@ -45,6 +47,7 @@ public class RentalTab extends Tab {
     private final Map<Integer, Renter> renters = new HashMap<>();
     private final Map<Integer, Vehicle> vehicles = new HashMap<>();
 
+    /** Creates a rental tab. */
     public RentalTab(Database db, VehiclePictures pictures) {
         super("Rentals");
         this.db = db;
@@ -167,7 +170,7 @@ public class RentalTab extends Tab {
                             + renter.getName() + ".", false);
                 }
                 refresh();
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException | IllegalStateException ex) {
                 UiHelper.setStatus(startStatus, ex.getMessage(), true);
             } catch (SQLException ex) {
                 UiHelper.setStatus(startStatus, ErrorMessages.forDatabase("starting the rental", ex), true);
@@ -196,12 +199,12 @@ public class RentalTab extends Tab {
         // ----- ongoing rentals, return form, history -----
         ongoingList.getStyleClass().add("vehicle-list");
         ongoingList.setCellFactory(list -> new RentalCell(false));
-        ongoingList.setPrefHeight(250);
-        ongoingList.setMinHeight(250);
+        ongoingList.setPrefHeight(190);
+        ongoingList.setMinHeight(170);
         historyList.getStyleClass().add("vehicle-list");
         historyList.setCellFactory(list -> new RentalCell(true));
-        historyList.setPrefHeight(250);
-        historyList.setMinHeight(250);
+        historyList.setPrefHeight(190);
+        historyList.setMinHeight(170);
         historyList.setFocusTraversable(false);
 
         DatePicker returnPicker = new DatePicker(LocalDate.now());
@@ -340,6 +343,7 @@ public class RentalTab extends Tab {
         }
     }
 
+    /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
             List<Renter> allRenters = db.getAllRenters();
@@ -350,7 +354,8 @@ public class RentalTab extends Tab {
             for (Renter r : allRenters) {
                 renters.put(r.getId(), r);
             }
-            for (Vehicle v : allVehicles) {
+            // The lists below also show rentals of vehicles that were removed later.
+            for (Vehicle v : db.getAllVehiclesIncludingRemoved()) {
                 vehicles.put(v.getId(), v);
             }
             Renter keepRenter = renterBox.getValue();
@@ -360,8 +365,13 @@ public class RentalTab extends Tab {
             if (keepRenter != null && renters.containsKey(keepRenter.getId())) {
                 renterBox.setValue(renters.get(keepRenter.getId()));
             }
-            if (keepVehicle != null && vehicles.containsKey(keepVehicle.getId())) {
-                vehicleBox.setValue(vehicles.get(keepVehicle.getId()));
+            if (keepVehicle != null) {
+                for (Vehicle v : allVehicles) {
+                    if (v.getId() == keepVehicle.getId()) {
+                        vehicleBox.setValue(v);
+                        break;
+                    }
+                }
             }
             showChosenVehicle(vehicleBox.getValue());
             List<Rental> ongoing = new ArrayList<>();
@@ -373,8 +383,17 @@ public class RentalTab extends Tab {
                     done.add(r);
                 }
             }
+            Rental keepSelected = ongoingList.getSelectionModel().getSelectedItem();
             ongoingList.getItems().setAll(ongoing);
             historyList.getItems().setAll(done);
+            if (keepSelected != null) {
+                for (Rental r : ongoing) {
+                    if (r.getId() == keepSelected.getId()) {
+                        ongoingList.getSelectionModel().select(r);
+                        break;
+                    }
+                }
+            }
         } catch (SQLException e) {
             UiHelper.setStatus(startStatus, ErrorMessages.forDatabase("loading the rentals", e), true);
         }

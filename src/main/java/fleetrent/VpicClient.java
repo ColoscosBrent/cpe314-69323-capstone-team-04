@@ -18,8 +18,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-// Calls the free NHTSA vPIC web service (no API key) and turns the JSON answer into Java objects.
-// Always call it from a background thread, never from the JavaFX UI thread.
+/**
+ * Calls the free NHTSA vPIC web service (no API key) and turns the JSON answer into Java objects.
+ * Always call it from a background thread, never from the JavaFX UI thread.
+ */
 public class VpicClient {
     public static final String DEFAULT_BASE_URL = "https://vpic.nhtsa.dot.gov/api";
 
@@ -31,30 +33,39 @@ public class VpicClient {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    /** Creates the NHTSA vPIC client. */
     public VpicClient() {
         // The property fleetrent.vpicUrl lets a test or a demo point the app at another server.
         this(System.getProperty("fleetrent.vpicUrl", DEFAULT_BASE_URL));
     }
 
-    // The second constructor lets a test point the client at a fake local server.
+    /**
+     * The second constructor lets a test point the client at a fake local server.
+     */
     public VpicClient(String baseUrl) {
         this.baseUrl = baseUrl;
     }
 
-    // All models of a make, for example "Toyota".
+    /**
+     * All models of a make, for example "Toyota".
+     */
     public List<VehicleModelInfo> fetchModels(String make) throws IOException, InterruptedException {
         return fetch(modelsUrl(make));
     }
 
-    // Models of a make for one model year. vPIC only supports years after 1995.
+    /**
+     * Models of a make for one model year. vPIC only supports years after 1995.
+     */
     public List<VehicleModelInfo> fetchModels(String make, int year) throws IOException, InterruptedException {
         return fetch(modelsUrl(make, year));
     }
 
+    /** Builds the NHTSA address that lists the models. */
     public String modelsUrl(String make) {
         return baseUrl + "/vehicles/GetModelsForMake/" + encode(cleanMake(make)) + "?format=json";
     }
 
+    /** Builds the NHTSA address that lists the models. */
     public String modelsUrl(String make, int year) {
         if (year <= 1995) {
             throw new IllegalArgumentException("The API only has model years after 1995.");
@@ -63,7 +74,9 @@ public class VpicClient {
                 + "/modelyear/" + year + "?format=json";
     }
 
-    // All makes that NHTSA lists for one vehicle type word: "car", "mpv" or "motorcycle".
+    /**
+     * All makes that NHTSA lists for one vehicle type word: "car", "mpv" or "motorcycle".
+     */
     public List<String> fetchMakes(String apiType) throws IOException, InterruptedException {
         String body = get(makesUrl(apiType));
         try {
@@ -75,16 +88,20 @@ public class VpicClient {
         }
     }
 
-    // Models of one make for one vehicle type word. year may be null (all years).
+    /**
+     * Models of one make for one vehicle type word. year may be null (all years).
+     */
     public List<VehicleModelInfo> fetchModels(String make, Integer year, String apiType)
             throws IOException, InterruptedException {
         return fetch(modelsUrl(make, year, apiType));
     }
 
+    /** Builds the NHTSA address that lists the makes. */
     public String makesUrl(String apiType) {
         return baseUrl + "/vehicles/GetMakesForVehicleType/" + encode(cleanType(apiType)) + "?format=json";
     }
 
+    /** Builds the NHTSA address that lists the models. */
     public String modelsUrl(String make, Integer year, String apiType) {
         String url = baseUrl + "/vehicles/GetModelsForMakeYear/make/" + encode(cleanMake(make));
         if (year != null) {
@@ -125,7 +142,9 @@ public class VpicClient {
         return response.body();
     }
 
-    // Turns the makes JSON into a sorted list of names without duplicates.
+    /**
+     * Turns the makes JSON into a sorted list of names without duplicates.
+     */
     public static List<String> parseMakes(String json) {
         JsonArray results = resultsOf(json);
         java.util.TreeMap<String, String> byLower = new java.util.TreeMap<>();
@@ -167,7 +186,10 @@ public class VpicClient {
         return root.getAsJsonObject().getAsJsonArray("Results");
     }
 
-    // Turns the JSON text into a list. Throws IllegalArgumentException if the text is not what we expect.
+    /**
+     * Turns the JSON text into a list. Throws IllegalArgumentException if the text is not what we
+     * expect.
+     */
     public static List<VehicleModelInfo> parseModels(String json) {
         JsonArray results = resultsOf(json);
         List<VehicleModelInfo> models = new ArrayList<>();

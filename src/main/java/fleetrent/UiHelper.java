@@ -1,7 +1,9 @@
 package fleetrent;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.Node;
@@ -81,25 +83,44 @@ final class UiHelper {
         sp.setFitToWidth(true);
         sp.setFitToHeight(true);
         sp.setPannable(false);
-        // The page never gets smaller than the size it needs. On a small screen the scroll bars
-        // appear instead, so every button can still be reached.
+        // The page never gets shorter than it needs. Its width is limited by the minimum widths of
+        // its parts (each tab sets them), so long texts wrap in a narrow window instead of pushing
+        // the page wider. The page never gets smaller than the size it needs. On a small screen the
+        // scroll bars appear instead, so every button can still be reached.
         if (content instanceof javafx.scene.layout.Region) {
             javafx.scene.layout.Region region = (javafx.scene.layout.Region) content;
             region.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
-            region.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         }
+        // The scroll pane itself may shrink to nothing: what does not fit is reached with the
+        // scroll bars, and the header above it (title, Sign out) is never pushed out of the window
+        // by a wide page.
+        sp.setMinSize(0, 0);
         sp.getStyleClass().add("page-scroll");
-        // The page, not the scroll pane, takes the click focus, so a text field reacts to one click.
+        // The page, not the scroll pane, takes the click focus, so a text field reacts to one
+        // click.
         sp.setFocusTraversable(false);
         fixButtons(content);
         return sp;
     }
 
-    // Runs the task on its own background thread so the window never freezes.
-    static void runInBackground(Task<?> task) {
-        Thread thread = new Thread(task, "fleetrent-worker");
+    // One shared pool for every background job of every window. A fast double click cannot start
+    // many threads: at most WORKER_COUNT jobs run at once and the rest wait in line.
+    private static final int WORKER_COUNT = 4;
+    private static final AtomicInteger WORKER_NUMBER = new AtomicInteger();
+    private static final ExecutorService WORKERS = Executors.newFixedThreadPool(WORKER_COUNT, job -> {
+        Thread thread = new Thread(job, "fleetrent-worker-" + WORKER_NUMBER.incrementAndGet());
         thread.setDaemon(true);
-        thread.start();
+        return thread;
+    });
+
+    // Runs the job (usually a Task) on the shared pool so the window never freezes.
+    static void runInBackground(Runnable job) {
+        WORKERS.execute(job);
+    }
+
+    // Stops the shared pool when the program closes. Jobs that are still running are interrupted.
+    static void stopWorkers() {
+        WORKERS.shutdownNow();
     }
 
     static void onFxThread(Runnable r) {

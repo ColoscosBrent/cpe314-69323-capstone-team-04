@@ -6,8 +6,10 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 
-// Keeps one picture file per vehicle in a folder (default: vehicle_images next to the database).
-// The file name is vehicle-<id>.<ext>, so the database needs no new column.
+/**
+ * Keeps one picture file per vehicle in a folder (default: vehicle_images next to the database).
+ * The file name is vehicle-<id>.<ext>, so the database needs no new column.
+ */
 public class CarImageStore {
     public static final String DEFAULT_FOLDER = "vehicle_images";
     public static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
@@ -15,15 +17,19 @@ public class CarImageStore {
 
     private final Path folder;
 
+    /** Creates a car image store. */
     public CarImageStore() {
         this(Path.of(DEFAULT_FOLDER));
     }
 
+    /** Creates a car image store. */
     public CarImageStore(Path folder) {
         this.folder = folder;
     }
 
-    // The saved picture of a vehicle, or null if it has none.
+    /**
+     * The saved picture of a vehicle, or null if it has none.
+     */
     public Path find(int vehicleId) {
         for (String ext : EXTENSIONS) {
             Path p = folder.resolve("vehicle-" + vehicleId + "." + ext);
@@ -34,11 +40,14 @@ public class CarImageStore {
         return null;
     }
 
+    /** Tells whether a picture is saved for the vehicle. */
     public boolean has(int vehicleId) {
         return find(vehicleId) != null;
     }
 
-    // Saves downloaded bytes. The picture type is found from the bytes, not from a name.
+    /**
+     * Saves downloaded bytes. The picture type is found from the bytes, not from a name.
+     */
     public Path save(int vehicleId, byte[] bytes) throws IOException {
         String ext = extensionFromBytes(bytes);
         if (ext == null) {
@@ -54,7 +63,9 @@ public class CarImageStore {
         return target;
     }
 
-    // Copies a picture file the user chose.
+    /**
+     * Copies a picture file the user chose.
+     */
     public Path copyFrom(int vehicleId, Path source) throws IOException {
         if (source == null || !Files.isRegularFile(source)) {
             throw new IllegalArgumentException("That picture file was not found.");
@@ -66,13 +77,17 @@ public class CarImageStore {
         return save(vehicleId, bytes);
     }
 
+    /** Deletes the saved picture of the vehicle, if there is one. */
     public void delete(int vehicleId) throws IOException {
         for (String ext : EXTENSIONS) {
             Files.deleteIfExists(folder.resolve("vehicle-" + vehicleId + "." + ext));
         }
     }
 
-    // Looks at the first bytes of a file to see what kind of picture it is. Returns null if unknown.
+    /**
+     * Looks at the first bytes of a file to see what kind of picture it is. Returns null if
+     * unknown.
+     */
     public static String extensionFromBytes(byte[] b) {
         if (b == null || b.length < 4) {
             return null;
@@ -92,6 +107,7 @@ public class CarImageStore {
         return null;
     }
 
+    /** Tells whether the file name ends like a picture file. */
     public static boolean isPictureName(String fileName) {
         String n = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
         return n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png")

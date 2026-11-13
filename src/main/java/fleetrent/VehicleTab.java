@@ -11,7 +11,11 @@ import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
@@ -30,9 +34,11 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 
-// Tab 1: add vehicles (every Vehicle field of the ERD), choose the make and model from the NHTSA
-// API, and see the fleet. The vehicle type decides which makes and models NHTSA is asked for, so
-// the type and the model can never disagree.
+/**
+ * Tab 1: add, edit and remove vehicles (every Vehicle field of the ERD), choose the make and model
+ * from the NHTSA API, and see the fleet. The vehicle type decides which makes and models NHTSA is
+ * asked for, so the type and the model can never disagree.
+ */
 public class VehicleTab extends Tab {
     private static final String NO_YEAR = "Not specified";
     private static final String PHOTO_HINT = "No photo chosen. FleetRent will try to find one online.";
@@ -42,12 +48,26 @@ public class VehicleTab extends Tab {
     private final VehiclePictures pictures;
     private final CarImageStore store;
     private final PhotoFinder photoFinder;
+    private final FleetService fleet;
     private Path chosenPhoto;
+    // The vehicle being edited, or null while the form adds a new vehicle.
+    private Vehicle editing;
+    // The make and model the person clicked in the NHTSA lists. The Add button accepts them even
+    // when the lists are reloading (for example after the Year was changed).
+    private String pickedMake;
+    private String pickedModel;
 
     private final ListView<Vehicle> vehicleList = new ListView<>();
     private final Label status = new Label("Ready.");
     private final Label countLabel = new Label("0 vehicles");
     private final Button findPhotosButton = new Button("Find photos for all");
+    private final Button removedButton = new Button("Removed vehicles");
+    private final Button addButton = new Button("Add Vehicle");
+    private final Button cancelEditButton = new Button("Cancel editing");
+    private final Button removePhotoButton = new Button("Remove saved photo");
+    private final Label formTitle = UiHelper.title("Add a vehicle");
+    private final Label photoName = new Label(PHOTO_HINT);
+    private final Label typeNote = new Label("The type cannot be changed. To change it, remove the vehicle and add it again.");
 
     // form
     private final ChoiceBox<String> typeBox = new ChoiceBox<>(FXCollections.observableArrayList(VehicleTypes.ALL));
@@ -81,10 +101,12 @@ public class VehicleTab extends Tab {
     private StackPane preview;
     private Label previewName;
 
+    /** Creates a vehicle tab. */
     public VehicleTab(Database db, VehiclePictures pictures) {
         super("Vehicles");
         this.db = db;
         this.pictures = pictures;
+        this.fleet = new FleetService(db);
         this.store = pictures.store();
         this.photoFinder = new PhotoFinder(new CarImageClient(), store);
         setClosable(false);
@@ -144,7 +166,6 @@ public class VehicleTab extends Tab {
         });
         redraw();
 
-        Label photoName = new Label(PHOTO_HINT);
         photoName.getStyleClass().add("hint-label");
         photoName.setWrapText(true);
         photoName.setMaxWidth(400);
@@ -173,10 +194,11 @@ public class VehicleTab extends Tab {
             photoName.setText(PHOTO_HINT);
             redraw();
         });
-        HBox photoRow = new HBox(8, photoButton, clearPhotoButton);
+        HBox photoRow = new HBox(8, photoButton, clearPhotoButton, removePhotoButton);
         photoRow.setAlignment(Pos.CENTER_LEFT);
 
-        // Make and model are chosen from the NHTSA lists, so they cannot be typed by hand while NHTSA works.
+        // Make and model are chosen from the NHTSA lists, so they cannot be typed by hand while
+        // NHTSA works.
         setManualEntry(false);
 
         GridPane form = new GridPane();
@@ -194,19 +216,28 @@ public class VehicleTab extends Tab {
         UiHelper.addRow(form, r++, "Last PMS", new HBox(8, pmsPicker, clearPms));
         UiHelper.addRow(form, r++, "Category", UiHelper.withError(categoryBox, categoryError));
 
-        Button addButton = new Button("Add Vehicle");
         addButton.getStyleClass().add("primary-button");
+        cancelEditButton.getStyleClass().add("secondary-button");
+        cancelEditButton.setOnAction(e -> cancelEdit());
+        removePhotoButton.getStyleClass().add("secondary-button");
+        removePhotoButton.setOnAction(e -> removeSavedPhoto());
+        typeNote.getStyleClass().add("hint-label");
+        typeNote.setWrapText(true);
+        typeNote.setMaxWidth(400);
+        setEditControls(false);
         status.getStyleClass().add("status-label");
         status.setWrapText(true);
         status.setMaxWidth(400);
 
-        VBox formCard = new VBox(8, UiHelper.title("Add a vehicle"), preview, previewName, swatches, form,
-                photoRow, photoName, addButton, status);
+        HBox saveRow = new HBox(10, addButton, cancelEditButton);
+        saveRow.setAlignment(Pos.CENTER_LEFT);
+        VBox formCard = new VBox(8, formTitle, preview, previewName, swatches, typeNote, form,
+                photoRow, photoName, saveRow, status);
         formCard.getStyleClass().add("card");
         formCard.setPrefWidth(420);
         formCard.setMinWidth(420);
 
-        addButton.setOnAction(event -> addVehicle(photoName));
+        addButton.setOnAction(event -> saveVehicle());
 
         typeBox.valueProperty().addListener((obs, o, n) -> onTypeChanged());
         yearBox.valueProperty().addListener((obs, o, n) -> {
@@ -250,7 +281,8 @@ public class VehicleTab extends Tab {
         });
         modelList.getSelectionModel().selectedItemProperty().addListener((obs, o, picked) -> {
             if (picked != null) {
-                modelField.field().setText(picked.getModelName());
+                pickedModel = picked.getModelName();
+                modelField.setValue(picked.getModelName());
                 modelField.showError(null);
             }
         });
@@ -271,9 +303,14 @@ public class VehicleTab extends Tab {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         findPhotosButton.getStyleClass().add("secondary-button");
         findPhotosButton.setOnAction(e -> findAllPhotos());
-        HBox listHeader = new HBox(10, UiHelper.title("Our fleet"), spacer, findPhotosButton, countLabel);
-        listHeader.setAlignment(Pos.CENTER_LEFT);
-        Label hint = new Label("Price shown is for 1 day with no extra miles. Photos come from your file or Wikipedia.");
+        removedButton.getStyleClass().add("secondary-button");
+        removedButton.setOnAction(e -> showRemovedVehicles());
+        HBox titleRow = new HBox(10, UiHelper.title("Our fleet"), spacer, countLabel);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        HBox fleetButtons = new HBox(8, removedButton, findPhotosButton);
+        VBox listHeader = new VBox(8, titleRow, fleetButtons);
+        Label hint = new Label("Price shown is for 1 day with no extra miles. " + feeHint()
+                + " Photos come from your file or Wikipedia.");
         hint.getStyleClass().add("hint-label");
         hint.setWrapText(true);
         vehicleList.setCellFactory(list -> new VehicleCell());
@@ -293,6 +330,22 @@ public class VehicleTab extends Tab {
         loadMakes();
     }
 
+    // "Extra-mile fees: Sedan 100 free miles a day then 0.20 per mile, ..." built from the vehicle
+    // classes, so the text always matches the real rules.
+    private static String feeHint() {
+        StringBuilder sb = new StringBuilder("Extra-mile fees: ");
+        for (String type : VehicleTypes.ALL) {
+            Vehicle sample = VehicleFactory.create(0, type, "", "", 0, "", "", 1, 0, null, null);
+            if (sb.length() > 17) {
+                sb.append("; ");
+            }
+            sb.append(type.charAt(0)).append(type.substring(1).toLowerCase(Locale.ROOT)).append(' ')
+                    .append(sample.getFreeMilesPerDay()).append(" free miles a day, then ")
+                    .append(String.format(Locale.US, "%.2f", sample.getFeePerExtraMile())).append(" per mile");
+        }
+        return sb.append('.').toString();
+    }
+
     // ---------- live picture ----------
 
     private void redraw() {
@@ -302,6 +355,13 @@ public class VehicleTab extends Tab {
             previewName.setText("Your photo");
             return;
         }
+        Path saved = editing == null ? null : store.find(editing.getId());
+        Image savedImage = saved == null ? null : pictures.load(saved, 300);
+        if (savedImage != null) {
+            preview.getChildren().setAll(VehiclePictures.photoNode(savedImage, 240, 125));
+            previewName.setText("Saved photo");
+            return;
+        }
         String color = colorBox.getValue();
         preview.getChildren().setAll(CarGraphic.create(typeBox.getValue(), color, 170));
         previewName.setText(color == null ? "Pick a color below" : color);
@@ -309,7 +369,8 @@ public class VehicleTab extends Tab {
 
     // ---------- type, make, model, year ----------
 
-    // Make and model boxes: read-only while NHTSA works, typed by hand only when NHTSA cannot be reached.
+    // Make and model boxes: read-only while NHTSA works, typed by hand only when NHTSA cannot be
+    // reached.
     private void setManualEntry(boolean manual) {
         makeField.field().setEditable(manual);
         modelField.field().setEditable(manual);
@@ -328,6 +389,8 @@ public class VehicleTab extends Tab {
     }
 
     private void clearMakeAndModel() {
+        pickedMake = null;
+        pickedModel = null;
         makeField.reset();
         modelField.reset();
         makeSearch.reset();
@@ -418,7 +481,9 @@ public class VehicleTab extends Tab {
     }
 
     private void onMakePicked(String make) {
-        makeField.field().setText(make);
+        pickedMake = make;
+        pickedModel = null;
+        makeField.setValue(make);
         makeField.showError(null);
         modelField.reset();
         loadModels();
@@ -509,18 +574,35 @@ public class VehicleTab extends Tab {
 
     // ---------- saving ----------
 
-    private void addVehicle(Label photoName) {
+    // True when the make was chosen from NHTSA (or clicked in the list), ignoring capitals and
+    // extra spaces.
+    private boolean isKnownMake(String text) {
+        return Validators.sameName(pickedMake, text)
+                || allMakes.stream().anyMatch(m -> Validators.sameName(m, text));
+    }
+
+    private boolean isKnownModel(String text) {
+        return Validators.sameName(pickedModel, text)
+                || allModels.stream().anyMatch(m -> Validators.sameName(m.getModelName(), text));
+    }
+
+    // The button under the form: it adds a new vehicle, or saves the changes of the vehicle being
+    // edited.
+    private void saveVehicle() {
         boolean ok = true;
         String type = typeBox.getValue();
+        // While editing, the make and model that the vehicle already has are always fine.
+        boolean makeUnchanged = editing != null && Validators.sameName(makeField.text(), editing.getMake());
+        boolean modelUnchanged = editing != null && Validators.sameName(modelField.text(), editing.getModel());
         if (!makeField.validate()) {
             ok = false;
-        } else if (apiReady && allMakes.stream().noneMatch(m -> m.equalsIgnoreCase(makeField.text()))) {
+        } else if (apiReady && !makeUnchanged && !isKnownMake(makeField.text())) {
             makeField.showError("Pick the make from the NHTSA list.");
             ok = false;
         }
         if (!modelField.validate()) {
             ok = false;
-        } else if (apiReady && allModels.stream().noneMatch(m -> m.getModelName().equals(modelField.text()))) {
+        } else if (apiReady && !modelUnchanged && !isKnownModel(modelField.text())) {
             modelField.showError("Pick the model from the NHTSA list.");
             ok = false;
         }
@@ -557,27 +639,237 @@ public class VehicleTab extends Tab {
                     : Integer.parseInt(yearBox.getValue());
             String mileageText = mileageField.text();
             int mileage = mileageText.isEmpty() ? 0 : Integer.parseInt(mileageText);
-            Vehicle vehicle = VehicleFactory.create(0, type, makeField.text(), modelField.text(), year,
+            int id = editing == null ? 0 : editing.getId();
+            Vehicle vehicle = VehicleFactory.create(id, type, makeField.text(), modelField.text(), year,
                     plateField.text(), colorBox.getValue(), Double.parseDouble(rateField.text()),
                     mileage, pms, categoryBox.getValue());
-            if (db.findVehicleByPlate(vehicle.getPlateNumber()) != null) {
+            Vehicle samePlate = db.findVehicleByPlate(vehicle.getPlateNumber());
+            if (samePlate != null && samePlate.getId() != id) {
                 plateField.showError("A vehicle with that plate number already exists.");
                 UiHelper.setStatus(status, "Please fix the red messages first.", true);
+                return;
+            }
+            if (editing != null) {
+                saveEdit(vehicle);
                 return;
             }
             db.insertVehicle(vehicle);
             UiHelper.setStatus(status, "Saved: " + vehicle, false);
             afterAdd(vehicle);
-            resetForm(photoName);
+            resetForm();
             refresh();
         } catch (NumberFormatException e) {
             UiHelper.setStatus(status, "A number in the form is not valid.", true);
+        } catch (IllegalArgumentException e) {
+            // VehicleFactory throws this for an unknown vehicle type. Show a red message, do not
+            // let it escape.
+            UiHelper.setStatus(status, e.getMessage() == null ? "A value in the form is not valid." : e.getMessage(), true);
         } catch (SQLException e) {
             UiHelper.setStatus(status, ErrorMessages.forDatabase("saving the vehicle", e), true);
         }
     }
 
-    private void resetForm(Label photoName) {
+    private void saveEdit(Vehicle vehicle) throws SQLException {
+        try {
+            fleet.updateVehicle(vehicle);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
+            return;
+        }
+        String photoNote = "";
+        if (chosenPhoto != null) {
+            try {
+                store.copyFrom(vehicle.getId(), chosenPhoto);
+            } catch (java.io.IOException | IllegalArgumentException e) {
+                photoNote = " The photo could not be used: " + e.getMessage();
+            }
+        }
+        String done = "Saved the changes of " + vehicle.displayName() + " (" + vehicle.getPlateNumber() + ")." + photoNote;
+        exitEditMode();
+        resetForm();
+        refresh();
+        UiHelper.setStatus(status, done, !photoNote.isEmpty());
+    }
+
+    // ---------- edit ----------
+
+    private void setEditControls(boolean editMode) {
+        formTitle.setText(editMode && editing != null ? "Edit vehicle #" + editing.getId() : "Add a vehicle");
+        addButton.setText(editMode ? "Save changes" : "Add Vehicle");
+        for (javafx.scene.Node n : new javafx.scene.Node[] {cancelEditButton, removePhotoButton, typeNote}) {
+            n.setVisible(editMode);
+            n.setManaged(editMode);
+        }
+        typeBox.setDisable(editMode);
+    }
+
+    // Puts the vehicle in the form. The button then saves the changes of this vehicle.
+    private void beginEdit(Vehicle v) {
+        editing = v;
+        setEditControls(true);
+        if (!v.getType().equals(typeBox.getValue())) {
+            typeBox.setValue(v.getType());
+        } else {
+            clearMakeAndModel();
+            loadMakes();
+        }
+        makeField.setValue(v.getMake());
+        modelField.setValue(v.getModel());
+        busyChangingForm = true;
+        String yearText = v.getYear() > 0 ? String.valueOf(v.getYear()) : NO_YEAR;
+        if (!yearBox.getItems().contains(yearText)) {
+            yearBox.getItems().add(yearText);
+        }
+        yearBox.setValue(yearText);
+        busyChangingForm = false;
+        colorBox.setValue(v.getColor());
+        plateField.setValue(v.getPlateNumber() == null ? "" : v.getPlateNumber());
+        rateField.setValue(new java.math.BigDecimal(Double.toString(v.getDailyRate())).stripTrailingZeros().toPlainString());
+        mileageField.setValue(String.valueOf(v.getMileage()));
+        pmsPicker.setValue(v.getLastPMS());
+        categoryBox.setValue(VehicleTypes.isCategoryOf(v.getType(), v.getCategoryPath())
+                ? v.getCategoryPath() : categoryBox.getItems().get(0));
+        UiHelper.setError(colorError, null);
+        UiHelper.setError(categoryError, null);
+        chosenPhoto = null;
+        photoName.setText(store.has(v.getId()) ? "Keeping the saved photo. Choose a new one to replace it."
+                : "No photo yet. Choose one, or FleetRent will use the drawn car.");
+        removePhotoButton.setDisable(!store.has(v.getId()));
+        redraw();
+        UiHelper.setStatus(status, "Editing " + v.displayName() + ". Change what you need, then press Save changes.", false);
+    }
+
+    private void exitEditMode() {
+        editing = null;
+        setEditControls(false);
+    }
+
+    private void cancelEdit() {
+        exitEditMode();
+        resetForm();
+        UiHelper.setStatus(status, "Editing cancelled. Nothing was changed.", false);
+    }
+
+    private void removeSavedPhoto() {
+        if (editing == null) {
+            return;
+        }
+        try {
+            store.delete(editing.getId());
+            chosenPhoto = null;
+            photoName.setText("The saved photo was removed. Choose a new one, or the drawn car is used.");
+            removePhotoButton.setDisable(true);
+            redraw();
+            refresh();
+            UiHelper.setStatus(status, "The saved photo was removed.", false);
+        } catch (java.io.IOException e) {
+            UiHelper.setStatus(status, "The photo could not be removed: " + e.getMessage(), true);
+        }
+    }
+
+    // ---------- remove and restore ----------
+
+    private Alert styledAlert(Alert.AlertType type, String text, ButtonType... buttons) {
+        Alert alert = new Alert(type, text, buttons);
+        java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
+        if (css != null) {
+            alert.getDialogPane().getStylesheets().add(css.toExternalForm());
+        }
+        return alert;
+    }
+
+    private void removeVehicle(Vehicle v) {
+        try {
+            int reserved = db.countActiveReservationsOfVehicle(v.getId());
+            ButtonType remove = new ButtonType("Remove it", ButtonBar.ButtonData.OK_DONE);
+            ButtonType keep = new ButtonType("Keep it", ButtonBar.ButtonData.CANCEL_CLOSE);
+            String text = "Renters will not see this vehicle anymore and cannot rent or reserve it."
+                    + (reserved > 0 ? "\n\nIts " + reserved + " active reservation(s) will be cancelled." : "")
+                    + "\n\nThe rental history is kept. You can bring it back with \"Removed vehicles\".";
+            Alert alert = styledAlert(Alert.AlertType.CONFIRMATION, text, remove, keep);
+            alert.setTitle("Remove vehicle");
+            alert.setHeaderText("Remove " + v.displayName() + " (" + v.getPlateNumber() + ")?");
+            alert.initOwner(vehicleList.getScene() == null ? null : vehicleList.getScene().getWindow());
+            java.util.Optional<ButtonType> answer = alert.showAndWait();
+            if (answer.isEmpty() || answer.get() != remove) {
+                return;
+            }
+            int cancelled = fleet.removeVehicle(v.getId());
+            if (editing != null && editing.getId() == v.getId()) {
+                exitEditMode();
+                resetForm();
+            }
+            refresh();
+            UiHelper.setStatus(status, "Removed " + v.displayName() + " (" + v.getPlateNumber() + ")"
+                    + (cancelled > 0 ? ". " + cancelled + " reservation(s) were cancelled." : ".")
+                    + " It is hidden from renters.", false);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
+        } catch (SQLException e) {
+            UiHelper.setStatus(status, ErrorMessages.forDatabase("removing the vehicle", e), true);
+        }
+    }
+
+    // A small window with the removed vehicles and a Restore button.
+    private void showRemovedVehicles() {
+        ListView<Vehicle> list = new ListView<>();
+        list.setPrefSize(460, 260);
+        list.setCellFactory(l -> new ListCell<Vehicle>() {
+            @Override
+            protected void updateItem(Vehicle item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.displayName() + "  |  " + item.getPlateNumber()
+                        + "  |  " + item.getType());
+            }
+        });
+        list.getStyleClass().add("plain-list");
+        Label info = new Label();
+        info.getStyleClass().add("status-label");
+        info.setWrapText(true);
+        info.setMaxWidth(460);
+        Button restore = new Button("Restore selected");
+        restore.getStyleClass().add("primary-button");
+        Runnable load = () -> {
+            try {
+                list.getItems().setAll(db.getRemovedVehicles());
+                info.setText(list.getItems().isEmpty() ? "No removed vehicles." : "Pick a vehicle, then press Restore.");
+            } catch (SQLException e) {
+                UiHelper.setStatus(info, ErrorMessages.forDatabase("loading the removed vehicles", e), true);
+            }
+        };
+        restore.setOnAction(e -> {
+            Vehicle picked = list.getSelectionModel().getSelectedItem();
+            if (picked == null) {
+                UiHelper.setStatus(info, "Pick a vehicle first.", true);
+                return;
+            }
+            try {
+                fleet.restoreVehicle(picked.getId());
+                load.run();
+                refresh();
+                UiHelper.setStatus(info, picked.displayName() + " is back in the fleet.", false);
+                UiHelper.setStatus(status, picked.displayName() + " was restored to the fleet.", false);
+            } catch (IllegalArgumentException | IllegalStateException ex) {
+                UiHelper.setStatus(info, ex.getMessage(), true);
+            } catch (SQLException ex) {
+                UiHelper.setStatus(info, ErrorMessages.forDatabase("restoring the vehicle", ex), true);
+            }
+        });
+        load.run();
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Removed vehicles");
+        dialog.setHeaderText("Vehicles you removed from the fleet");
+        dialog.getDialogPane().setContent(new VBox(10, list, info, restore));
+        dialog.getDialogPane().getButtonTypes().add(new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE));
+        java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
+        if (css != null) {
+            dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
+        }
+        dialog.initOwner(vehicleList.getScene() == null ? null : vehicleList.getScene().getWindow());
+        dialog.showAndWait();
+    }
+
+    private void resetForm() {
         clearMakeAndModel();
         plateField.reset();
         rateField.reset();
@@ -592,10 +884,13 @@ public class VehicleTab extends Tab {
         categoryBox.setValue(categoryBox.getItems().get(0));
         chosenPhoto = null;
         photoName.setText(PHOTO_HINT);
+        UiHelper.setError(colorError, null);
+        UiHelper.setError(categoryError, null);
         redraw();
         UiHelper.setStatus(lookupStatus, "Click a make to see its models.", false);
     }
 
+    /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
             vehicleList.getItems().setAll(db.getAllVehicles());
@@ -635,7 +930,8 @@ public class VehicleTab extends Tab {
         UiHelper.runInBackground(task);
     }
 
-    // Looks online for a photo of every vehicle that has none. Runs in the background with a progress count.
+    // Looks online for a photo of every vehicle that has none. Runs in the background with a
+    // progress count.
     private void findAllPhotos() {
         final List<Vehicle> missing = new ArrayList<>();
         for (Vehicle v : vehicleList.getItems()) {
@@ -690,7 +986,8 @@ public class VehicleTab extends Tab {
         UiHelper.runInBackground(task);
     }
 
-    // How one vehicle looks in the list: its picture, its name, plate, color and mileage, a type badge, and its price.
+    // How one vehicle looks in the list: its picture, its name, plate, color and mileage, a type
+    // badge, and its price.
     private class VehicleCell extends ListCell<Vehicle> {
         @Override
         protected void updateItem(Vehicle v, boolean empty) {
@@ -718,11 +1015,24 @@ public class VehicleTab extends Tab {
             // v is a Vehicle reference. Java runs the Sedan, Suv or Motorcycle version at runtime.
             Label price = new Label(String.format(Locale.US, "%.2f / day", v.computeRentalCost(1, 0)));
             price.getStyleClass().add("vehicle-price");
-            VBox text = new VBox(4, name, colorRow, details, category, price);
+            Label fee = new Label("Extra miles: " + v.feeSummary());
+            fee.getStyleClass().add("hint-label");
+            fee.setWrapText(true);
+            fee.maxWidthProperty().bind(javafx.beans.binding.Bindings.max(120, widthProperty().subtract(235)));
+            VBox text = new VBox(4, name, colorRow, details, category, price, fee);
             text.setMinWidth(0);
             name.setWrapText(true);
             name.setMinHeight(Region.USE_PREF_SIZE);
             name.maxWidthProperty().bind(javafx.beans.binding.Bindings.max(120, widthProperty().subtract(235)));
+            Button edit = new Button("Edit");
+            edit.getStyleClass().addAll("secondary-button", "mini-button");
+            edit.setOnAction(e -> beginEdit(v));
+            Button remove = new Button("Remove");
+            remove.getStyleClass().addAll("danger-button", "mini-button");
+            remove.setOnAction(e -> removeVehicle(v));
+            edit.setMinWidth(Region.USE_PREF_SIZE);
+            remove.setMinWidth(Region.USE_PREF_SIZE);
+            text.getChildren().add(new HBox(8, edit, remove));
             HBox card = new HBox(14, pictures.stage(v), text);
             card.setAlignment(Pos.CENTER_LEFT);
             card.getStyleClass().add("vehicle-card");

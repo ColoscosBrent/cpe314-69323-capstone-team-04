@@ -15,6 +15,7 @@ final class ValidatedField {
     private final Label error = new Label();
     private final VBox node = new VBox(3);
     private boolean touched;
+    private boolean programmatic;
 
     ValidatedField(Validators.Kind kind, String hint, boolean required) {
         this.kind = kind;
@@ -32,7 +33,9 @@ final class ValidatedField {
             if (!change.isContentChange()) {
                 return change;
             }
-            if (kind.typingAllowed(change.getControlNewText())) {
+            // A value that the program sets (a make or a model chosen from the NHTSA list) is not a
+            // key press.
+            if (programmatic || kind.typingAllowed(change.getControlNewText())) {
                 return change;
             }
             show(kind.rejectMessage());
@@ -63,6 +66,18 @@ final class ValidatedField {
 
     String text() {
         return Validators.normalize(kind, field.getText());
+    }
+
+    // Puts text in the box without the typing rules. Used for names that come from NHTSA, which can
+    // be longer than 50 characters or have a character a person would not type.
+    void setValue(String value) {
+        programmatic = true;
+        try {
+            field.setText(value == null ? "" : value);
+        } finally {
+            programmatic = false;
+        }
+        show(null);
     }
 
     // The text for saving, or null when the box is empty.

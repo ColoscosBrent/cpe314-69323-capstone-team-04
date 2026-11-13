@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS Account (
     username         TEXT NOT NULL UNIQUE COLLATE NOCASE,
     role             TEXT NOT NULL CHECK (role IN ('ADMIN', 'RENTER')),
     displayName      TEXT NOT NULL,
+    phone            TEXT,
     passwordHash     TEXT NOT NULL,
     passwordSalt     TEXT NOT NULL,
     securityQuestion TEXT NOT NULL,
@@ -94,3 +95,32 @@ CREATE TABLE IF NOT EXISTS CheckoutLog (
 
 CREATE INDEX IF NOT EXISTS idxMaintenanceVehicle ON Maintenance(vehicleId, doneOn);
 CREATE INDEX IF NOT EXISTS idxWaitingVehicle ON WaitingEntry(vehicleId, id);
+
+CREATE TABLE IF NOT EXISTS ImportBatch (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    fileName     TEXT NOT NULL,
+    importedBy   TEXT,
+    importedOn   TEXT NOT NULL,
+    rowsRead     INTEGER NOT NULL DEFAULT 0,
+    rowsAdded    INTEGER NOT NULL DEFAULT 0,
+    rowsSkipped  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS ImportRecord (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    batchId      INTEGER NOT NULL REFERENCES ImportBatch(id) ON DELETE CASCADE,
+    lineNo       INTEGER NOT NULL,
+    plateNumber  TEXT,
+    vehicleType  TEXT,
+    make         TEXT,
+    model        TEXT,
+    year         INTEGER,
+    renterName   TEXT,
+    startDate    TEXT,
+    endDate      TEXT,
+    milesDriven  INTEGER,
+    status       TEXT NOT NULL CHECK (status IN ('ADDED', 'SKIPPED')),
+    message      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idxImportRecordBatch ON ImportRecord(batchId, status);

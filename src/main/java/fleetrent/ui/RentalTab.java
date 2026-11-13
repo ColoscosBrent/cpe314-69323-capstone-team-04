@@ -87,43 +87,40 @@ public class RentalTab extends Tab {
         setClosable(false);
 
         // ----- new renter: name, contact, email, address (the Renter ERD) -----
-        ValidatedField nameField = new ValidatedField(Validators.Kind.NAME, "Ana Reyes", true);
-        ValidatedField contactField = new ValidatedField(Validators.Kind.CONTACT, "0917 123 4567",
-                true);
+        NameFields nameFields = new NameFields();
+        PhoneField phoneField = new PhoneField();
         ValidatedField emailField = new ValidatedField(Validators.Kind.EMAIL,
-                "ana@example.com (optional)", false);
-        ValidatedField addressField = new ValidatedField(Validators.Kind.ADDRESS,
-                "12 Rizal St, Cebu City (optional)", false);
+                "ana@example.com", true);
+        AddressFields addressFields = new AddressFields();
         Button addRenter = new Button("Add Renter");
         addRenter.getStyleClass().add("primary-button");
         GridPane renterForm = new GridPane();
         renterForm.setHgap(RENTER_FORM_HGAP);
         renterForm.setVgap(RENTER_FORM_VGAP);
-        UiHelper.addRow(renterForm, 0, "Name", nameField.node());
-        UiHelper.addRow(renterForm, 1, "Contact", contactField.node());
+        UiHelper.addRow(renterForm, 0, "Name", nameFields.node());
+        UiHelper.addRow(renterForm, 1, "Phone", phoneField.node());
         UiHelper.addRow(renterForm, 2, "Email", emailField.node());
-        UiHelper.addRow(renterForm, 3, "Address", addressField.node());
+        UiHelper.addRow(renterForm, 3, "Address", addressFields.node());
         renterStatus.getStyleClass().add("status-label");
         renterStatus.setWrapText(true);
         renterStatus.setMaxWidth(RENTER_STATUS_MAX_WIDTH);
         addRenter.setOnAction(e -> {
-            boolean ok = nameField.validate();
-            ok = contactField.validate() && ok;
+            boolean ok = nameFields.validate();
+            ok = phoneField.validate() && ok;
             ok = emailField.validate() && ok;
-            ok = addressField.validate() && ok;
+            ok = addressFields.validate() && ok;
             if (!ok) {
                 UiHelper.setStatus(renterStatus, "Please fix the red messages first.", true);
                 return;
             }
             try {
-                String name = nameField.text();
-                controller.addRenter(new Renter(0, name, contactField.text(),
-                        emailField.textOrNull(),
-                        addressField.textOrNull()));
-                nameField.reset();
-                contactField.reset();
+                String name = nameFields.value();
+                controller.addRenter(new Renter(0, name, phoneField.value(), emailField.text(),
+                        addressFields.value()));
+                nameFields.reset();
+                phoneField.reset();
                 emailField.reset();
-                addressField.reset();
+                addressFields.reset();
                 UiHelper.setStatus(renterStatus, "Renter saved: " + name, false);
                 refresh();
             } catch (ControllerException ex) {

@@ -21,7 +21,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 // Two windows (or two copies of the app) open the same fleetrent.db file with their own connection.
-// These tests use two connections to one file to check that they see each other and never double book.
+// These tests use two connections to one file to check that they see each other and never double
+// book.
 class DatabaseSyncTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 10);
     private Path file;
@@ -37,7 +38,8 @@ class DatabaseSyncTest {
         owner.createTables();
         renter = new Database("jdbc:sqlite:" + file);
         renter.createTables();
-        vehicleId = owner.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+        vehicleId = owner.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022,
+                "ABC 123", "White",
                 1500, 0, null, "Car > Sedan"));
         renterId = owner.insertRenter(new Renter(0, "Ana Reyes", "09171234567", null, null));
     }
@@ -52,12 +54,14 @@ class DatabaseSyncTest {
     @Test
     void aChangeMadeByTheOtherConnectionChangesTheStamp() throws SQLException {
         String before = owner.changeStamp();
-        new BookingService(renter, () -> TODAY).reserve(renterId, vehicleId, TODAY.plusDays(2), TODAY.plusDays(3));
-        assertFalse(before.equals(owner.changeStamp()), "the owner window must notice the renter's reservation");
+        new BookingService(renter, () -> TODAY).reserve(renterId, vehicleId, TODAY.plusDays(2),
+                TODAY.plusDays(3));
+        assertFalse(before.equals(owner.changeStamp()),
+                "the owner window must notice the renter's reservation");
     }
 
     @Test
-    void theOwnerSeesTheRenterReservationAndTheRenterSeesTheRemovedVehicleGone() throws SQLException {
+    void ownerSeesReservationAndRenterSeesRemovedVehicleGone() throws SQLException {
         BookingService renterSide = new BookingService(renter, () -> TODAY);
         renterSide.reserve(renterId, vehicleId, TODAY.plusDays(2), TODAY.plusDays(3));
         assertEquals(1, owner.getAllReservations().size());
@@ -81,6 +85,7 @@ class DatabaseSyncTest {
     void anOwnerRentalAndARenterRentNowCannotOverlap() throws SQLException {
         new RentalService(owner).startRental(renterId, vehicleId, TODAY, TODAY.plusDays(2));
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                () -> new BookingService(renter, () -> TODAY).rentNow(renterId, vehicleId, TODAY.plusDays(1)));
+                () -> new BookingService(renter, () -> TODAY).rentNow(renterId, vehicleId,
+                        TODAY.plusDays(1)));
     }
 }

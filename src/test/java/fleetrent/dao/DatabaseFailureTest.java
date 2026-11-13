@@ -35,7 +35,8 @@ class DatabaseFailureTest {
         Path file = folder.resolve("locked.db");
         try (Database holder = new Database("jdbc:sqlite:" + file)) {
             holder.createTables();
-            try (java.sql.Connection raw = java.sql.DriverManager.getConnection("jdbc:sqlite:" + file);
+            try (java.sql.Connection raw = java.sql.DriverManager.getConnection("jdbc:sqlite:"
+                    + file);
                  java.sql.Statement st = raw.createStatement()) {
                 st.execute("PRAGMA busy_timeout = 100");
                 st.execute("BEGIN EXCLUSIVE");

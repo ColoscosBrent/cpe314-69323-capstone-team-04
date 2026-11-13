@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-// Makes demo data so the dashboard has something to mine. The same seed always gives the same file.
+/**
+ * Makes demo data so the dashboard has something to mine. The same seed always gives the same file.
+ */
 public final class SampleData {
     private static final String[] RENTERS = {"Ana Reyes", "Ben Cruz", "Carla Santos", "Dino Lopez",
             "Ella Tan", "Felix Go", "Gina Uy", "Hugo Lim", "Iris Chua", "Jun Diaz"};
@@ -17,7 +19,9 @@ public final class SampleData {
     private SampleData() {
     }
 
-    // Vehicles for a quick demo. The makes and models are real (they exist in the NHTSA list).
+    /**
+     * Vehicles for a quick demo. The makes and models are real (they exist in the NHTSA list).
+     */
     public static List<Vehicle> demoVehicles() {
         List<Vehicle> list = new ArrayList<>();
         list.add(VehicleFactory.create(0, "SEDAN", "Toyota", "Camry", 2022, "DEMO-001", "White", 1800, 0, null, "Car > Sedan"));
@@ -29,7 +33,9 @@ public final class SampleData {
         return list;
     }
 
-    // Returns the CSV lines (with header). Dates are spread over the 12 months before endOfPeriod.
+    /**
+     * Returns the CSV lines (with header). Dates are spread over the 12 months before endOfPeriod.
+     */
     public static List<String> rentalLines(List<Vehicle> vehicles, int rows, long seed, LocalDate endOfPeriod) {
         if (vehicles.isEmpty()) {
             throw new IllegalArgumentException("Add at least one vehicle first.");
@@ -52,6 +58,7 @@ public final class SampleData {
         return lines;
     }
 
+    /** Writes sample rentals to a CSV file. */
     public static void writeRentalCsv(Path file, List<Vehicle> vehicles, int rows, long seed,
                                       LocalDate endOfPeriod) throws IOException {
         Files.write(file, rentalLines(vehicles, rows, seed, endOfPeriod), StandardCharsets.UTF_8);

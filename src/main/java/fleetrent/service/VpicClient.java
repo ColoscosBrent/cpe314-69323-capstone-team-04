@@ -1,4 +1,6 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dto.VehicleModelInfo;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

@@ -1,4 +1,7 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
+import fleetrent.model.Vehicle;
 
 import java.sql.SQLException;
 

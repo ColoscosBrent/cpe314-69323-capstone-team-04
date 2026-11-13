@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.service;
+
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;

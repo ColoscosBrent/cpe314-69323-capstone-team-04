@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.service;
+
 
 import java.util.Locale;
 import java.util.regex.Pattern;

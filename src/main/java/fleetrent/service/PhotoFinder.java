@@ -1,4 +1,6 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.Vehicle;
 
 import java.io.IOException;
 

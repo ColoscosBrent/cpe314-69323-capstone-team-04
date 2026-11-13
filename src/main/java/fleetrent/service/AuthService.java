@@ -1,4 +1,9 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
+import fleetrent.model.Account;
+import fleetrent.model.Renter;
+import fleetrent.model.Role;
 
 import java.sql.SQLException;
 import java.time.LocalDate;

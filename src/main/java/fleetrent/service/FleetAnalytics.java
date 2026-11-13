@@ -1,4 +1,9 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.CategoryNode;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Vehicle;
 
 import java.time.LocalDate;
 import java.time.YearMonth;

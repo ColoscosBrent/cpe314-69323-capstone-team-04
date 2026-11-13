@@ -1,4 +1,7 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
+import fleetrent.dao.DuplicatePlateException;
 
 import java.io.IOException;
 import java.net.ConnectException;

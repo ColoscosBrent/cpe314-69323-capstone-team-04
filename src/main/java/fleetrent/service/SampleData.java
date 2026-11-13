@@ -1,4 +1,9 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.model.Motorcycle;
+import fleetrent.model.Sedan;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

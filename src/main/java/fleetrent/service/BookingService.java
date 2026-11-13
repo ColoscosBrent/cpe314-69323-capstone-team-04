@@ -1,4 +1,14 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
+import fleetrent.model.Availability;
+import fleetrent.model.BusySpan;
+import fleetrent.model.Offer;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Reservation;
+import fleetrent.model.ReservationStatus;
+import fleetrent.model.Vehicle;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -19,16 +29,6 @@ import java.util.function.Supplier;
 public class BookingService {
     public static final int MAX_DAYS = 30;
     public static final int MAX_DAYS_AHEAD = 180;
-
-    /** Whether a vehicle can be booked for the chosen days. */
-    public enum Availability { AVAILABLE, RENTED, RESERVED }
-
-    /**
-     * One vehicle as a renter sees it for the dates they asked for. rentedUntil is the day it is
-     * due back when it is out right now, otherwise null.
-     */
-    public record Offer(Vehicle vehicle, Availability availability, List<BusySpan> busy, LocalDate rentedUntil) {
-    }
 
     // The last things a renter did, newest on top, so Undo can take them back one by one.
     private record Action(boolean reservation, int id) {

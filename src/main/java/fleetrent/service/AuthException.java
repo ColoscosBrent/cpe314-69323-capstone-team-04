@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.service;
+
 
 /**
  * A sign-up, login or password problem with a message that can be shown to the user as it is.

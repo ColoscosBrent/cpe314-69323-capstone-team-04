@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.service;
+
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

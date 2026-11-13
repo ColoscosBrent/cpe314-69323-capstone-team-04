@@ -1,19 +1,25 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
+import fleetrent.model.CheckoutHistory;
+import fleetrent.model.Payment;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Vehicle;
+import fleetrent.model.WaitingList;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * The rules for starting and returning a rental. It uses the database for saving, a Queue
- * (WaitingList) per vehicle for renters who want a vehicle that is already out, and a Stack
- * (CheckoutHistory) so the last check-out can be undone.
+ * The rules for starting and returning a rental. It uses the database for saving. A Queue
+ * (WaitingList) per vehicle holds renters who want a vehicle that is already out, and a Stack
+ * (CheckoutHistory) lets the last check-out be undone. Both are saved in the database, so they
+ * survive a restart: they are rebuilt from the saved rows each time they are used.
  */
 public class RentalService {
     private final Database db;
-    private final Map<Integer, WaitingList> waitingByVehicle = new HashMap<>();
-    private final CheckoutHistory history = new CheckoutHistory();
 
     /** Creates a rental service. */
     public RentalService(Database db) {
@@ -38,7 +44,7 @@ public class RentalService {
             throw new IllegalArgumentException("That vehicle was removed from the fleet.");
         }
         if (db.hasOngoingRental(vehicleId)) {
-            waitingByVehicle.computeIfAbsent(vehicleId, id -> new WaitingList()).join(renter);
+            db.addWaiting(vehicleId, renterId, LocalDate.now());
             return null;
         }
         if (db.hasReservationOverlap(vehicleId, start, end)) {
@@ -52,12 +58,13 @@ public class RentalService {
             throw new IllegalStateException("That vehicle was just booked for some of those days. "
                     + "Pick other dates or another vehicle.");
         }
-        history.record(rental);
+        db.logCheckout(rental.getId());
         return rental;
     }
 
     /**
-     * Closes a rental and returns the final cost. Works for an early return too.
+     * Closes a rental and returns what the renter pays (the rental charge plus any late fee). The
+     * payment is saved with the return. Works for an early return too.
      */
     public double returnRental(int rentalId, LocalDate returnDate, int milesDriven) throws SQLException {
         if (milesDriven < 0) {
@@ -73,10 +80,12 @@ public class RentalService {
         int days = RentalMath.billableDays(rental.getStartDate(), returnDate);
         Vehicle vehicle = db.getVehicleById(rental.getVehicleId());
         double cost = vehicle.computeRentalCost(days, milesDriven);
+        double lateFee = RentalMath.lateFee(vehicle.getDailyRate(),
+                RentalMath.lateDays(rental.getEndDate(), returnDate));
         rental.markReturned(returnDate, milesDriven);
-        db.updateRental(rental);
-        db.addMileage(vehicle.getId(), milesDriven);
-        return cost;
+        Payment payment = Payment.forRental(rentalId, cost, lateFee, returnDate);
+        db.saveReturn(rental, payment);
+        return payment.getTotal();
     }
 
     /**
@@ -84,41 +93,66 @@ public class RentalService {
      * rental that was already returned cannot be undone, so it is skipped with an exception.
      */
     public Rental undoLastCheckout() throws SQLException {
-        Rental last = history.undoLast();
-        if (last == null) {
+        CheckoutHistory history = loadHistory();
+        Integer lastId = history.undoLast();
+        if (lastId == null) {
             return null;
         }
-        Rental fresh = db.getRentalById(last.getId());
+        Rental fresh = db.getRentalById(lastId);
         if (fresh == null) {
+            db.removeCheckoutLog(lastId);
             return null;
         }
         if (fresh.getStatus() == RentalStatus.RETURNED) {
+            db.removeCheckoutLog(lastId);
             throw new IllegalStateException("That rental was already returned, so it cannot be undone.");
         }
         db.deleteRental(fresh.getId());
         return fresh;
     }
 
+    /** Returns how many check-outs can still be undone. */
+    public int undoableCount() throws SQLException {
+        return loadHistory().size();
+    }
+
     /**
      * The next renter in line for this vehicle (removed from the line), or null.
      */
-    public Renter serveNextWaiting(int vehicleId) {
-        WaitingList line = waitingByVehicle.get(vehicleId);
-        return line == null ? null : line.serveNext();
+    public Renter serveNextWaiting(int vehicleId) throws SQLException {
+        WaitingList line = loadWaiting(vehicleId);
+        Renter next = line.serveNext();
+        if (next != null) {
+            db.removeFirstWaiting(vehicleId);
+        }
+        return next;
     }
 
     /** Returns how many renters wait for a vehicle. */
-    public int waitingCount(int vehicleId) {
-        WaitingList line = waitingByVehicle.get(vehicleId);
-        return line == null ? 0 : line.size();
+    public int waitingCount(int vehicleId) throws SQLException {
+        return db.getWaitingRenterIds(vehicleId).size();
+    }
+
+    private CheckoutHistory loadHistory() throws SQLException {
+        CheckoutHistory history = new CheckoutHistory();
+        for (int id : db.getCheckoutLog()) {
+            history.record(id);
+        }
+        return history;
+    }
+
+    private WaitingList loadWaiting(int vehicleId) throws SQLException {
+        WaitingList line = new WaitingList();
+        for (int renterId : db.getWaitingRenterIds(vehicleId)) {
+            Renter renter = findRenter(renterId);
+            if (renter != null) {
+                line.join(renter);
+            }
+        }
+        return line;
     }
 
     private Renter findRenter(int renterId) throws SQLException {
-        for (Renter r : db.getAllRenters()) {
-            if (r.getId() == renterId) {
-                return r;
-            }
-        }
-        return null;
+        return db.getRenterById(renterId);
     }
 }

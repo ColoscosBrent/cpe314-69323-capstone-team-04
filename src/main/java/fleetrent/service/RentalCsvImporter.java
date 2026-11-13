@@ -1,4 +1,11 @@
-package fleetrent;
+package fleetrent.service;
+
+import fleetrent.dao.Database;
+import fleetrent.model.ImportResult;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Vehicle;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,20 +29,6 @@ public class RentalCsvImporter {
     public static final String HEADER = "plateNumber,renterName,startDate,endDate,milesDriven";
     private static final int BATCH_SIZE = 100;
     private static final int MAX_ERRORS_KEPT = 50;
-
-    /** How many rentals were imported and skipped, and the problems found. */
-    public static class ImportResult {
-        private int imported;
-        private int skipped;
-        private final List<String> errors = new ArrayList<>();
-
-        /** Returns the imported. */
-        public int getImported() { return imported; }
-        /** Returns the skipped. */
-        public int getSkipped() { return skipped; }
-        /** Returns the errors. */
-        public List<String> getErrors() { return errors; }
-    }
 
     /**
      * One checked row, before it is saved.
@@ -140,14 +133,14 @@ public class RentalCsvImporter {
                     batch.add(new Rental(0, renterId, row.vehicle.getId(), row.start, row.end,
                             row.end, row.miles, RentalStatus.RETURNED));
                 } catch (IllegalArgumentException e) {
-                    result.skipped++;
-                    if (result.errors.size() < MAX_ERRORS_KEPT) {
-                        result.errors.add("Line " + (i + 1) + ": " + e.getMessage());
+                    result.countSkipped();
+                    if (result.getErrors().size() < MAX_ERRORS_KEPT) {
+                        result.getErrors().add("Line " + (i + 1) + ": " + e.getMessage());
                     }
                 }
             }
             if (batch.size() >= BATCH_SIZE) {
-                result.imported += db.insertRentalBatch(batch);
+                result.addImported(db.insertRentalBatch(batch));
                 batch.clear();
             }
             if (progressPercent != null && (i % 50 == 0 || i == total - 1)) {
@@ -155,7 +148,7 @@ public class RentalCsvImporter {
             }
         }
         if (!batch.isEmpty()) {
-            result.imported += db.insertRentalBatch(batch);
+            result.addImported(db.insertRentalBatch(batch));
         }
         if (progressPercent != null) {
             progressPercent.accept(100);

@@ -190,10 +190,12 @@ class RentalEdgeCaseTest {
         ImportResult result = new RentalCsvImporter().importLines(Arrays.asList(
                 RentalCsvImporter.HEADER,
                 "ABC 123,\"Cruz, Maria\",2026-03-01,2026-03-02,10",
-                "ABC 123,Ben,2026-03-01,2026-03-02,10"), db, null);
-        assertEquals(1, result.getImported());
-        assertEquals(1, result.getSkipped());
-        assertTrue(result.getErrors().get(0).startsWith("Line 2"));
+                "ABC 123,Ben,2026-03-01,2026-03-02",
+                "ABC 123,\"Dela Cruz,2026-03-01,2026-03-02,10"), db, null);
+        assertEquals(1, result.getImported(), "a quoted comma is allowed");
+        assertEquals(2, result.getSkipped());
+        assertTrue(result.getErrors().get(0).startsWith("Line 3"));
+        assertTrue(result.getErrors().get(1).startsWith("Line 4"));
     }
 
     @Test

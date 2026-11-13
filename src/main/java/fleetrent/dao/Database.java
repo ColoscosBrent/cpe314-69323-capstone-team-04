@@ -1,4 +1,18 @@
-package fleetrent;
+package fleetrent.dao;
+
+import fleetrent.model.Account;
+import fleetrent.model.BusySpan;
+import fleetrent.model.Maintenance;
+import fleetrent.model.MaintenanceType;
+import fleetrent.model.Payment;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Reservation;
+import fleetrent.model.ReservationStatus;
+import fleetrent.model.Role;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -804,6 +818,11 @@ public class Database implements AutoCloseable {
             }
             int cancelled = cancelActiveReservationsOfVehicle(vehicleId, note);
             setVehicleActive(vehicleId, false);
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "DELETE FROM WaitingEntry WHERE vehicleId = ?")) {
+                ps.setInt(1, vehicleId);
+                ps.executeUpdate();
+            }
             commitWrite();
             return cancelled;
         } catch (SQLException | RuntimeException e) {
@@ -826,6 +845,190 @@ public class Database implements AutoCloseable {
         } catch (SQLException | RuntimeException e) {
             rollbackWrite();
             throw e;
+        }
+    }
+
+    // ---------- Payment ----------
+
+    /** Saves a payment and gives it its new id. */
+    public synchronized int insertPayment(Payment p) throws SQLException {
+        String sql = "INSERT INTO Payment (rentalId, amount, lateFee, paidOn) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, p.getRentalId());
+            ps.setDouble(2, p.getAmount());
+            ps.setDouble(3, p.getLateFee());
+            ps.setString(4, p.getPaidOn().toString());
+            ps.executeUpdate();
+            p.setId(readGeneratedId(ps));
+            return p.getId();
+        }
+    }
+
+    /** Returns the payment of a rental, or null when it has none (for example an imported one). */
+    public synchronized Payment getPaymentByRental(int rentalId) throws SQLException {
+        String sql = "SELECT id, rentalId, amount, lateFee, paidOn FROM Payment WHERE rentalId = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, rentalId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? readPayment(rs) : null;
+            }
+        }
+    }
+
+    /** Returns every payment, oldest first. */
+    public synchronized List<Payment> getAllPayments() throws SQLException {
+        List<Payment> list = new ArrayList<>();
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT id, rentalId, amount, lateFee, paidOn FROM Payment ORDER BY id")) {
+            while (rs.next()) {
+                list.add(readPayment(rs));
+            }
+        }
+        return list;
+    }
+
+    private Payment readPayment(ResultSet rs) throws SQLException {
+        return new Payment(rs.getInt("id"), rs.getInt("rentalId"), rs.getDouble("amount"),
+                rs.getDouble("lateFee"), LocalDate.parse(rs.getString("paidOn")));
+    }
+
+    /**
+     * Closes a rental in ONE transaction: the return details, the vehicle miles and the payment.
+     */
+    public synchronized void saveReturn(Rental rental, Payment payment) throws SQLException {
+        beginWrite();
+        try {
+            updateRental(rental);
+            addMileage(rental.getVehicleId(), rental.getMilesDriven());
+            insertPayment(payment);
+            commitWrite();
+        } catch (SQLException | RuntimeException e) {
+            rollbackWrite();
+            throw e;
+        }
+    }
+
+    // ---------- Maintenance ----------
+
+    /**
+     * Saves a maintenance record. A PMS record also moves the vehicle's last PMS date forward
+     * (never backward), in the same transaction.
+     */
+    public synchronized int insertMaintenance(Maintenance m) throws SQLException {
+        beginWrite();
+        try {
+            String sql = "INSERT INTO Maintenance (vehicleId, doneOn, type, cost, note) "
+                    + "VALUES (?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setInt(1, m.getVehicleId());
+                ps.setString(2, m.getDoneOn().toString());
+                ps.setString(3, m.getType().name());
+                ps.setDouble(4, m.getCost());
+                ps.setString(5, m.getNote());
+                ps.executeUpdate();
+                m.setId(readGeneratedId(ps));
+            }
+            if (m.getType() == MaintenanceType.PMS) {
+                String upd = "UPDATE Vehicle SET lastPMS = ? WHERE id = ? "
+                        + "AND (lastPMS IS NULL OR lastPMS < ?)";
+                try (PreparedStatement ps = connection.prepareStatement(upd)) {
+                    ps.setString(1, m.getDoneOn().toString());
+                    ps.setInt(2, m.getVehicleId());
+                    ps.setString(3, m.getDoneOn().toString());
+                    ps.executeUpdate();
+                }
+            }
+            commitWrite();
+            return m.getId();
+        } catch (SQLException | RuntimeException e) {
+            rollbackWrite();
+            throw e;
+        }
+    }
+
+    /** Returns the maintenance of one vehicle, newest first. */
+    public synchronized List<Maintenance> getMaintenanceByVehicle(int vehicleId) throws SQLException {
+        String sql = "SELECT id, vehicleId, doneOn, type, cost, note FROM Maintenance "
+                + "WHERE vehicleId = ? ORDER BY doneOn DESC, id DESC";
+        List<Maintenance> list = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new Maintenance(rs.getInt("id"), rs.getInt("vehicleId"),
+                            LocalDate.parse(rs.getString("doneOn")),
+                            MaintenanceType.valueOf(rs.getString("type")), rs.getDouble("cost"),
+                            rs.getString("note")));
+                }
+            }
+        }
+        return list;
+    }
+
+    // ---------- Waiting list and check-out log ----------
+
+    /** Puts a renter at the end of the waiting line of a vehicle. */
+    public synchronized void addWaiting(int vehicleId, int renterId, LocalDate joinedOn) throws SQLException {
+        String sql = "INSERT INTO WaitingEntry (vehicleId, renterId, joinedOn) VALUES (?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            ps.setInt(2, renterId);
+            ps.setString(3, joinedOn.toString());
+            ps.executeUpdate();
+        }
+    }
+
+    /** Returns the ids of the waiting renters of a vehicle, first in line first. */
+    public synchronized List<Integer> getWaitingRenterIds(int vehicleId) throws SQLException {
+        List<Integer> ids = new ArrayList<>();
+        String sql = "SELECT renterId FROM WaitingEntry WHERE vehicleId = ? ORDER BY id";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ids.add(rs.getInt(1));
+                }
+            }
+        }
+        return ids;
+    }
+
+    /** Removes the first waiting entry of a vehicle. Returns false when nobody was waiting. */
+    public synchronized boolean removeFirstWaiting(int vehicleId) throws SQLException {
+        String sql = "DELETE FROM WaitingEntry WHERE id = "
+                + "(SELECT MIN(id) FROM WaitingEntry WHERE vehicleId = ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /** Remembers a check-out so it can be undone later, even after a restart. */
+    public synchronized void logCheckout(int rentalId) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement("INSERT INTO CheckoutLog (rentalId) VALUES (?)")) {
+            ps.setInt(1, rentalId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Returns the logged rental ids, oldest first. */
+    public synchronized List<Integer> getCheckoutLog() throws SQLException {
+        List<Integer> ids = new ArrayList<>();
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("SELECT rentalId FROM CheckoutLog ORDER BY id")) {
+            while (rs.next()) {
+                ids.add(rs.getInt(1));
+            }
+        }
+        return ids;
+    }
+
+    /** Forgets a logged check-out. */
+    public synchronized void removeCheckoutLog(int rentalId) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM CheckoutLog WHERE rentalId = ?")) {
+            ps.setInt(1, rentalId);
+            ps.executeUpdate();
         }
     }
 

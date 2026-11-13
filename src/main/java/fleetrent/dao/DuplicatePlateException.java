@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.dao;
+
 
 import java.sql.SQLException;
 

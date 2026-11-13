@@ -22,7 +22,8 @@ public class PhotoFinder {
      * Throws IOException when the network fails. Run it on a background thread.
      */
     public boolean findAndSave(Vehicle vehicle) throws IOException, InterruptedException {
-        String url = client.findImageUrl(vehicle.getMake(), vehicle.getModel());
+        String url = client.findImageUrl(vehicle.getMake(), vehicle.getModel(),
+                vehicle.getYear() > 0 ? vehicle.getYear() : null);
         if (url == null) {
             return false;
         }

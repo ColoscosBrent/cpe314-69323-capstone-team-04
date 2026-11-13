@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class Background {
     private static final int WORKER_COUNT = 4;
     private static final AtomicInteger WORKER_NUMBER = new AtomicInteger();
-    private static final ExecutorService WORKERS = Executors.newFixedThreadPool(WORKER_COUNT, job -> {
+    private static final ExecutorService WORKERS = Executors.newFixedThreadPool(WORKER_COUNT,
+            job -> {
         Thread thread = new Thread(job, "fleetrent-worker-" + WORKER_NUMBER.incrementAndGet());
         thread.setDaemon(true);
         return thread;
@@ -26,7 +27,9 @@ public final class Background {
         WORKERS.execute(job);
     }
 
-    /** Stops the shared pool when the program closes. Jobs that are still running are interrupted. */
+    /**
+     * Stops the shared pool when the program closes. Jobs that are still running are interrupted.
+     */
     public static void stop() {
         WORKERS.shutdownNow();
     }

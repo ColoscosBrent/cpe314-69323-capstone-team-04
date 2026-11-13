@@ -1,6 +1,7 @@
 package fleetrent.app;
 
 
+import java.util.logging.Logger;
 import javafx.application.Application;
 
 /**
@@ -8,6 +9,7 @@ import javafx.application.Application;
  * gives "JavaFX runtime components are missing".
  */
 public class Main {
+    private static final Logger LOG = Logger.getLogger(Main.class.getName());
 
     /**
      * Kept from the Maven setup, because MainTest checks it.
@@ -17,7 +19,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        System.out.println(startupMessage());
+        LOG.info(startupMessage());
         // Use the proxy settings of the computer (school or office networks), if there are any.
         System.setProperty("java.net.useSystemProxies", "true");
         Application.launch(App.class, args);

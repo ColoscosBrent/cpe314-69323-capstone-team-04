@@ -51,14 +51,16 @@ public class ImportController {
     public void writeSampleCsv(Path file) throws ControllerException {
         try {
             List<Vehicle> vehicles = db.getAllVehicles();
-            Files.write(file, SampleData.rentalLines(vehicles, SAMPLE_ROWS, SAMPLE_SEED, LocalDate.now()));
+            Files.write(file, SampleData.rentalLines(vehicles, SAMPLE_ROWS, SAMPLE_SEED,
+                    LocalDate.now()));
         } catch (SQLException | IOException e) {
             throw new ControllerException("Could not create the file: " + e.getMessage(), e);
         }
     }
 
     /** Imports a CSV file. Slow for big files, so call it from a background job. */
-    public ImportResult importFile(Path file, IntConsumer progressPercent) throws ControllerException {
+    public ImportResult importFile(Path file,
+            IntConsumer progressPercent) throws ControllerException {
         try {
             return new RentalCsvImporter().importFile(file, db, progressPercent);
         } catch (SQLException e) {

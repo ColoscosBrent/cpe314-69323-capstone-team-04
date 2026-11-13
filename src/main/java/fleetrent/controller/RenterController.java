@@ -27,7 +27,8 @@ public class RenterController {
     /**
      * The renter's own bookings.
      *
-     * @param vehicles     every vehicle ever added, by id (a removed vehicle still shows in history)
+     * @param vehicles     every vehicle ever added, by id (a removed vehicle still shows in
+     * history)
      * @param reservations the renter's reservations
      * @param rentals      the renter's rentals
      */
@@ -94,7 +95,8 @@ public class RenterController {
             for (Vehicle v : db.getAllVehiclesIncludingRemoved()) {
                 vehicles.put(v.getId(), v);
             }
-            return new Bookings(vehicles, booking.reservationsOf(renterId), booking.rentalsOf(renterId));
+            return new Bookings(vehicles, booking.reservationsOf(renterId),
+                    booking.rentalsOf(renterId));
         });
     }
 

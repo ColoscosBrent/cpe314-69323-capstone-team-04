@@ -38,7 +38,7 @@ public final class AppController {
         this.rentals = new RentalController(db, new RentalService(db));
         this.reservations = new ReservationController(db, new BookingService(db));
         this.renter = new RenterController(db, new BookingService(db));
-        this.importer = new ImportController(db);
+        this.importer = new ImportController(db, session);
         this.dashboard = new DashboardController(db, vpic);
     }
 

@@ -33,8 +33,10 @@ public class ImportTab extends Tab {
     private final Button chooseButton = new Button("Choose CSV...");
     private final Button importButton = new Button("Import");
     private final Button demoVehiclesButton = new Button("Add 6 demo vehicles");
-    private final Button sampleButton = new Button("Create sample CSV...");
+    private final Button sampleButton = new Button("Create practice CSV...");
+    private final Button exportButton = new Button("Export records (CSV)...");
     private File chosen;
+    private Runnable onImported = () -> { };
 
     /** Creates an import tab. */
     public ImportTab(ImportController controller) {
@@ -70,21 +72,35 @@ public class ImportTab extends Tab {
         importButton.setOnAction(e -> runImport());
         demoVehiclesButton.setOnAction(e -> addDemoVehicles());
         sampleButton.setOnAction(e -> createSampleCsv());
+        exportButton.getStyleClass().add("secondary-button");
+        exportButton.setOnAction(e -> exportRecords());
 
-        Label step1 = new Label("Step 1 (optional demo data):");
+        Label step1 = new Label("Step 1 (optional demo data, made-up names):");
         step1.getStyleClass().add("field-label");
         Label step2 = new Label("Step 2:");
         step2.getStyleClass().add("field-label");
+        Label step3 = new Label("Your records:");
+        step3.getStyleClass().add("field-label");
+        Label exportHint = new Label("Export writes every rental in the app: the imported ones and "
+                + "the ones made here. A value that is not known is left blank. The imported "
+                + "files are listed in the Import history tab.");
+        exportHint.getStyleClass().add("hint-label");
+        exportHint.setWrapText(true);
         VBox card = new VBox(Layout.GAP_WIDE, UiHelper.title("Import rentals from CSV"), hint,
                 step1, new HBox(Layout.GAP_MEDIUM, demoVehiclesButton, sampleButton),
                 step2, new HBox(Layout.GAP_MEDIUM, chooseButton, importButton), fileLabel, bar,
-                        status, log);
+                        status, log, step3, new HBox(Layout.GAP_MEDIUM, exportButton), exportHint);
         card.getStyleClass().add("card");
         card.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(card, Priority.ALWAYS);
         HBox content = new HBox(card);
         content.setPadding(new javafx.geometry.Insets(18));
         setContent(UiHelper.scroll(content));
+    }
+
+    /** Sets what happens after an import finishes (the history tab reloads itself). */
+    public void setOnImported(Runnable action) {
+        onImported = action;
     }
 
     private void runImport() {
@@ -113,6 +129,7 @@ public class ImportTab extends Tab {
             log.setText(r.getErrors().isEmpty() ? "No problems found." : String.join("\n",
                     r.getErrors()));
             setBusy(false);
+            onImported.run();
         });
         task.setOnFailed(e -> {
             Throwable error = task.getException();
@@ -140,8 +157,8 @@ public class ImportTab extends Tab {
                 return;
             }
             FileChooser chooser = new FileChooser();
-            chooser.setTitle("Save the sample CSV");
-            chooser.setInitialFileName("sample_rentals.csv");
+            chooser.setTitle("Save the practice CSV");
+            chooser.setInitialFileName("practice_rentals.csv");
             File file = chooser.showSaveDialog(getTabPane() == null ? null : getTabPane().getScene()
                     .getWindow());
             if (file == null) {
@@ -152,9 +169,28 @@ public class ImportTab extends Tab {
             fileLabel.setText(file.getAbsolutePath());
             importButton.setDisable(false);
             status.setText(
-                    "Created a CSV with 50,000 rentals for your current vehicles. Press Import.");
+                    "Created a practice CSV with 50,000 made-up rentals. Press Import.");
         } catch (ControllerException ex) {
             status.setText(ex.getMessage());
+        }
+    }
+
+    private void exportRecords() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save the records as CSV");
+        chooser.setInitialFileName("fleetrent_records.csv");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV files", "*.csv"));
+        File file = chooser.showSaveDialog(getTabPane() == null ? null : getTabPane().getScene()
+                .getWindow());
+        if (file == null) {
+            return;
+        }
+        try {
+            int rows = controller.exportRecords(file.toPath());
+            UiHelper.setStatus(status, "Saved " + rows + " rentals to " + file.getName() + ".",
+                    false);
+        } catch (ControllerException ex) {
+            UiHelper.setStatus(status, ex.getMessage(), true);
         }
     }
 
@@ -163,5 +199,6 @@ public class ImportTab extends Tab {
         importButton.setDisable(busy || chosen == null);
         demoVehiclesButton.setDisable(busy);
         sampleButton.setDisable(busy);
+        exportButton.setDisable(busy);
     }
 }

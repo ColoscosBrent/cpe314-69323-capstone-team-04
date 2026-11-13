@@ -19,11 +19,16 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-// One FleetRent window. It opens the database, shows the login screen, and after a login swaps the
-// screen for the owner's or the renter's. Sign out brings the login screen back. Every window has
-// its own database connection to the same file, so two windows (an owner and a renter) stay in
-// sync.
+/**
+ * One FleetRent window. It opens the database, shows the login screen, and after a login swaps the
+ * screen for the owner's or the renter's. Sign out brings the login screen back. Every window has
+ * its own database connection to the same file, so two windows (an owner and a renter) stay in
+ * sync.
+ */
 public final class AppWindow {
+    private static final double STAGE_MIN_WIDTH = 860;
+    private static final double STAGE_MIN_HEIGHT = 560;
+    private static final double FADE_MILLIS = 260;
     private static final List<AppWindow> OPEN = new ArrayList<>();
     private static int opened;
 
@@ -44,17 +49,20 @@ public final class AppWindow {
         new AppWindow(new Stage()).open();
     }
 
+    /** Closes the database of every open window. */
     public static void closeAll() {
         for (AppWindow w : new ArrayList<>(OPEN)) {
             w.closeDatabase();
         }
     }
 
+    /** Opens this window. Returns false when the database could not be opened. */
     public boolean open() {
         try {
             // The file name can be changed with -Dfleetrent.dbUrl=..., which the screen tests use
             // so they never touch your data.
-            app = AppController.open(System.getProperty("fleetrent.dbUrl", "jdbc:sqlite:fleetrent.db"));
+            app = AppController.open(System.getProperty("fleetrent.dbUrl",
+                    "jdbc:sqlite:fleetrent.db"));
         } catch (ControllerException e) {
             // The database is the heart of the app, so without it the app tells the user why and
             // stops.
@@ -82,8 +90,8 @@ public final class AppWindow {
         stage.setScene(scene);
         // Small enough for a laptop, big enough that the header and tabs never overlap. Maximize
         // works at any size.
-        stage.setMinWidth(860);
-        stage.setMinHeight(560);
+        stage.setMinWidth(STAGE_MIN_WIDTH);
+        stage.setMinHeight(STAGE_MIN_HEIGHT);
         // Never open bigger than the usable screen, so the title bar and the close button stay
         // visible.
         Rectangle2D area = Screen.getPrimary().getVisualBounds();
@@ -128,7 +136,7 @@ public final class AppWindow {
 
     private void swap(Node root) {
         scene.setRoot(new StackPane(root));
-        FadeTransition fade = new FadeTransition(Duration.millis(260), scene.getRoot());
+        FadeTransition fade = new FadeTransition(Duration.millis(FADE_MILLIS), scene.getRoot());
         fade.setFromValue(0);
         fade.setToValue(1);
         fade.play();

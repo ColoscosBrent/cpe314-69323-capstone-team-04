@@ -20,6 +20,15 @@ import javafx.scene.layout.VBox;
  * Renter, tab 3: the renter's own details and a way to change the password.
  */
 public class RenterAccountTab extends Tab {
+    private static final double INFO_HGAP = 14;
+    private static final double INFO_VGAP = 8;
+    private static final double PROFILE_PREF_WIDTH = 430;
+    private static final double PROFILE_MIN_WIDTH = 430;
+    private static final double STATUS_MAX_WIDTH = 340;
+    private static final double PASSWORD_PREF_WIDTH = 420;
+    private static final double PASSWORD_MIN_WIDTH = 420;
+    private static final Insets CONTENT_PADDING = new Insets(16, 18, 16, 18);
+    private static final double L_MAX_WIDTH = 300;
     /** Creates a renter account tab. */
     public RenterAccountTab(AuthController auth, RenterController renters, Account account) {
         super("My account");
@@ -27,32 +36,37 @@ public class RenterAccountTab extends Tab {
 
         Renter renter = null;
         try {
-            renter = account.getRenterId() == null ? null : renters.findRenter(account.getRenterId());
+            renter = account.getRenterId() == null ? null
+                    : renters.findRenter(account.getRenterId());
         } catch (ControllerException e) {
             // The page still opens. The details below stay empty.
         }
         GridPane info = new GridPane();
-        info.setHgap(14);
-        info.setVgap(8);
-        UiHelper.addRow(info, 0, "Name", value(renter == null ? account.getDisplayName() : renter.getName()));
+        info.setHgap(INFO_HGAP);
+        info.setVgap(INFO_VGAP);
+        UiHelper.addRow(info, 0, "Name", value(renter == null ? account.getDisplayName()
+                : renter.getName()));
         UiHelper.addRow(info, 1, "Username", value(account.getUsername()));
         UiHelper.addRow(info, 2, "Contact", value(renter == null ? "" : renter.getContact()));
-        UiHelper.addRow(info, 3, "Email", value(renter == null || renter.getEmail() == null ? "-" : renter.getEmail()));
-        UiHelper.addRow(info, 4, "Address", value(renter == null || renter.getAddress() == null ? "-" : renter.getAddress()));
+        UiHelper.addRow(info, 3, "Email", value(renter == null || renter.getEmail() == null ? "-"
+                : renter.getEmail()));
+        UiHelper.addRow(info, 4, "Address", value(renter == null || renter.getAddress() == null
+                ? "-" : renter.getAddress()));
         UiHelper.addRow(info, 5, "Member since", value(account.getCreatedOn()
                 .format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))));
-        VBox profile = new VBox(12, UiHelper.title("My details"), info);
+        VBox profile = new VBox(Layout.GAP_WIDE, UiHelper.title("My details"), info);
         profile.getStyleClass().add("card");
-        profile.setPrefWidth(430);
-        profile.setMinWidth(430);
+        profile.setPrefWidth(PROFILE_PREF_WIDTH);
+        profile.setMinWidth(PROFILE_MIN_WIDTH);
 
         PasswordInput current = new PasswordInput("Current password");
-        PasswordInput next = new PasswordInput("New password (8+ characters, a letter and a digit)");
+        PasswordInput next = new PasswordInput(
+                "New password (8+ characters, a letter and a digit)");
         PasswordInput again = new PasswordInput("Type the new password again");
         Label status = new Label();
         status.getStyleClass().add("status-label");
         status.setWrapText(true);
-        status.setMaxWidth(340);
+        status.setMaxWidth(STATUS_MAX_WIDTH);
         Button change = new Button("Change password");
         change.getStyleClass().add("primary-button");
         change.setOnAction(e -> {
@@ -83,14 +97,16 @@ public class RenterAccountTab extends Tab {
                 UiHelper.setStatus(status, ex.getMessage(), true);
             }
         });
-        VBox password = new VBox(10, UiHelper.title("Change password"), field("Current password", current),
+        VBox password = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Change password"),
+                field("Current password",
+                current),
                 field("New password", next), field("Confirm new password", again), change, status);
         password.getStyleClass().add("card");
-        password.setPrefWidth(420);
-        password.setMinWidth(420);
+        password.setPrefWidth(PASSWORD_PREF_WIDTH);
+        password.setMinWidth(PASSWORD_MIN_WIDTH);
 
-        HBox content = new HBox(16, profile, password);
-        content.setPadding(new Insets(16, 18, 16, 18));
+        HBox content = new HBox(Layout.GAP_LARGE, profile, password);
+        content.setPadding(CONTENT_PADDING);
         setContent(UiHelper.scroll(content));
     }
 
@@ -98,13 +114,13 @@ public class RenterAccountTab extends Tab {
         Label l = new Label(String.valueOf(text));
         l.getStyleClass().add("vehicle-details");
         l.setWrapText(true);
-        l.setMaxWidth(300);
+        l.setMaxWidth(L_MAX_WIDTH);
         return l;
     }
 
     private static VBox field(String label, PasswordInput input) {
         Label l = new Label(label);
         l.getStyleClass().add("field-label");
-        return new VBox(3, l, input.node());
+        return new VBox(Layout.GAP_HAIR, l, input.node());
     }
 }

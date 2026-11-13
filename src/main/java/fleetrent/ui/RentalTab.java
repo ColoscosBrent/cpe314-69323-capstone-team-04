@@ -36,6 +36,29 @@ import javafx.scene.layout.VBox;
  * cost. Ongoing and returned rentals show the picture of the vehicle, like the Vehicles tab.
  */
 public class RentalTab extends Tab {
+    private static final double RENTER_FORM_HGAP = 12;
+    private static final double RENTER_FORM_VGAP = 7;
+    private static final double RENTER_STATUS_MAX_WIDTH = 440;
+    private static final double RENTER_BOX_PREF_WIDTH = 340;
+    private static final double RENTER_BOX_MIN_WIDTH = 340;
+    private static final double VEHICLE_BOX_PREF_WIDTH = 340;
+    private static final double VEHICLE_BOX_MIN_WIDTH = 340;
+    private static final double VEHICLE_PREVIEW_MIN_HEIGHT = 120;
+    private static final double AVAILABILITY_MAX_WIDTH = 440;
+    private static final double START_FORM_HGAP = 12;
+    private static final double START_FORM_VGAP = 7;
+    private static final double START_STATUS_MAX_WIDTH = 440;
+    private static final double LEFT_CARD_PREF_WIDTH = 520;
+    private static final double LEFT_CARD_MIN_WIDTH = 520;
+    private static final double ONGOING_LIST_PREF_HEIGHT = 190;
+    private static final double ONGOING_LIST_MIN_HEIGHT = 170;
+    private static final double HISTORY_LIST_PREF_HEIGHT = 190;
+    private static final double HISTORY_LIST_MIN_HEIGHT = 170;
+    private static final double RETURN_FORM_HGAP = 12;
+    private static final double RETURN_FORM_VGAP = 7;
+    private static final double RETURN_STATUS_MAX_WIDTH = 520;
+    private static final double RIGHT_CARD_MIN_WIDTH = 560;
+    private static final Insets CONTENT_PADDING = new Insets(14, 18, 18, 18);
     private final RentalController controller;
     private final VehiclePictures pictures;
 
@@ -65,21 +88,24 @@ public class RentalTab extends Tab {
 
         // ----- new renter: name, contact, email, address (the Renter ERD) -----
         ValidatedField nameField = new ValidatedField(Validators.Kind.NAME, "Ana Reyes", true);
-        ValidatedField contactField = new ValidatedField(Validators.Kind.CONTACT, "0917 123 4567", true);
-        ValidatedField emailField = new ValidatedField(Validators.Kind.EMAIL, "ana@example.com (optional)", false);
-        ValidatedField addressField = new ValidatedField(Validators.Kind.ADDRESS, "12 Rizal St, Cebu City (optional)", false);
+        ValidatedField contactField = new ValidatedField(Validators.Kind.CONTACT, "0917 123 4567",
+                true);
+        ValidatedField emailField = new ValidatedField(Validators.Kind.EMAIL,
+                "ana@example.com (optional)", false);
+        ValidatedField addressField = new ValidatedField(Validators.Kind.ADDRESS,
+                "12 Rizal St, Cebu City (optional)", false);
         Button addRenter = new Button("Add Renter");
         addRenter.getStyleClass().add("primary-button");
         GridPane renterForm = new GridPane();
-        renterForm.setHgap(12);
-        renterForm.setVgap(7);
+        renterForm.setHgap(RENTER_FORM_HGAP);
+        renterForm.setVgap(RENTER_FORM_VGAP);
         UiHelper.addRow(renterForm, 0, "Name", nameField.node());
         UiHelper.addRow(renterForm, 1, "Contact", contactField.node());
         UiHelper.addRow(renterForm, 2, "Email", emailField.node());
         UiHelper.addRow(renterForm, 3, "Address", addressField.node());
         renterStatus.getStyleClass().add("status-label");
         renterStatus.setWrapText(true);
-        renterStatus.setMaxWidth(440);
+        renterStatus.setMaxWidth(RENTER_STATUS_MAX_WIDTH);
         addRenter.setOnAction(e -> {
             boolean ok = nameField.validate();
             ok = contactField.validate() && ok;
@@ -91,7 +117,8 @@ public class RentalTab extends Tab {
             }
             try {
                 String name = nameField.text();
-                controller.addRenter(new Renter(0, name, contactField.text(), emailField.textOrNull(),
+                controller.addRenter(new Renter(0, name, contactField.text(),
+                        emailField.textOrNull(),
                         addressField.textOrNull()));
                 nameField.reset();
                 contactField.reset();
@@ -105,19 +132,19 @@ public class RentalTab extends Tab {
         });
 
         // ----- start a rental -----
-        renterBox.setPrefWidth(340);
-        renterBox.setMinWidth(340);
-        vehicleBox.setPrefWidth(340);
-        vehicleBox.setMinWidth(340);
+        renterBox.setPrefWidth(RENTER_BOX_PREF_WIDTH);
+        renterBox.setMinWidth(RENTER_BOX_MIN_WIDTH);
+        vehicleBox.setPrefWidth(VEHICLE_BOX_PREF_WIDTH);
+        vehicleBox.setMinWidth(VEHICLE_BOX_MIN_WIDTH);
         DatePicker startPicker = new DatePicker(LocalDate.now());
         DatePicker endPicker = new DatePicker(LocalDate.now().plusDays(3));
         startPicker.setEditable(false);
         endPicker.setEditable(false);
         vehiclePreview.getStyleClass().add("preview-stage");
-        vehiclePreview.setMinHeight(120);
+        vehiclePreview.setMinHeight(VEHICLE_PREVIEW_MIN_HEIGHT);
         availability.getStyleClass().add("hint-label");
         availability.setWrapText(true);
-        availability.setMaxWidth(440);
+        availability.setMaxWidth(AVAILABILITY_MAX_WIDTH);
         vehicleBox.valueProperty().addListener((obs, o, v) -> {
             UiHelper.setError(vehicleError, null);
             showChosenVehicle(v);
@@ -126,8 +153,8 @@ public class RentalTab extends Tab {
         startPicker.valueProperty().addListener((obs, o, v) -> UiHelper.setError(startError, null));
         endPicker.valueProperty().addListener((obs, o, v) -> UiHelper.setError(endError, null));
         GridPane startForm = new GridPane();
-        startForm.setHgap(12);
-        startForm.setVgap(7);
+        startForm.setHgap(START_FORM_HGAP);
+        startForm.setVgap(START_FORM_VGAP);
         UiHelper.addRow(startForm, 0, "Renter", UiHelper.withError(renterBox, renterError));
         UiHelper.addRow(startForm, 1, "Vehicle", UiHelper.withError(vehicleBox, vehicleError));
         UiHelper.addRow(startForm, 2, "Start date", UiHelper.withError(startPicker, startError));
@@ -137,7 +164,7 @@ public class RentalTab extends Tab {
         Button undoButton = new Button("Undo last check-out");
         startStatus.getStyleClass().add("status-label");
         startStatus.setWrapText(true);
-        startStatus.setMaxWidth(440);
+        startStatus.setMaxWidth(START_STATUS_MAX_WIDTH);
 
         startButton.setOnAction(e -> {
             Renter renter = renterBox.getValue();
@@ -158,7 +185,8 @@ public class RentalTab extends Tab {
             if (endPicker.getValue() == null) {
                 UiHelper.setError(endError, "Pick the end date.");
                 ok = false;
-            } else if (startPicker.getValue() != null && endPicker.getValue().isBefore(startPicker.getValue())) {
+            } else if (startPicker.getValue() != null && endPicker.getValue()
+                    .isBefore(startPicker.getValue())) {
                 UiHelper.setError(endError, "The end date cannot be before the start date.");
                 ok = false;
             }
@@ -171,7 +199,8 @@ public class RentalTab extends Tab {
                         startPicker.getValue(), endPicker.getValue());
                 if (rental == null) {
                     UiHelper.setStatus(startStatus, vehicle.getMake() + " " + vehicle.getModel()
-                            + " is already rented. " + renter.getName() + " joined the waiting list ("
+                            + " is already rented. " + renter.getName()
+                                    + " joined the waiting list ("
                             + controller.waitingCount(vehicle.getId()) + " waiting).", false);
                 } else {
                     UiHelper.setStatus(startStatus, "Rental #" + rental.getId() + " started for "
@@ -186,46 +215,53 @@ public class RentalTab extends Tab {
             try {
                 Rental undone = controller.undoLastCheckout();
                 UiHelper.setStatus(startStatus,
-                        undone == null ? "Nothing to undo." : "Rental #" + undone.getId() + " was undone.", false);
+                        undone == null ? "Nothing to undo." : "Rental #" + undone.getId()
+                                + " was undone.", false);
                 refresh();
             } catch (ControllerException ex) {
                 UiHelper.setStatus(startStatus, ex.getMessage(), true);
             }
         });
 
-        HBox startButtons = new HBox(10, startButton, undoButton);
-        VBox leftCard = new VBox(12, UiHelper.title("New renter"), renterForm, addRenter, renterStatus,
-                UiHelper.title("Start a rental"), startForm, vehiclePreview, availability, startButtons, startStatus);
+        HBox startButtons = new HBox(Layout.GAP_MEDIUM, startButton, undoButton);
+        VBox leftCard = new VBox(Layout.GAP_WIDE, UiHelper.title("New renter"), renterForm,
+                addRenter,
+                renterStatus,
+                UiHelper.title("Start a rental"), startForm, vehiclePreview, availability,
+                        startButtons, startStatus);
         leftCard.getStyleClass().add("card");
-        leftCard.setPrefWidth(520);
-        leftCard.setMinWidth(520);
+        leftCard.setPrefWidth(LEFT_CARD_PREF_WIDTH);
+        leftCard.setMinWidth(LEFT_CARD_MIN_WIDTH);
 
         // ----- ongoing rentals, return form, history -----
         ongoingList.getStyleClass().add("vehicle-list");
         ongoingList.setCellFactory(list -> new RentalCell(false));
-        ongoingList.setPrefHeight(190);
-        ongoingList.setMinHeight(170);
+        ongoingList.setPrefHeight(ONGOING_LIST_PREF_HEIGHT);
+        ongoingList.setMinHeight(ONGOING_LIST_MIN_HEIGHT);
         historyList.getStyleClass().add("vehicle-list");
         historyList.setCellFactory(list -> new RentalCell(true));
-        historyList.setPrefHeight(190);
-        historyList.setMinHeight(170);
+        historyList.setPrefHeight(HISTORY_LIST_PREF_HEIGHT);
+        historyList.setMinHeight(HISTORY_LIST_MIN_HEIGHT);
         historyList.setFocusTraversable(false);
 
         DatePicker returnPicker = new DatePicker(LocalDate.now());
         returnPicker.setEditable(false);
-        ValidatedField milesField = new ValidatedField(Validators.Kind.DIGITS, "miles driven", true);
+        ValidatedField milesField = new ValidatedField(Validators.Kind.DIGITS, "miles driven",
+                true);
         Label returnDateError = UiHelper.errorLabel();
-        returnPicker.valueProperty().addListener((obs, o, v) -> UiHelper.setError(returnDateError, null));
+        returnPicker.valueProperty().addListener((obs, o, v) -> UiHelper.setError(returnDateError,
+                null));
         GridPane returnForm = new GridPane();
-        returnForm.setHgap(12);
-        returnForm.setVgap(7);
-        UiHelper.addRow(returnForm, 0, "Return date", UiHelper.withError(returnPicker, returnDateError));
+        returnForm.setHgap(RETURN_FORM_HGAP);
+        returnForm.setVgap(RETURN_FORM_VGAP);
+        UiHelper.addRow(returnForm, 0, "Return date", UiHelper.withError(returnPicker,
+                returnDateError));
         UiHelper.addRow(returnForm, 1, "Miles driven", milesField.node());
         Button returnButton = new Button("Return Vehicle");
         returnButton.getStyleClass().add("primary-button");
         returnStatus.getStyleClass().add("status-label");
         returnStatus.setWrapText(true);
-        returnStatus.setMaxWidth(520);
+        returnStatus.setMaxWidth(RETURN_STATUS_MAX_WIDTH);
         returnButton.setOnAction(e -> {
             Rental selected = ongoingList.getSelectionModel().getSelectedItem();
             boolean ok = true;
@@ -237,7 +273,8 @@ public class RentalTab extends Tab {
                 ok = false;
             }
             if (selected == null) {
-                UiHelper.setStatus(returnStatus, "Pick an ongoing rental from the list first.", true);
+                UiHelper.setStatus(returnStatus, "Pick an ongoing rental from the list first.",
+                        true);
                 return;
             }
             if (!ok) {
@@ -246,8 +283,10 @@ public class RentalTab extends Tab {
             }
             try {
                 int miles = Integer.parseInt(milesField.text());
-                double cost = controller.returnRental(selected.getId(), returnPicker.getValue(), miles);
-                UiHelper.setStatus(returnStatus, String.format(Locale.US, "Returned. Amount to pay: %.2f", cost), false);
+                double cost = controller.returnRental(selected.getId(), returnPicker.getValue(),
+                        miles);
+                UiHelper.setStatus(returnStatus, String.format(Locale.US,
+                        "Returned. Amount to pay: %.2f", cost), false);
                 milesField.reset();
                 refresh();
             } catch (NumberFormatException ex) {
@@ -257,14 +296,15 @@ public class RentalTab extends Tab {
             }
         });
         Label historyTitle = UiHelper.title("Returned rentals");
-        VBox rightCard = new VBox(10, UiHelper.title("Ongoing rentals"), ongoingList, returnForm,
+        VBox rightCard = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Ongoing rentals"),
+                ongoingList, returnForm,
                 returnButton, returnStatus, historyTitle, historyList);
         rightCard.getStyleClass().add("card");
-        rightCard.setMinWidth(560);
+        rightCard.setMinWidth(RIGHT_CARD_MIN_WIDTH);
         HBox.setHgrow(rightCard, Priority.ALWAYS);
 
-        HBox content = new HBox(18, leftCard, rightCard);
-        content.setPadding(new Insets(14, 18, 18, 18));
+        HBox content = new HBox(Layout.GAP_XLARGE, leftCard, rightCard);
+        content.setPadding(CONTENT_PADDING);
         setContent(UiHelper.scroll(content));
         showChosenVehicle(null);
         refresh();
@@ -280,7 +320,8 @@ public class RentalTab extends Tab {
         vehiclePreview.getChildren().setAll(pictures.stage(v));
         try {
             availability.setText(controller.isRentedOut(v.getId())
-                    ? "This vehicle is rented out now. Starting a rental puts the renter on its waiting list."
+                    ? "This vehicle is rented out now. Starting a rental puts the renter on its "
+                            + "waiting list."
                     : "This vehicle is available.");
         } catch (ControllerException e) {
             availability.setText(e.getMessage());
@@ -305,23 +346,26 @@ public class RentalTab extends Tab {
             }
             Renter renter = renters.get(r.getRenterId());
             Vehicle v = vehicles.get(r.getVehicleId());
-            Label title = new Label("#" + r.getId() + "  " + (renter == null ? "?" : renter.getName()));
+            Label title = new Label("#" + r.getId() + "  " + (renter == null ? "?"
+                    : renter.getName()));
             title.getStyleClass().add("vehicle-name");
-            Label car = new Label(v == null ? "?" : v.getMake() + " " + v.getModel() + " (" + v.getPlateNumber() + ")");
+            Label car = new Label(v == null ? "?" : v.getMake() + " " + v.getModel() + " ("
+                    + v.getPlateNumber() + ")");
             car.getStyleClass().add("color-name");
             Label dates = new Label(r.getStartDate() + " to " + r.getEndDate());
             dates.getStyleClass().add("vehicle-details");
             Label state = new Label(r.getStatus().name());
             state.getStyleClass().addAll("badge", returned ? "badge-returned" : "badge-ongoing");
-            VBox text = new VBox(4, title, car, dates, state);
+            VBox text = new VBox(Layout.GAP_TINY, title, car, dates, state);
             if (returned) {
-                Label back = new Label("Returned " + r.getReturnedOn() + "  |  " + r.getMilesDriven() + " mi"
+                Label back = new Label("Returned " + r.getReturnedOn() + "  |  "
+                        + r.getMilesDriven() + " mi"
                         + finalCost(r, v, payments.get(r.getId())));
                 back.getStyleClass().add("hint-label");
                 back.setWrapText(true);
                 text.getChildren().add(back);
             }
-            HBox card = new HBox(12);
+            HBox card = new HBox(Layout.GAP_WIDE);
             if (v != null) {
                 card.getChildren().add(pictures.stage(v));
             }
@@ -344,7 +388,8 @@ public class RentalTab extends Tab {
         }
         try {
             int days = RentalMath.billableDays(r.getStartDate(), r.getReturnedOn());
-            return String.format(Locale.US, "  |  cost %.2f", v.computeRentalCost(days, r.getMilesDriven()));
+            return String.format(Locale.US, "  |  cost %.2f", v.computeRentalCost(days,
+                    r.getMilesDriven()));
         } catch (IllegalArgumentException e) {
             return "";
         }

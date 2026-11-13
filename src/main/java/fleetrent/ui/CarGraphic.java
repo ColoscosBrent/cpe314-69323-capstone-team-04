@@ -184,7 +184,8 @@ public final class CarGraphic {
         pipe.setStrokeLineCap(StrokeLineCap.ROUND);
         Rectangle lamp = new Rectangle(146, 31, 6, 8);
         lamp.setFill(Color.web("#fff3b0"));
-        g.getChildren().addAll(swing, frame, fork, engine, pipe, tailCowl, seat, tank, fairing, bar, lamp);
+        g.getChildren().addAll(swing, frame, fork, engine, pipe, tailCowl, seat, tank, fairing,
+                bar, lamp);
         addWheel(g, 46, 66, 17);
         addWheel(g, 154, 66, 17);
     }

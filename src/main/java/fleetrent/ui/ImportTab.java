@@ -22,6 +22,7 @@ import javafx.stage.FileChooser;
  * bar.
  */
 public class ImportTab extends Tab {
+    private static final double STATUS_MAX_WIDTH = 560;
     private static final double PERCENT = 100.0;
 
     private final ImportController controller;
@@ -45,7 +46,7 @@ public class ImportTab extends Tab {
         hint.getStyleClass().add("hint-label");
         fileLabel.getStyleClass().add("hint-label");
         status.getStyleClass().add("status-label");
-        status.setMaxWidth(560);
+        status.setMaxWidth(STATUS_MAX_WIDTH);
         bar.setMaxWidth(Double.MAX_VALUE);
         importButton.getStyleClass().add("primary-button");
         importButton.setDisable(true);
@@ -56,8 +57,10 @@ public class ImportTab extends Tab {
         chooseButton.setOnAction(e -> {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Choose a rentals CSV file");
-            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV files", "*.csv"));
-            File file = chooser.showOpenDialog(getTabPane() == null ? null : getTabPane().getScene().getWindow());
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV files",
+                    "*.csv"));
+            File file = chooser.showOpenDialog(getTabPane() == null ? null : getTabPane().getScene()
+                    .getWindow());
             if (file != null) {
                 chosen = file;
                 fileLabel.setText(file.getAbsolutePath());
@@ -72,9 +75,10 @@ public class ImportTab extends Tab {
         step1.getStyleClass().add("field-label");
         Label step2 = new Label("Step 2:");
         step2.getStyleClass().add("field-label");
-        VBox card = new VBox(12, UiHelper.title("Import rentals from CSV"), hint,
-                step1, new HBox(10, demoVehiclesButton, sampleButton),
-                step2, new HBox(10, chooseButton, importButton), fileLabel, bar, status, log);
+        VBox card = new VBox(Layout.GAP_WIDE, UiHelper.title("Import rentals from CSV"), hint,
+                step1, new HBox(Layout.GAP_MEDIUM, demoVehiclesButton, sampleButton),
+                step2, new HBox(Layout.GAP_MEDIUM, chooseButton, importButton), fileLabel, bar,
+                        status, log);
         card.getStyleClass().add("card");
         card.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(card, Priority.ALWAYS);
@@ -104,8 +108,10 @@ public class ImportTab extends Tab {
         };
         task.setOnSucceeded(e -> {
             ImportResult r = task.getValue();
-            status.setText("Done. Imported " + r.getImported() + " rentals, skipped " + r.getSkipped() + ".");
-            log.setText(r.getErrors().isEmpty() ? "No problems found." : String.join("\n", r.getErrors()));
+            status.setText("Done. Imported " + r.getImported() + " rentals, skipped "
+                    + r.getSkipped() + ".");
+            log.setText(r.getErrors().isEmpty() ? "No problems found." : String.join("\n",
+                    r.getErrors()));
             setBusy(false);
         });
         task.setOnFailed(e -> {
@@ -136,7 +142,8 @@ public class ImportTab extends Tab {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Save the sample CSV");
             chooser.setInitialFileName("sample_rentals.csv");
-            File file = chooser.showSaveDialog(getTabPane() == null ? null : getTabPane().getScene().getWindow());
+            File file = chooser.showSaveDialog(getTabPane() == null ? null : getTabPane().getScene()
+                    .getWindow());
             if (file == null) {
                 return;
             }
@@ -144,7 +151,8 @@ public class ImportTab extends Tab {
             chosen = file;
             fileLabel.setText(file.getAbsolutePath());
             importButton.setDisable(false);
-            status.setText("Created a CSV with 50,000 rentals for your current vehicles. Press Import.");
+            status.setText(
+                    "Created a CSV with 50,000 rentals for your current vehicles. Press Import.");
         } catch (ControllerException ex) {
             status.setText(ex.getMessage());
         }

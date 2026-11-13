@@ -10,22 +10,25 @@ import javafx.scene.Node;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 
-// Small helpers shared by the tabs.
+/** Small helpers shared by the tabs. */
 public final class UiHelper {
+    private static final double TF_PREF_WIDTH = 220;
+    private static final double LABEL_MIN_WIDTH = 90;
+    private static final double L_MAX_WIDTH = 260;
     private UiHelper() {
     }
 
     static TextField field(String hint) {
         TextField tf = new TextField();
         tf.setPromptText(hint);
-        tf.setPrefWidth(220);
+        tf.setPrefWidth(TF_PREF_WIDTH);
         return tf;
     }
 
     static void addRow(GridPane grid, int row, String labelText, javafx.scene.Node control) {
         Label label = new Label(labelText);
         label.getStyleClass().add("field-label");
-        label.setMinWidth(90);
+        label.setMinWidth(LABEL_MIN_WIDTH);
         grid.add(label, 0, row);
         grid.add(control, 1, row);
     }
@@ -41,7 +44,7 @@ public final class UiHelper {
         Label l = new Label();
         l.getStyleClass().add("error-label");
         l.setWrapText(true);
-        l.setMaxWidth(260);
+        l.setMaxWidth(L_MAX_WIDTH);
         setError(l, null);
         return l;
     }
@@ -68,7 +71,8 @@ public final class UiHelper {
     // Makes every button as wide as its full text, so a label is never cut to "Sh...".
     static void fixButtons(Node node) {
         if (node instanceof javafx.scene.control.Button) {
-            ((javafx.scene.control.Button) node).setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+            ((javafx.scene.control.Button) node)
+                    .setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         }
         if (node instanceof javafx.scene.Parent) {
             for (Node child : ((javafx.scene.Parent) node).getChildrenUnmodifiable()) {

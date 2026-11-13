@@ -5,7 +5,6 @@ import fleetrent.controller.ControllerException;
 import fleetrent.controller.RuleException;
 import fleetrent.model.Account;
 import fleetrent.model.Renter;
-import fleetrent.model.Vehicle;
 import fleetrent.service.Validators;
 
 import java.util.function.Consumer;
@@ -33,11 +32,27 @@ import javafx.util.Duration;
 // The first screen: Log in, Sign up (renter or rental owner) and Forgot password. Nothing else of
 // the app can be seen until a login works.
 final class AuthScreen {
+    private static final double SUB_MAX_WIDTH = 460;
+    private static final Insets HERO_PADDING = new Insets(10, 0, 6, 0);
+    private static final double CARD_MAX_WIDTH = 520;
+    private static final double CARD_MIN_WIDTH = 420;
+    private static final Insets CENTER_PADDING = new Insets(22, 18, 30, 18);
+    private static final double STRIP_MIN_HEIGHT = 70;
+    private static final double STRIP_PREF_HEIGHT = 70;
+    private static final double STRIP_MAX_WIDTH = 860;
+    private static final double DELAY_SECONDS = 0;
+    private static final double DELAY_SECONDS_2 = 16;
+    private static final double DELAY_MILLIS = 220;
+    private static final double FIELD_PREF_WIDTH = 300;
+    private static final double ERROR_MAX_WIDTH = 340;
+    private static final double L_MAX_WIDTH = 440;
+    private static final double QUESTION_PREF_WIDTH = 300;
+    private static final double QUESTION_MAX_WIDTH = 440;
     private final AuthController auth;
     private final Consumer<Account> onLogin;
     private final Runnable onNewWindow;
     private final VBox root = new VBox();
-    private final VBox cardContent = new VBox(12);
+    private final VBox cardContent = new VBox(Layout.GAP_WIDE);
     private Timeline roadAnimation;
 
     AuthScreen(AuthController auth, Consumer<Account> onLogin, Runnable onNewWindow) {
@@ -50,25 +65,26 @@ final class AuthScreen {
         Label sub = new Label("Log in to see the cars, the prices and what is free on your dates.");
         sub.getStyleClass().add("hero-sub");
         sub.setWrapText(true);
-        sub.setMaxWidth(460);
-        VBox hero = new VBox(6, hello, sub);
+        sub.setMaxWidth(SUB_MAX_WIDTH);
+        VBox hero = new VBox(Layout.GAP_SMALL, hello, sub);
         hero.setAlignment(Pos.CENTER);
-        hero.setPadding(new Insets(10, 0, 6, 0));
+        hero.setPadding(HERO_PADDING);
 
-        VBox card = new VBox(14, cardContent);
+        VBox card = new VBox(Layout.GAP_WIDER, cardContent);
         card.getStyleClass().add("auth-card");
-        card.setMaxWidth(520);
-        card.setMinWidth(420);
-        VBox center = new VBox(18, hero, card, road());
+        card.setMaxWidth(CARD_MAX_WIDTH);
+        card.setMinWidth(CARD_MIN_WIDTH);
+        VBox center = new VBox(Layout.GAP_XLARGE, hero, card, road());
         center.setAlignment(Pos.TOP_CENTER);
-        center.setPadding(new Insets(22, 18, 30, 18));
+        center.setPadding(CENTER_PADDING);
         
         javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(center);
         scroll.setFitToWidth(true);
         scroll.getStyleClass().add("page-scroll");
         scroll.setFocusTraversable(false);
         VBox.setVgrow(scroll, Priority.ALWAYS);
-        root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management", null, null, onNewWindow), scroll);
+        root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management", null, null,
+                onNewWindow), scroll);
         showLogin(null, null);
     }
 
@@ -86,14 +102,15 @@ final class AuthScreen {
     // A strip where three cars drive by, so the first screen is not a plain form.
     private Node road() {
         Pane strip = new Pane();
-        strip.setMinHeight(70);
-        strip.setPrefHeight(70);
-        strip.setMaxWidth(860);
+        strip.setMinHeight(STRIP_MIN_HEIGHT);
+        strip.setPrefHeight(STRIP_PREF_HEIGHT);
+        strip.setMaxWidth(STRIP_MAX_WIDTH);
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(strip.widthProperty());
         clip.heightProperty().bind(strip.heightProperty());
         strip.setClip(clip);
-        Node[] cars = {CarGraphic.create("SEDAN", "Gold", 110), CarGraphic.create("SUV", "Purple", 118),
+        Node[] cars = {CarGraphic.create("SEDAN", "Gold", 110), CarGraphic.create("SUV", "Purple",
+                118),
                 CarGraphic.create("MOTORCYCLE", "Orange", 96)};
         roadAnimation = new Timeline();
         double offset = 0;
@@ -102,8 +119,12 @@ final class AuthScreen {
             car.setTranslateX(-200);
             strip.getChildren().add(car);
             roadAnimation.getKeyFrames().addAll(
-                    new KeyFrame(Duration.seconds(0), new KeyValue(car.translateXProperty(), -200 - offset)),
-                    new KeyFrame(Duration.seconds(16), new KeyValue(car.translateXProperty(), 1000 - offset)));
+                    new KeyFrame(Duration.seconds(DELAY_SECONDS),
+                            new KeyValue(car.translateXProperty(),
+                            -200 - offset)),
+                    new KeyFrame(Duration.seconds(DELAY_SECONDS_2),
+                            new KeyValue(car.translateXProperty(),
+                            1000 - offset)));
             offset += 260;
         }
         roadAnimation.setCycleCount(Animation.INDEFINITE);
@@ -113,7 +134,8 @@ final class AuthScreen {
 
     private void show(Node panel) {
         cardContent.getChildren().setAll(panel);
-        javafx.animation.FadeTransition fade = new javafx.animation.FadeTransition(Duration.millis(220), panel);
+        javafx.animation.FadeTransition fade =
+                new javafx.animation.FadeTransition(Duration.millis(DELAY_MILLIS), panel);
         fade.setFromValue(0);
         fade.setToValue(1);
         fade.play();
@@ -125,12 +147,12 @@ final class AuthScreen {
     private static final class Row {
         final TextField field = new TextField();
         final Label error = UiHelper.errorLabel();
-        final VBox node = new VBox(3, field, error);
+        final VBox node = new VBox(Layout.GAP_HAIR, field, error);
 
         Row(String hint) {
             field.setPromptText(hint);
-            field.setPrefWidth(300);
-            error.setMaxWidth(340);
+            field.setPrefWidth(FIELD_PREF_WIDTH);
+            error.setMaxWidth(ERROR_MAX_WIDTH);
             field.textProperty().addListener((obs, o, n) -> UiHelper.setError(error, null));
         }
 
@@ -142,14 +164,14 @@ final class AuthScreen {
     private static VBox labeled(String label, Node control) {
         Label l = new Label(label);
         l.getStyleClass().add("field-label");
-        return new VBox(3, l, control);
+        return new VBox(Layout.GAP_HAIR, l, control);
     }
 
     private static Label status() {
         Label l = new Label();
         l.getStyleClass().add("status-label");
         l.setWrapText(true);
-        l.setMaxWidth(440);
+        l.setMaxWidth(L_MAX_WIDTH);
         l.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         return l;
     }
@@ -158,7 +180,7 @@ final class AuthScreen {
         Label l = new Label(text);
         l.getStyleClass().add("hint-label");
         l.setWrapText(true);
-        l.setMaxWidth(440);
+        l.setMaxWidth(L_MAX_WIDTH);
         return l;
     }
 
@@ -211,11 +233,14 @@ final class AuthScreen {
         go.setOnAction(e -> doLogin.run());
         user.field.setOnAction(e -> pass.requestFocus());
         pass.onEnter(doLogin);
-        HBox links = new HBox(14, link("Forgot password?", () -> showForgot(user.text())),
+        HBox links = new HBox(Layout.GAP_WIDER, link("Forgot password?", () ->
+                showForgot(user.text())),
                 link("Create an account", () -> showSignUp()));
         links.setAlignment(Pos.CENTER);
         Label title = UiHelper.title("Log in");
-        show(new VBox(12, title, labeled("Username", user.node), labeled("Password", pass.node()), status, go, links));
+        show(new VBox(Layout.GAP_WIDE, title, labeled("Username", user.node), labeled("Password",
+                pass.node()),
+                status, go, links));
         javafx.application.Platform.runLater(user.field::requestFocus);
     }
 
@@ -237,7 +262,7 @@ final class AuthScreen {
                 old.setSelected(true);
             }
         });
-        HBox segments = new HBox(8, renterTab, ownerTab);
+        HBox segments = new HBox(Layout.GAP_NORMAL, renterTab, ownerTab);
         segments.setAlignment(Pos.CENTER);
 
         Row user = new Row("4 to 20 letters, digits, _ or .");
@@ -245,21 +270,25 @@ final class AuthScreen {
         PasswordInput confirm = new PasswordInput("Type the password again");
         ChoiceBox<String> question = new ChoiceBox<>();
         question.getItems().setAll(AuthController.securityQuestions());
-        question.setPrefWidth(300);
+        question.setPrefWidth(QUESTION_PREF_WIDTH);
         Label questionError = UiHelper.errorLabel();
         question.valueProperty().addListener((obs, o, n) -> UiHelper.setError(questionError, null));
         Row answer = new Row("Your answer");
 
         ValidatedField name = new ValidatedField(Validators.Kind.NAME, "Ana Reyes", true);
         ValidatedField contact = new ValidatedField(Validators.Kind.CONTACT, "0917 123 4567", true);
-        ValidatedField email = new ValidatedField(Validators.Kind.EMAIL, "ana@example.com (optional)", false);
-        ValidatedField address = new ValidatedField(Validators.Kind.ADDRESS, "12 Rizal St, Cebu City (optional)", false);
-        VBox renterFields = new VBox(10, labeled("Full name", name.node()), labeled("Contact number", contact.node()),
+        ValidatedField email = new ValidatedField(Validators.Kind.EMAIL,
+                "ana@example.com (optional)", false);
+        ValidatedField address = new ValidatedField(Validators.Kind.ADDRESS,
+                "12 Rizal St, Cebu City (optional)", false);
+        VBox renterFields = new VBox(Layout.GAP_MEDIUM, labeled("Full name", name.node()),
+                labeled("Contact number", contact.node()),
                 labeled("Email", email.node()), labeled("Address", address.node()));
 
         ValidatedField ownerName = new ValidatedField(Validators.Kind.NAME, "Maria Santos", true);
         PasswordInput ownerCode = new PasswordInput("Ask the shop for the owner code");
-        VBox ownerFields = new VBox(10, labeled("Your name", ownerName.node()), labeled("Owner code", ownerCode.node()));
+        VBox ownerFields = new VBox(Layout.GAP_MEDIUM, labeled("Your name", ownerName.node()),
+                labeled("Owner code", ownerCode.node()));
         ownerFields.setManaged(false);
         ownerFields.setVisible(false);
         ownerTab.selectedProperty().addListener((obs, was, now) -> {
@@ -314,13 +343,17 @@ final class AuthScreen {
             }
             try {
                 if (owner) {
-                    auth.signUpOwner(user.text(), pass.text(), ownerName.text(), question.getValue(), answer.text(),
+                    auth.signUpOwner(user.text(), pass.text(), ownerName.text(),
+                            question.getValue(), answer.text(),
                             ownerCode.text());
                 } else {
-                    auth.signUpRenter(user.text(), pass.text(), new Renter(0, name.text(), contact.text(),
-                            email.textOrNull(), address.textOrNull()), question.getValue(), answer.text());
+                    auth.signUpRenter(user.text(), pass.text(), new Renter(0, name.text(),
+                            contact.text(),
+                            email.textOrNull(), address.textOrNull()), question.getValue(),
+                                    answer.text());
                 }
-                showLogin("Account created. Log in with your new username and password.", user.text());
+                showLogin("Account created. Log in with your new username and password.",
+                        user.text());
             } catch (RuleException ex) {
                 String text = ex.getMessage();
                 if (text.contains("owner code")) {
@@ -333,10 +366,12 @@ final class AuthScreen {
                 UiHelper.setStatus(status, ex.getMessage(), true);
             }
         });
-        VBox form = new VBox(10, UiHelper.title("Create an account"), segments,
+        VBox form = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Create an account"), segments,
                 labeled("Username", user.node), labeled("Password", pass.node()),
                 labeled("Confirm password", confirm.node()), renterFields, ownerFields,
-                labeled("Security question (for Forgot password)", new VBox(3, question, questionError)),
+                labeled("Security question (for Forgot password)", new VBox(Layout.GAP_HAIR,
+                        question,
+                        questionError)),
                 labeled("Your answer", answer.node), status, create,
                 link("I already have an account", () -> showLogin(null, user.text())));
         form.getChildren().get(form.getChildren().size() - 1).setStyle("-fx-alignment: center;");
@@ -353,12 +388,14 @@ final class AuthScreen {
         Label question = new Label();
         question.getStyleClass().add("vehicle-name");
         question.setWrapText(true);
-        question.setMaxWidth(440);
+        question.setMaxWidth(QUESTION_MAX_WIDTH);
         Row answer = new Row("Your answer");
-        PasswordInput newPass = new PasswordInput("New password (8+ characters, a letter and a digit)");
+        PasswordInput newPass = new PasswordInput(
+                "New password (8+ characters, a letter and a digit)");
         PasswordInput confirm = new PasswordInput("Type the new password again");
         Label status = status();
-        VBox step2 = new VBox(10, question, labeled("Your answer", answer.node), labeled("New password", newPass.node()),
+        VBox step2 = new VBox(Layout.GAP_MEDIUM, question, labeled("Your answer", answer.node),
+                labeled("New password", newPass.node()),
                 labeled("Confirm new password", confirm.node()));
         step2.setManaged(false);
         step2.setVisible(false);
@@ -380,7 +417,8 @@ final class AuthScreen {
                 find.setManaged(false);
                 find.setVisible(false);
                 user.field.setDisable(true);
-                UiHelper.setStatus(status, "Answer your security question and choose a new password.", false);
+                UiHelper.setStatus(status,
+                        "Answer your security question and choose a new password.", false);
             } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
             }
@@ -412,8 +450,10 @@ final class AuthScreen {
             }
         });
         user.field.setOnAction(e -> find.fire());
-        show(new VBox(12, UiHelper.title("Forgot your password?"),
-                hintLabel("Type your username. You will answer the security question you chose at sign up."),
+        show(new VBox(Layout.GAP_WIDE, UiHelper.title("Forgot your password?"),
+                hintLabel(
+                        "Type your username. You will answer the security question you chose at "
+                        + "sign up."),
                 labeled("Username", user.node), step2, status, find, reset,
                 link("Back to log in", () -> showLogin(null, user.text()))));
         javafx.application.Platform.runLater(user.field::requestFocus);

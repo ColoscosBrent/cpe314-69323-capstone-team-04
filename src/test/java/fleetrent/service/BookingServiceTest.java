@@ -41,9 +41,11 @@ class BookingServiceTest {
         db = new Database("jdbc:sqlite::memory:");
         db.createTables();
         booking = new BookingService(db, () -> TODAY);
-        car = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White", 1500, 0,
+        car = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123",
+                "White", 1500, 0,
                 null, "Car > Sedan"));
-        suv = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "SUV 777", "Black", 2500, 0,
+        suv = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "SUV 777",
+                "Black", 2500, 0,
                 null, "Car > SUV"));
         ana = db.insertRenter(new Renter(0, "Ana Reyes", "09171234567", null, null));
         ben = db.insertRenter(new Renter(0, "Ben Cruz", "09181234567", null, null));
@@ -55,7 +57,8 @@ class BookingServiceTest {
     }
 
     private Offer offerOf(int vehicleId, LocalDate s, LocalDate e) throws SQLException {
-        return booking.browse(s, e).stream().filter(o -> o.vehicle().getId() == vehicleId).findFirst().orElseThrow();
+        return booking.browse(s, e).stream().filter(o -> o.vehicle().getId() == vehicleId)
+                .findFirst().orElseThrow();
     }
 
     // ----- rent now -----
@@ -88,12 +91,15 @@ class BookingServiceTest {
 
     @Test
     void rentNowChecksTheEndDateAndTheLength() {
-        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, car, TODAY.minusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, car,
+                TODAY.minusDays(1)));
         assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, car, null));
         assertThrows(IllegalArgumentException.class,
                 () -> booking.rentNow(ana, car, TODAY.plusDays(BookingService.MAX_DAYS + 1)));
-        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(999, car, TODAY.plusDays(1)));
-        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, 999, TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(999, car,
+                TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, 999,
+                TODAY.plusDays(1)));
     }
 
     @Test
@@ -113,23 +119,31 @@ class BookingServiceTest {
 
     @Test
     void reserveMustStartAfterTodayAndNotTooFarAhead() {
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY, TODAY.plusDays(2)));
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY.minusDays(1), TODAY.plusDays(2)));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY,
+                TODAY.plusDays(2)));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car,
+                TODAY.minusDays(1), TODAY.plusDays(2)));
         assertThrows(IllegalArgumentException.class,
                 () -> booking.reserve(ana, car, TODAY.plusDays(BookingService.MAX_DAYS_AHEAD + 1),
                         TODAY.plusDays(BookingService.MAX_DAYS_AHEAD + 2)));
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY.plusDays(5), TODAY.plusDays(4)));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car,
+                TODAY.plusDays(5), TODAY.plusDays(4)));
         assertThrows(IllegalArgumentException.class,
-                () -> booking.reserve(ana, car, TODAY.plusDays(5), TODAY.plusDays(5 + BookingService.MAX_DAYS + 1)));
+                () -> booking.reserve(ana, car, TODAY.plusDays(5), TODAY.plusDays(5
+                        + BookingService.MAX_DAYS + 1)));
     }
 
     @Test
     void overlappingReservationsAreRefusedButNeighbourDaysAreFine() throws SQLException {
         booking.reserve(ana, car, TODAY.plusDays(5), TODAY.plusDays(7));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(7), TODAY.plusDays(9)));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(3), TODAY.plusDays(5)));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(6), TODAY.plusDays(6)));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(4), TODAY.plusDays(8)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(7), TODAY.plusDays(9)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(3), TODAY.plusDays(5)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(6), TODAY.plusDays(6)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(4), TODAY.plusDays(8)));
         booking.reserve(ben, car, TODAY.plusDays(8), TODAY.plusDays(9));
         booking.reserve(ben, car, TODAY.plusDays(2), TODAY.plusDays(4));
         assertEquals(3, db.getAllReservations().size());
@@ -152,10 +166,13 @@ class BookingServiceTest {
 
     @Test
     void aLateRentalStillBlocksTodayButNotTomorrow() throws SQLException {
-        db.insertRental(new Rental(0, ana, car, TODAY.minusDays(10), TODAY.minusDays(5), null, 0, RentalStatus.ONGOING));
+        db.insertRental(new Rental(0, ana, car, TODAY.minusDays(10), TODAY.minusDays(5), null, 0,
+                RentalStatus.ONGOING));
         assertEquals(Availability.RENTED, offerOf(car, TODAY, TODAY).availability());
-        assertThrows(IllegalStateException.class, () -> booking.rentNow(ben, car, TODAY.plusDays(1)));
-        assertEquals(Availability.AVAILABLE, offerOf(car, TODAY.plusDays(1), TODAY.plusDays(2)).availability());
+        assertThrows(IllegalStateException.class, () -> booking.rentNow(ben, car,
+                TODAY.plusDays(1)));
+        assertEquals(Availability.AVAILABLE, offerOf(car, TODAY.plusDays(1), TODAY.plusDays(2))
+                .availability());
     }
 
     @Test
@@ -175,15 +192,18 @@ class BookingServiceTest {
         booking.reserve(ben, suv, TODAY.plusDays(5), TODAY.plusDays(6));
         List<Offer> offers = booking.browse(TODAY.plusDays(5), TODAY.plusDays(6));
         assertEquals(2, offers.size());
-        assertEquals(Availability.AVAILABLE, offerOf(car, TODAY.plusDays(5), TODAY.plusDays(6)).availability());
-        assertEquals(Availability.RESERVED, offerOf(suv, TODAY.plusDays(5), TODAY.plusDays(6)).availability());
+        assertEquals(Availability.AVAILABLE, offerOf(car, TODAY.plusDays(5), TODAY.plusDays(6))
+                .availability());
+        assertEquals(Availability.RESERVED, offerOf(suv, TODAY.plusDays(5), TODAY.plusDays(6))
+                .availability());
         assertEquals(Availability.RENTED, offerOf(car, TODAY, TODAY.plusDays(1)).availability());
     }
 
     @Test
     void browseGivesTheDueDateOfAVehicleThatIsOutNow() throws SQLException {
         booking.rentNow(ana, car, TODAY.plusDays(2));
-        assertEquals(TODAY.plusDays(2), offerOf(car, TODAY.plusDays(10), TODAY.plusDays(11)).rentedUntil());
+        assertEquals(TODAY.plusDays(2), offerOf(car, TODAY.plusDays(10), TODAY.plusDays(11))
+                .rentedUntil());
         assertNull(offerOf(suv, TODAY, TODAY).rentedUntil());
     }
 
@@ -207,13 +227,15 @@ class BookingServiceTest {
 
     @Test
     void browseRefusesAnEndBeforeTheStart() {
-        assertThrows(IllegalArgumentException.class, () -> booking.browse(TODAY.plusDays(2), TODAY));
+        assertThrows(IllegalArgumentException.class, () -> booking.browse(TODAY.plusDays(2),
+                TODAY));
         assertThrows(IllegalArgumentException.class, () -> booking.browse(null, TODAY));
     }
 
     @Test
     void estimateUsesTheDailyRateAndTheBillableDays() {
-        Vehicle v = VehicleFactory.create(1, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White", 1500, 0, null, "Car > Sedan");
+        Vehicle v = VehicleFactory.create(1, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+                1500, 0, null, "Car > Sedan");
         assertEquals(4500, BookingService.estimate(v, TODAY, TODAY.plusDays(3)), 0.001);
         assertEquals(1500, BookingService.estimate(v, TODAY, TODAY), 0.001);
     }
@@ -223,7 +245,8 @@ class BookingServiceTest {
     @Test
     void renterCancelsOnlyTheirOwnActiveReservation() throws SQLException {
         Reservation r = booking.reserve(ana, car, TODAY.plusDays(5), TODAY.plusDays(7));
-        assertThrows(IllegalArgumentException.class, () -> booking.cancelReservation(ben, r.getId()));
+        assertThrows(IllegalArgumentException.class, () -> booking.cancelReservation(ben,
+                r.getId()));
         booking.cancelReservation(ana, r.getId());
         assertEquals(ReservationStatus.CANCELLED, db.getReservationById(r.getId()).getStatus());
         assertThrows(IllegalStateException.class, () -> booking.cancelReservation(ana, r.getId()));
@@ -284,11 +307,14 @@ class BookingServiceTest {
 
     @Test
     void handOverIsRefusedWhileTheVehicleIsStillOut() throws SQLException {
-        db.insertRental(new Rental(0, ben, car, TODAY.minusDays(3), TODAY.plusDays(1), null, 0, RentalStatus.ONGOING));
-        Reservation r = new Reservation(0, ana, car, TODAY.plusDays(2), TODAY.plusDays(3), ReservationStatus.ACTIVE, null, TODAY);
+        db.insertRental(new Rental(0, ben, car, TODAY.minusDays(3), TODAY.plusDays(1), null, 0,
+                RentalStatus.ONGOING));
+        Reservation r = new Reservation(0, ana, car, TODAY.plusDays(2), TODAY.plusDays(3),
+                ReservationStatus.ACTIVE, null, TODAY);
         db.insertReservation(r);
         BookingService later = new BookingService(db, () -> TODAY.plusDays(2));
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> later.handOver(r.getId()));
+        IllegalStateException e = assertThrows(IllegalStateException.class, () ->
+                later.handOver(r.getId()));
         assertTrue(e.getMessage().contains("still rented out"));
     }
 
@@ -297,7 +323,8 @@ class BookingServiceTest {
         Reservation r = booking.reserve(ana, car, TODAY.plusDays(2), TODAY.plusDays(4));
         booking.cancelReservationByOwner(r.getId());
         assertEquals("Cancelled by the owner", db.getReservationById(r.getId()).getNote());
-        assertThrows(IllegalStateException.class, () -> booking.cancelReservationByOwner(r.getId()));
+        assertThrows(IllegalStateException.class, () ->
+                booking.cancelReservationByOwner(r.getId()));
         assertThrows(IllegalArgumentException.class, () -> booking.cancelReservationByOwner(999));
     }
 
@@ -305,7 +332,8 @@ class BookingServiceTest {
     void ownerRentalRefusesDaysThatAreReserved() throws SQLException {
         booking.reserve(ben, car, TODAY.plusDays(2), TODAY.plusDays(4));
         RentalService service = new RentalService(db);
-        assertThrows(IllegalStateException.class, () -> service.startRental(ana, car, TODAY, TODAY.plusDays(3)));
+        assertThrows(IllegalStateException.class, () -> service.startRental(ana, car, TODAY,
+                TODAY.plusDays(3)));
         assertNotNull(service.startRental(ana, car, TODAY, TODAY.plusDays(1)));
     }
 

@@ -12,7 +12,8 @@ class PasswordHasherTest {
     @Test
     void samePasswordAndSaltGiveTheSameHash() {
         String salt = PasswordHasher.newSalt();
-        assertEquals(PasswordHasher.hash("Secret123", salt), PasswordHasher.hash("Secret123", salt));
+        assertEquals(PasswordHasher.hash("Secret123", salt), PasswordHasher.hash("Secret123",
+                salt));
     }
 
     @Test
@@ -24,7 +25,8 @@ class PasswordHasherTest {
 
     @Test
     void hashIsNotThePlainPassword() {
-        assertFalse(PasswordHasher.hash("Secret123", PasswordHasher.newSalt()).contains("Secret123"));
+        assertFalse(PasswordHasher.hash("Secret123", PasswordHasher.newSalt())
+                .contains("Secret123"));
     }
 
     @Test

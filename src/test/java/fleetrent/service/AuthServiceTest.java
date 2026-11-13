@@ -37,12 +37,14 @@ class AuthServiceTest {
     }
 
     private Account owner() throws Exception {
-        return auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", Q, "Rex", AuthService.OWNER_CODE);
+        return auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", Q, "Rex",
+                AuthService.OWNER_CODE);
     }
 
     private Account renter() throws Exception {
         return auth.signUpRenter("ana_reyes", "Passw0rdX",
-                new Renter(0, "Ana Reyes", "09171234567", "ana@example.com", "12 Rizal St, Cebu"), Q, "Rex");
+                new Renter(0, "Ana Reyes", "09171234567", "ana@example.com", "12 Rizal St, Cebu"),
+                        Q, "Rex");
     }
 
     @Test
@@ -75,13 +77,15 @@ class AuthServiceTest {
     void passwordIsNeverSavedAsPlainText() throws Exception {
         Account a = owner();
         assertTrue(!a.getPasswordHash().contains("Passw0rdX"));
-        assertTrue(!db.findAccountByUsername("owner01").getAnswerHash().toLowerCase().contains("rex"));
+        assertTrue(!db.findAccountByUsername("owner01").getAnswerHash().toLowerCase()
+                .contains("rex"));
     }
 
     @Test
     void duplicateUsernameIsRefusedWithoutCase() throws Exception {
         owner();
-        AuthException e = assertThrows(AuthException.class, () -> auth.signUpRenter("OWNER01", "Passw0rdX",
+        AuthException e = assertThrows(AuthException.class, () -> auth.signUpRenter("OWNER01",
+                "Passw0rdX",
                 new Renter(0, "Ana Reyes", "09171234567", null, null), Q, "Rex"));
         assertTrue(e.getMessage().contains("already taken"));
         assertEquals(0, db.getAllRenters().size(), "a refused sign-up must not leave a renter row");
@@ -89,11 +93,16 @@ class AuthServiceTest {
 
     @Test
     void badInputIsRefusedWithAMessage() {
-        assertThrows(AuthException.class, () -> auth.signUpOwner("ab", "Passw0rdX", "Maria Santos", Q, "Rex", AuthService.OWNER_CODE));
-        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "short1", "Maria Santos", Q, "Rex", AuthService.OWNER_CODE));
-        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX", "M", Q, "Rex", AuthService.OWNER_CODE));
-        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", "Made up?", "Rex", AuthService.OWNER_CODE));
-        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", Q, " ", AuthService.OWNER_CODE));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("ab", "Passw0rdX", "Maria Santos",
+                Q, "Rex", AuthService.OWNER_CODE));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "short1",
+                "Maria Santos", Q, "Rex", AuthService.OWNER_CODE));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX", "M", Q,
+                "Rex", AuthService.OWNER_CODE));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
+                "Maria Santos", "Made up?", "Rex", AuthService.OWNER_CODE));
+        assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
+                "Maria Santos", Q, " ", AuthService.OWNER_CODE));
         assertThrows(AuthException.class, () -> auth.signUpRenter("ana_reyes", "Passw0rdX",
                 new Renter(0, "Ana Reyes", "123", null, null), Q, "Rex"));
     }
@@ -124,9 +133,11 @@ class AuthServiceTest {
     void loginFailsWithAWrongPasswordOrUnknownUser() throws Exception {
         owner();
         assertEquals("The username or the password is not correct.",
-                assertThrows(AuthException.class, () -> auth.login("owner01", "wrongPass1")).getMessage());
+                assertThrows(AuthException.class, () -> auth.login("owner01", "wrongPass1"))
+                        .getMessage());
         assertEquals("The username or the password is not correct.",
-                assertThrows(AuthException.class, () -> auth.login("nobody1", "Passw0rdX")).getMessage());
+                assertThrows(AuthException.class, () -> auth.login("nobody1", "Passw0rdX"))
+                        .getMessage());
     }
 
     @Test
@@ -135,7 +146,8 @@ class AuthServiceTest {
         for (int i = 0; i < AuthService.MAX_FAILURES; i++) {
             assertThrows(AuthException.class, () -> auth.login("owner01", "wrongPass1"));
         }
-        AuthException locked = assertThrows(AuthException.class, () -> auth.login("owner01", "Passw0rdX"));
+        AuthException locked = assertThrows(AuthException.class, () -> auth.login("owner01",
+                "Passw0rdX"));
         assertTrue(locked.getMessage().startsWith("Too many wrong tries"));
         now.addAndGet(AuthService.LOCK_MILLIS + 1);
         assertEquals("owner01", auth.login("owner01", "Passw0rdX").getUsername());
@@ -166,7 +178,8 @@ class AuthServiceTest {
     @Test
     void forgotPasswordWithAWrongAnswerChangesNothing() throws Exception {
         owner();
-        AuthException e = assertThrows(AuthException.class, () -> auth.resetPassword("owner01", "Tom", "NewPassw0rd"));
+        AuthException e = assertThrows(AuthException.class, () -> auth.resetPassword("owner01",
+                "Tom", "NewPassw0rd"));
         assertEquals("That answer is not correct.", e.getMessage());
         assertNotNull(auth.login("owner01", "Passw0rdX"));
     }
@@ -176,17 +189,20 @@ class AuthServiceTest {
         owner();
         assertThrows(AuthException.class, () -> auth.resetPassword("owner01", "Rex", "weak"));
         assertThrows(AuthException.class, () -> auth.securityQuestionOf("nobody1"));
-        assertThrows(AuthException.class, () -> auth.resetPassword("nobody1", "Rex", "NewPassw0rd"));
+        assertThrows(AuthException.class, () -> auth.resetPassword("nobody1", "Rex",
+                "NewPassw0rd"));
         assertNotNull(auth.login("owner01", "Passw0rdX"));
     }
 
     @Test
     void changePasswordNeedsTheCurrentPassword() throws Exception {
         Account a = renter();
-        assertThrows(AuthException.class, () -> auth.changePassword(a.getId(), "wrongPass1", "NewPassw0rd"));
+        assertThrows(AuthException.class, () -> auth.changePassword(a.getId(), "wrongPass1",
+                "NewPassw0rd"));
         auth.changePassword(a.getId(), "Passw0rdX", "NewPassw0rd");
         assertNotNull(auth.login("ana_reyes", "NewPassw0rd"));
-        assertThrows(AuthException.class, () -> auth.changePassword(a.getId(), "NewPassw0rd", "short"));
+        assertThrows(AuthException.class, () -> auth.changePassword(a.getId(), "NewPassw0rd",
+                "short"));
     }
 
     @Test

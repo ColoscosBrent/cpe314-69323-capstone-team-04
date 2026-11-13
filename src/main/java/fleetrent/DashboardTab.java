@@ -26,8 +26,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
-// Tab 4: data mining dashboard. Pick a question and a date range; the numbers and the chart are
-// calculated from the saved rentals (or from live NHTSA data) every time, never typed in.
+/**
+ * Tab 4: data mining dashboard. Pick a question and a date range; the numbers and the chart are
+ * calculated from the saved rentals (or from live NHTSA data) every time, never typed in.
+ */
 public class DashboardTab extends Tab {
     private static final String MOST_RENTED = "Most rented vehicle type";
     private static final String UTILIZATION = "Fleet utilization per month (%)";
@@ -58,6 +60,7 @@ public class DashboardTab extends Tab {
     private final LineChart<String, Number> lineChart = new LineChart<>(lineX, lineY);
     private final StackPane chartHolder = new StackPane(barChart);
 
+    /** Creates a dashboard tab. */
     public DashboardTab(Database db) {
         super("Dashboard");
         this.db = db;
@@ -90,7 +93,8 @@ public class DashboardTab extends Tab {
         t.getStyleClass().add("field-label");
         fromPicker.setEditable(false);
         toPicker.setEditable(false);
-        // A FlowPane wraps to a second line on a narrow window, so no button is squeezed to "Sh...".
+        // A FlowPane wraps to a second line on a narrow window, so no button is squeezed to
+        // "Sh...".
         javafx.scene.layout.FlowPane controls = new javafx.scene.layout.FlowPane(10, 8, q, metricBox, f, fromPicker, t, toPicker, showButton, bar);
         controls.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         controls.setColumnHalignment(javafx.geometry.HPos.LEFT);
@@ -112,6 +116,7 @@ public class DashboardTab extends Tab {
         setContent(UiHelper.scroll(content));
     }
 
+    /** Reloads the data of this tab from the database. */
     public void refresh() {
         LocalDate from = fromPicker.getValue();
         LocalDate to = toPicker.getValue();
@@ -122,6 +127,8 @@ public class DashboardTab extends Tab {
         }
         try {
             List<Vehicle> vehicles = db.getAllVehicles();
+            // Old rentals of a removed vehicle still count in the money and the counts.
+            List<Vehicle> everAdded = db.getAllVehiclesIncludingRemoved();
             treeText.setText(FleetAnalytics.mileageTree(vehicles).toText(0));
             String metric = metricBox.getValue();
             if (LIVE.equals(metric)) {
@@ -133,7 +140,7 @@ public class DashboardTab extends Tab {
             String yLabel;
             String xLabel;
             if (MOST_RENTED.equals(metric)) {
-                for (Map.Entry<String, Integer> e : FleetAnalytics.rentalsByType(rentals, vehicles, from, to).entrySet()) {
+                for (Map.Entry<String, Integer> e : FleetAnalytics.rentalsByType(rentals, everAdded, from, to).entrySet()) {
                     data.put(e.getKey(), e.getValue());
                 }
                 xLabel = "Vehicle type";
@@ -145,7 +152,7 @@ public class DashboardTab extends Tab {
                 xLabel = "Month";
                 yLabel = "Fleet in use (%)";
             } else if (REVENUE.equals(metric)) {
-                for (Map.Entry<String, Double> e : FleetAnalytics.revenueByType(rentals, vehicles, from, to).entrySet()) {
+                for (Map.Entry<String, Double> e : FleetAnalytics.revenueByType(rentals, everAdded, from, to).entrySet()) {
                     data.put(e.getKey(), e.getValue());
                 }
                 xLabel = "Vehicle type";
@@ -157,13 +164,13 @@ public class DashboardTab extends Tab {
                 xLabel = "Month";
                 yLabel = "Number of rentals";
             } else {
-                for (Map.Entry<String, Integer> e : FleetAnalytics.topModels(rentals, vehicles, from, to, 5)) {
+                for (Map.Entry<String, Integer> e : FleetAnalytics.topModels(rentals, everAdded, from, to, 5)) {
                     data.put(e.getKey(), e.getValue());
                 }
                 xLabel = "Model";
                 yLabel = "Number of rentals";
             }
-            summary.setText(FleetAnalytics.summary(rentals, vehicles, from, to));
+            summary.setText(FleetAnalytics.summary(rentals, everAdded, from, to));
             statusLabel.setText("");
             draw(metric, xLabel, yLabel, data);
         } catch (SQLException e) {

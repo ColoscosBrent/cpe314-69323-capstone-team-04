@@ -3,13 +3,16 @@ package fleetrent;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-// Rules for what may be typed into each kind of text field, and whether the finished text is valid.
-// It has no screen code, so it can be unit tested. The screen uses typingAllowed() to block bad
-// keys while the user types, and check() to show an error message under the field.
+/**
+ * Rules for what may be typed into each kind of text field, and whether the finished text is valid.
+ * It has no screen code, so it can be unit tested. The screen uses typingAllowed() to block bad
+ * keys while the user types, and check() to show an error message under the field.
+ */
 public final class Validators {
     private Validators() {
     }
 
+    /** The kinds of values the validators check. */
     public enum Kind {
         NAME("Letters, spaces and . ' - only.",
                 Pattern.compile("[\\p{L} .'\\-]{0,60}")),
@@ -36,12 +39,16 @@ public final class Validators {
             this.allowed = allowed;
         }
 
-        // The message shown when the user types a key that is not allowed.
+        /**
+         * The message shown when the user types a key that is not allowed.
+         */
         public String rejectMessage() {
             return rejectMessage;
         }
 
-        // True if this text (the whole field content after the key press) may exist in the field.
+        /**
+         * True if this text (the whole field content after the key press) may exist in the field.
+         */
         public boolean typingAllowed(String text) {
             if (text == null) {
                 return false;
@@ -62,8 +69,10 @@ public final class Validators {
     private static final Pattern EMAIL_OK =
             Pattern.compile("[A-Za-z0-9._+\\-]+@[A-Za-z0-9\\-]+(\\.[A-Za-z0-9\\-]+)+");
 
-    // Returns null when the text is fine, otherwise a short message for the user.
-    // Empty text is an error only when required is true.
+    /**
+     * Returns null when the text is fine, otherwise a short message for the user. Empty text is an
+     * error only when required is true.
+     */
     public static String check(Kind kind, String text, boolean required) {
         String t = text == null ? "" : text.trim();
         if (t.isEmpty()) {
@@ -119,7 +128,9 @@ public final class Validators {
         }
     }
 
-    // Cleans the finished text before saving: no extra spaces, plates in capital letters.
+    /**
+     * Cleans the finished text before saving: no extra spaces, plates in capital letters.
+     */
     public static String normalize(Kind kind, String text) {
         String t = text == null ? "" : text.trim().replaceAll("\\s+", " ");
         if (kind == Kind.PLATE) {
@@ -129,6 +140,18 @@ public final class Validators {
             return t.toLowerCase(Locale.ROOT);
         }
         return t;
+    }
+
+    /**
+     * True when two names are the same for a person: capital letters and extra spaces do not
+     * matter. The make and model picked from NHTSA are compared with this, so "F-150  " matches
+     * "f-150".
+     */
+    public static boolean sameName(String a, String b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        return a.trim().replaceAll("\\s+", " ").equalsIgnoreCase(b.trim().replaceAll("\\s+", " "));
     }
 
     private static int letterCount(String t) {

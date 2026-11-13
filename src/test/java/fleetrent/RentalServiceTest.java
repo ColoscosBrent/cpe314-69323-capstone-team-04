@@ -110,4 +110,27 @@ class RentalServiceTest {
         service.returnRental(r.getId(), d(4), 10);
         assertThrows(IllegalStateException.class, () -> service.undoLastCheckout());
     }
+
+    // Caloy: more waiting list cases.
+    @Test
+    void waitingRentersAreServedInTheOrderTheyJoined() throws SQLException {
+        int renterC = db.insertRenter(new Renter(0, "Cara", null, null, null));
+        service.startRental(renterA, vehicleId, d(1), d(4));
+        assertNull(service.startRental(renterB, vehicleId, d(2), d(5)));
+        assertNull(service.startRental(renterC, vehicleId, d(3), d(6)));
+        assertEquals(2, service.waitingCount(vehicleId));
+        assertEquals("Ben", service.serveNextWaiting(vehicleId).getName());
+        assertEquals("Cara", service.serveNextWaiting(vehicleId).getName());
+    }
+
+    @Test
+    void waitingListBelongsToOneVehicleOnly() throws SQLException {
+        int otherVehicle = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "XYZ 789",
+                "Black", 2500, 0, null, "Car > SUV"));
+        service.startRental(renterA, vehicleId, d(1), d(4));
+        assertNull(service.startRental(renterB, vehicleId, d(2), d(5)));
+        assertEquals(1, service.waitingCount(vehicleId));
+        assertEquals(0, service.waitingCount(otherVehicle));
+        assertNotNull(service.startRental(renterB, otherVehicle, d(2), d(5)));
+    }
 }

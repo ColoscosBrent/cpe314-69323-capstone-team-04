@@ -41,7 +41,8 @@ class AuthEdgeCaseTest {
 
     private Account renter(String username) throws Exception {
         return auth.signUpRenter(username, "Passw0rdX",
-                new Renter(0, "Ana Reyes", "09171234567", "ana@example.com", "12 Rizal St"), Q,
+                new Renter(0, "Reyes, Ana Cruz", "+63 9171234567", "ana@example.com",
+                        "12 Rizal St, Cebu City, Philippines"), Q,
                         "Rex");
     }
 
@@ -105,8 +106,8 @@ class AuthEdgeCaseTest {
 
     @Test
     void aSqlLookingSecurityAnswerIsStoredAsPlainTextAndOnlyMatchesItself() throws Exception {
-        auth.signUpRenter("ben_cruz", "Passw0rdX", new Renter(0, "Ben Cruz", "09181234567", null,
-                null), Q,
+        auth.signUpRenter("ben_cruz", "Passw0rdX", new Renter(0, "Cruz, Ben Lim", "+63 9181234567",
+                "ben@example.com", "5 Mabini St, Davao City, Philippines"), Q,
                 "x' OR 1=1 --");
         assertThrows(AuthException.class, () -> auth.resetPassword("ben_cruz", "wrong",
                 "NewPassw0rd1"));
@@ -125,7 +126,8 @@ class AuthEdgeCaseTest {
     @Test
     void aBadRenterNameStopsTheSignUp() throws Exception {
         assertThrows(Exception.class, () -> auth.signUpRenter("zed_user", "Passw0rdX",
-                new Renter(0, "   ", "09171234567", null, null), Q, "Rex"));
+                new Renter(0, "   ", "+63 9171234567", "zed@example.com",
+                "1 Main St, Cebu City, Philippines"), Q, "Rex"));
         assertNull(db.findAccountByUsername("zed_user"));
         assertTrue(db.getAllRenters().isEmpty());
     }
@@ -166,13 +168,14 @@ class AuthEdgeCaseTest {
     }
 
     @Test
-    void anUnknownUsernameAlsoGetsTheSameMessageAsAWrongPassword() throws Exception {
+    void anUnknownUsernameAndAWrongPasswordGetDifferentSpecificMessages() throws Exception {
         renter("ana_reyes");
         String unknown = assertThrows(AuthException.class, () -> auth.login("nobody_here",
                 "Passw0rdX")).getMessage();
         String wrong = assertThrows(AuthException.class, () -> auth.login("ana_reyes",
                 "wrongpass1")).getMessage();
-        assertEquals(unknown, wrong);
+        assertTrue(unknown.contains("username is not correct"));
+        assertTrue(wrong.contains("password is not correct"));
     }
 
     @Test
@@ -219,7 +222,8 @@ class AuthEdgeCaseTest {
     @Test
     void theSecurityQuestionMustBeOneOfOurQuestions() {
         assertThrows(AuthException.class, () -> auth.signUpRenter("zed_user", "Passw0rdX",
-                new Renter(0, "Zed", "09171234567", null, null), "What is my secret?", "Rex"));
+                new Renter(0, "Zed, Zack Lee", "+63 9171234567", "zed@example.com",
+                "1 Main St, Cebu City, Philippines"), "What is my secret?", "Rex"));
     }
 
     @Test
@@ -227,19 +231,28 @@ class AuthEdgeCaseTest {
         int n = 0;
         for (String q : AuthService.SECURITY_QUESTIONS) {
             String user = "user_" + (n++) + "abc";
-            auth.signUpRenter(user, "Passw0rdX", new Renter(0, "Person " + "ABCDE".charAt(n - 1),
-                    "09171234567", null, null), q, "Answer");
+            auth.signUpRenter(user, "Passw0rdX", new Renter(0, "Person, Ann Cruz", "+63 9171234567",
+                    "p" + n + "@example.com", "1 Main St, Cebu City, Philippines"), q, "Answer");
             assertEquals(q, auth.securityQuestionOf(user));
         }
     }
 
     @Test
-    void anOwnerCodeWithTheWrongCaseOrSpacesIsRefused() throws SQLException {
-        for (String code : new String[] {"fleetrent-owner", "", "   ", null, "FLEETRENT",
-                "FLEETRENT OWNER"}) {
-            assertThrows(AuthException.class,
-                    () -> auth.signUpOwner("owner01", "Passw0rdX", "Maria", Q, "Rex", code),
-                            String.valueOf(code));
+    void anOwnerNameThatIsNotLastFirstMiddleIsRefused() throws SQLException {
+        for (String name : new String[] {"Maria", "Maria Santos", "Santos,", ", Maria Lopez",
+                "Santos, Maria", "", "   ", null}) {
+            assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
+                    name, "+63 9171234567", Q, "Rex"), String.valueOf(name));
+        }
+        assertNull(db.findAccountByUsername("owner01"));
+    }
+
+    @Test
+    void anOwnerPhoneThatDoesNotFitItsCountryIsRefused() throws SQLException {
+        for (String phone : new String[] {"09171234567", "+63 123", "+63 817123456", "", null,
+                "+999 1234567", "+1 12"}) {
+            assertThrows(AuthException.class, () -> auth.signUpOwner("owner01", "Passw0rdX",
+                    "Santos, Maria Lopez", phone, Q, "Rex"), String.valueOf(phone));
         }
         assertNull(db.findAccountByUsername("owner01"));
     }

@@ -36,6 +36,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -120,12 +121,13 @@ class ScreenFlowTest {
                 db.insertVehicle(v);
             }
             AuthService auth = new AuthService(db);
-            auth.signUpOwner("owner01", "Passw0rd1", "Maria Santos",
-                    AuthService.SECURITY_QUESTIONS.get(0), "Rex",
-                    AuthService.OWNER_CODE);
-            auth.signUpRenter("ana_reyes", "Passw0rd1", new Renter(0, "Ana Reyes", "09171234567",
+            auth.signUpOwner("owner01", "Passw0rd1", "Santos, Maria Lopez", "+63 9171234567",
+                    AuthService.SECURITY_QUESTIONS.get(0), "Rex");
+            auth.signUpRenter("ana_reyes", "Passw0rd1", new Renter(0, "Reyes, Ana Cruz",
+                    "+63 9171234567",
                     "ana@example.com",
-                    "12 Rizal St, Cebu"), AuthService.SECURITY_QUESTIONS.get(0), "Rex");
+                    "12 Rizal St, Cebu City, Philippines"), AuthService.SECURITY_QUESTIONS.get(0),
+                            "Rex");
             ana = db.findAccountByUsername("ana_reyes").getRenterId();
         }
         System.setProperty("fleetrent.dbUrl", url);
@@ -256,7 +258,22 @@ class ScreenFlowTest {
         });
     }
 
+    // Presses "Log in as Owner" or "Log in as Renter" above the login boxes.
+    private static void chooseRole(String text) throws Exception {
+        onFx(() -> {
+            for (javafx.scene.control.ToggleButton t
+                    : all(javafx.scene.control.ToggleButton.class)) {
+                if (text.equals(t.getText())) {
+                    t.setSelected(true);
+                    return null;
+                }
+            }
+            throw new AssertionError("No role button '" + text + "'");
+        });
+    }
+
     private static void login(String user, String password) throws Exception {
+        chooseRole(user.startsWith("owner") ? "Log in as Owner" : "Log in as Renter");
         type("Username", user);
         typePassword("Password", password);
         click("Log in");
@@ -381,8 +398,13 @@ class ScreenFlowTest {
         type("4 to 20 letters, digits, _ or .", "ben_cruz");
         typePassword("8+ characters, a letter and a digit", "Passw0rd2");
         typePassword("Type the password again", "Passw0rd2");
-        type("Ana Reyes", "Ben Cruz");
-        type("0917 123 4567", "0918 555 1234");
+        type("Reyes", "Cruz");
+        type("Ana", "Ben");
+        type("Santos", "Lim");
+        type("917 123 4567", "918 555 1234");
+        type("ana@example.com", "ben@example.com");
+        type("12 Rizal St", "5 Mabini St");
+        type("Cebu City", "Davao City");
         onFx(() -> {
             for (ChoiceBox<?> c : all(ChoiceBox.class)) {
                 if (c.getItems().contains(AuthService.SECURITY_QUESTIONS.get(1))) {
@@ -466,14 +488,15 @@ class ScreenFlowTest {
     // ---------- owner screen ----------
 
     @Test
-    void theOwnerHasFiveTabsAndSeesTheRentersReservation() throws Exception {
+    void theOwnerHasSixTabsAndSeesTheRentersReservation() throws Exception {
         try (Database db = new Database(System.getProperty("fleetrent.dbUrl"))) {
             new BookingService(db, LocalDate::now).reserve(ana, db.getAllVehicles().get(0).getId(),
                     LocalDate.now().plusDays(3), LocalDate.now().plusDays(5));
         }
         login("owner01", "Passw0rd1");
         until(() -> button("Sign out") != null, "the owner screen");
-        assertEquals(List.of("Vehicles", "Rentals", "Reservations", "Import", "Dashboard"),
+        assertEquals(List.of("Vehicles", "Rentals", "Reservations", "Import", "Import history",
+                "Dashboard"),
                 tabNames());
         openTab("Reservations");
         until(() -> anyListHas(Reservation.class), "the reservation is listed");
@@ -503,7 +526,7 @@ class ScreenFlowTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    void addVehicleWorksAfterPickingAMakeAndAModelAndThenChangingTheYear() throws Exception {
+    void addVehicleWorksAfterChoosingTheYearFirstThenTheMakeAndTheModel() throws Exception {
         login("owner01", "Passw0rd1");
         until(() -> button("Add Vehicle") != null, "the Vehicles tab with its form");
         int before = listSize(Vehicle.class, "vehicle-list");
@@ -516,6 +539,25 @@ class ScreenFlowTest {
             return null;
         });
         until(() -> hasListItem(String.class, "HONDA"), "the makes list from NHTSA");
+        // the year comes first: before it the make and model lists cannot be used
+        assertTrue(onFx(() -> {
+            for (ListView<?> l : all(ListView.class)) {
+                if (l.getStyleClass().contains("plain-list") && !l.getItems().isEmpty()
+                        && l.getItems().get(0) instanceof String) {
+                    return l.isDisabled();
+                }
+            }
+            return false;
+        }), "the make list is locked until a year is chosen");
+        onFx(() -> {
+            for (ComboBox<?> c : all(ComboBox.class)) {
+                if (c.getItems().contains("2022")) {
+                    assertFalse(c.getItems().contains("2027"), "no future year 2027");
+                    ((ComboBox<String>) c).setValue("2022");
+                }
+            }
+            return null;
+        });
         onFx(() -> {
             for (ListView<?> l : all(ListView.class)) {
                 if (l.getStyleClass().contains("plain-list") && !l.getItems().isEmpty()
@@ -540,20 +582,11 @@ class ScreenFlowTest {
             }
             return null;
         });
-        // changing the year after the model was clicked is what used to break Add Vehicle
+        Thread.sleep(600);
         onFx(() -> {
-            for (ChoiceBox<?> c : all(ChoiceBox.class)) {
-                if (c.getItems().contains("Not specified")) {
-                    ((ChoiceBox<String>) c).setValue("2022");
-                }
-            }
-            return null;
-        });
-        Thread.sleep(1200);
-        onFx(() -> {
-            for (ChoiceBox<?> c : all(ChoiceBox.class)) {
+            for (ComboBox<?> c : all(ComboBox.class)) {
                 if (c.getItems().contains("White")) {
-                    ((ChoiceBox<String>) c).setValue("White");
+                    ((ComboBox<String>) c).setValue("White");
                 }
             }
             return null;
@@ -570,6 +603,8 @@ class ScreenFlowTest {
             assertEquals("HONDA", saved.getMake());
             assertTrue(Validators.sameName("CB1000 Hornet", saved.getModel()));
             assertEquals(950, saved.getDailyRate(), 0.001);
+            assertEquals(2022, saved.getYear());
+            assertTrue(saved.getCategoryPath().startsWith("Motorcycle > "));
         }
     }
 
@@ -689,7 +724,8 @@ class ScreenFlowTest {
                 assertTrue(inScene.getMinX() >= 0, buttonThatMustStayVisible
                         + " is not pushed out on the left" + where);
                 assertTrue(inScene.getMaxY() <= h + 1, buttonThatMustStayVisible
-                        + " is inside the window" + where);
+                        + " is inside the window" + where + " [button bottom "
+                        + (int) inScene.getMaxY() + ", scene height " + (int) h + "]");
                 if (tabs) {
                     TabPane tp = all(TabPane.class).get(0);
                     javafx.geometry.Bounds tb = tp.localToScene(tp.getBoundsInLocal());
@@ -713,7 +749,7 @@ class ScreenFlowTest {
         login("owner01", "Passw0rd1");
         until(() -> button("Sign out") != null, "the owner screen");
         for (String tab : new String[]{"Vehicles", "Rentals", "Reservations", "Import",
-                "Dashboard"}) {
+                "Import history", "Dashboard"}) {
             openTab(tab);
             checkWindowAtEverySize("Sign out", true);
         }

@@ -2,6 +2,7 @@ package fleetrent.controller;
 
 import fleetrent.model.Account;
 import fleetrent.model.Renter;
+import fleetrent.model.Role;
 import fleetrent.service.AuthService;
 
 import java.util.List;
@@ -53,18 +54,29 @@ public class AuthController {
 
     /** Checks the username and password and returns the account. */
     public Account login(String username, String password) throws ControllerException {
-        Account account = Guard.database("logging in", () -> auth.login(username, password));
+        return login(username, password, null);
+    }
+
+    /**
+     * Checks the username and password and that the account is an owner (ADMIN) or a renter
+     * account, as chosen on the login screen. Pass null to accept both.
+     */
+    public Account login(String username, String password, Role role) throws ControllerException {
+        Account account = Guard.database("logging in",
+                () -> auth.login(username, password, role));
         session.start(account);
         return account;
     }
 
-    /** Creates an owner account after the owner code is checked. */
-    public Account signUpOwner(String username, String password, String displayName,
-            String question,
-            String answer, String ownerCode) throws ControllerException {
+    /**
+     * Creates an owner account. Any rental shop owner can sign up (there is no owner code). The
+     * name
+     * is "Last, First Middle" and the phone is like "+63 9171234567".
+     */
+    public Account signUpOwner(String username, String password, String displayName, String phone,
+            String question, String answer) throws ControllerException {
         Account account = Guard.database("creating the account",
-                () -> auth.signUpOwner(username, password, displayName, question, answer,
-                        ownerCode));
+                () -> auth.signUpOwner(username, password, displayName, phone, question, answer));
         session.start(account);
         return account;
     }

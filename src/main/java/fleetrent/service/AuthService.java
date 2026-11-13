@@ -15,7 +15,8 @@ import java.util.function.LongSupplier;
 
 /**
  * Sign up, log in, "Forgot password" and "Change password" for the rental owner (ADMIN) and for
- * renters. It has no screen code, so it can be unit tested. A person who types a wrong password or
+ * renters. Any rental shop owner can sign up; there is no owner code. It has no screen code, so it
+ * can be unit tested. A person who types a wrong password or
  * answer 5 times in a row must wait 30 seconds.
  */
 public class AuthService {
@@ -26,9 +27,6 @@ public class AuthService {
     private static final int ANSWER_MIN = 2;
     private static final int ANSWER_MAX = 60;
     private static final long MILLIS_PER_SECOND = 1000;
-    // A new rental owner must type this code when signing up, so a renter cannot make an owner
-    // account.
-    public static final String OWNER_CODE = "FLEETRENT-OWNER";
     public static final int MAX_FAILURES = 5;
     public static final long LOCK_MILLIS = 30_000;
 
@@ -107,21 +105,21 @@ public class AuthService {
 
     // ---------- sign up ----------
 
-    /** Creates an owner account after the owner code is checked. */
-    public Account signUpOwner(String username, String password, String displayName,
-            String question,
-                               String answer, String ownerCode) throws AuthException, SQLException {
-        if (ownerCode == null || !OWNER_CODE.equals(ownerCode.trim())) {
-            throw new AuthException(
-                    "The owner code is not correct. Ask the shop for the owner code.");
+    /**
+     * Creates an owner account. Anyone who wants to run a rental shop can sign up as an owner. The
+     * name is saved as "Last, First Middle" and the phone as "+63 9171234567".
+     */
+    public Account signUpOwner(String username, String password, String displayName, String phone,
+            String question, String answer) throws AuthException, SQLException {
+        String message = PersonName.check(displayName);
+        if (message == null) {
+            message = PhoneNumber.checkSaved(phone);
         }
-        String nameMessage = Validators.check(Validators.Kind.NAME, displayName, true);
-        if (nameMessage != null) {
-            throw new AuthException(nameMessage);
+        if (message != null) {
+            throw new AuthException(message);
         }
         checkNewAccount(username, password, question, answer);
-        Account account = buildAccount(username, Role.ADMIN,
-                Validators.normalize(Validators.Kind.NAME, displayName),
+        Account account = buildAccount(username, Role.ADMIN, displayName.trim(), phone.trim(),
                 password, question, answer, null);
         try {
             db.insertAccount(account);
@@ -131,25 +129,28 @@ public class AuthService {
         return account;
     }
 
-    /** Creates a renter account together with the renter record. */
+    /**
+     * Creates a renter account together with the renter record. The name, the phone, the email and
+     * the address are all required.
+     */
     public Account signUpRenter(String username, String password, Renter details, String question,
                                 String answer) throws AuthException, SQLException {
-        String message = Validators.check(Validators.Kind.NAME, details.getName(), true);
+        String message = PersonName.check(details.getName());
         if (message == null) {
-            message = Validators.check(Validators.Kind.CONTACT, details.getContact(), true);
+            message = PhoneNumber.checkSaved(details.getContact());
         }
         if (message == null) {
-            message = Validators.check(Validators.Kind.EMAIL, details.getEmail(), false);
+            message = Validators.check(Validators.Kind.EMAIL, details.getEmail(), true);
         }
         if (message == null) {
-            message = Validators.check(Validators.Kind.ADDRESS, details.getAddress(), false);
+            message = AddressRules.checkSaved(details.getAddress());
         }
         if (message != null) {
             throw new AuthException(message);
         }
         checkNewAccount(username, password, question, answer);
-        Account account = buildAccount(username, Role.RENTER, details.getName(), password,
-                question, answer, null);
+        Account account = buildAccount(username, Role.RENTER, details.getName().trim(),
+                details.getContact().trim(), password, question, answer, null);
         try {
             db.insertRenterWithAccount(details, account);
         } catch (SQLException e) {
@@ -178,15 +179,14 @@ public class AuthService {
         }
     }
 
-    private Account buildAccount(String username, Role role, String displayName, String password,
-                                 String question, String answer, Integer renterId) {
+    private Account buildAccount(String username, Role role, String displayName, String phone,
+            String password, String question, String answer, Integer renterId) {
         String passSalt = PasswordHasher.newSalt();
         String answerSalt = PasswordHasher.newSalt();
-        return new Account(0, username.trim(), role, displayName, PasswordHasher.hash(password,
-                passSalt), passSalt,
+        return new Account(0, username.trim(), role, displayName, phone,
+                PasswordHasher.hash(password, passSalt), passSalt,
                 question, PasswordHasher.hash(normalizeAnswer(answer), answerSalt), answerSalt,
-                        renterId,
-                LocalDate.now());
+                renterId, LocalDate.now());
     }
 
     private AuthException translateDuplicate(SQLException e) throws SQLException {
@@ -201,13 +201,32 @@ public class AuthService {
 
     /** Checks the username and password and returns the account. */
     public Account login(String username, String password) throws AuthException, SQLException {
+        return login(username, password, null);
+    }
+
+    /**
+     * Checks the username and the password and, when a role is given, that the account has that
+     * role. Each problem has its own message: the username, the password or the role. Five wrong
+     * tries in a row lock the username for 30 seconds.
+     */
+    public Account login(String username, String password, Role expectedRole)
+            throws AuthException, SQLException {
         String key = key(username);
         checkLock(key);
         Account account = db.findAccountByUsername(username);
-        if (account == null || !PasswordHasher.matches(password, account.getPasswordSalt(),
+        if (account == null) {
+            registerFailure(key);
+            throw new AuthException("The username is not correct. No account has that username.");
+        }
+        if (!PasswordHasher.matches(password, account.getPasswordSalt(),
                 account.getPasswordHash())) {
             registerFailure(key);
-            throw new AuthException("The username or the password is not correct.");
+            throw new AuthException("The password is not correct.");
+        }
+        if (expectedRole != null && account.getRole() != expectedRole) {
+            throw new AuthException(expectedRole == Role.ADMIN
+                    ? "This is a renter account. Choose Renter above to log in."
+                    : "This is an owner account. Choose Owner above to log in.");
         }
         clearFailures(key);
         return account;

@@ -52,11 +52,11 @@ class OwnerOnlyTest {
         Vehicle v = VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020, "ABC 123", "White",
                 1000, 0, null, "Car > Sedan");
         vehicleId = db.insertVehicle(v);
-        auth.signUpOwner("owner01", "Passw0rdX", "Maria Santos", QUESTION, "Rex",
-                AuthService.OWNER_CODE);
+        auth.signUpOwner("owner01", "Passw0rdX", "Santos, Maria Lopez", "+63 9171234567",
+                QUESTION, "Rex");
         auth.signOut();
-        auth.signUpRenter("renter01", "Passw0rdX", new Renter(0, "Ana Cruz", "09171234567", null,
-                null),
+        auth.signUpRenter("renter01", "Passw0rdX", new Renter(0, "Cruz, Ana Lim", "+63 9171234567",
+                "ana@example.com", "12 Rizal St, Cebu City, Philippines"),
                 QUESTION, "Rex");
         auth.signOut();
     }
@@ -70,7 +70,7 @@ class OwnerOnlyTest {
     void ownerCanRemoveAndRestoreAVehicle() throws Exception {
         Account owner = auth.login("owner01", "Passw0rdX");
         assertTrue(auth.session().isOwner());
-        assertEquals("Maria Santos", owner.getDisplayName());
+        assertEquals("Santos, Maria Lopez", owner.getDisplayName());
         vehicles.remove(vehicleId);
         assertEquals(0, vehicles.vehicles().size());
         vehicles.restore(vehicleId);

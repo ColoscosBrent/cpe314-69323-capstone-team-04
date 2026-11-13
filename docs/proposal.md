@@ -1,6 +1,6 @@
 # Project Proposal - Team 04 (Group 4)
 
-CPE 314 - Software Design | Week 8 | Instructor: Richyll Son | First Semester, S.Y. 2026-2027
+CPE 314 - Software Design | Instructor: Richyll Son | First Semester, S.Y. 2026-2027
 
 | Item             | Details                                                                           |
 | ---------------- | --------------------------------------------------------------------------------- |
@@ -124,14 +124,14 @@ erDiagram
 
 ## 4. Task Split
 
-| Member | Role | Primary Responsibility (this milestone) |
+| Member | Role | Primary Responsibility |
 |---|---|---|
 | Gabasa, Dexter | DB | Database: SQLite tables for vehicles, renters, and rentals, and the JDBC code with `PreparedStatement`. Database tests. |
 | Rosal, Wendil | ADMIN, QA | Vehicle category tree and the recursive fleet mileage method. Maven project setup. Tests for these. |
 | Coloscos, Brent | TEAM LEAD, DEVELOPER | Domain model and OOD: `Vehicle` abstract class, its 3 subclasses, and the rate and fee logic. Tests for these. |
 | Lagaya, John Carlo | DEVELOPER | Rental and Renter classes, the waiting list Queue, the undo Stack, and the CSV import on a background thread. Tests for these. |
 | Labra, Simone | UI | NHTSA vPIC API: sending the request and parsing the JSON. JavaFX GUI (forms, buttons, dashboard) and the bar and line charts. |
-| **All members** | - | Commit our own work to the team repo, review each other's pull requests, and attend the Week 8–9 consultation. |
+| **All members** | - | Commit our own work to the team repo, review each other's pull requests, and attend the consultations with the instructor. |
 
 
 ## 5. Public API You Plan to Use
@@ -140,8 +140,13 @@ erDiagram
 - We will cache the response so we do not call the API too much.
 
 ## 6. Risks / Open Questions
-- How will we keep the window responsive while importing a large rental history CSV?
-- Should the category tree be saved as a text path in the Vehicle table or in its own table?
-- How will we read the JSON from the API in Java, and is it OK to use a library like Gson?
-- What should the app show when the API is slow or down?
-- How will we count utilization over time correctly when rentals overlap?
+
+Each question has a plan. The instructor reply column is filled in when the instructor answers.
+
+| # | Risk or question | Our plan | Instructor reply |
+|---|---|---|---|
+| 1 | How will we keep the window responsive while importing a large rental history CSV? | Run the import in a JavaFX `Task` on a background thread, show a `ProgressBar`, and save the rows in batches inside one transaction. | To be asked |
+| 2 | Should the category tree be saved as a text path in the Vehicle table or in its own table? | Save the path as text (for example `Car > Sedan`) in a `categoryPath` column of the Vehicle table. The `CategoryNode` tree is built in memory from those paths when the mileage is needed. | To be asked |
+| 3 | How will we read the JSON from the API in Java, and is it OK to use a library like Gson? | Use Gson (added through Maven) to read the `Results` list into our own objects. If Gson is not allowed, we switch to the JSON classes in the Java library. | To be asked |
+| 4 | What should the app show when the API is slow or down? | Use time limits (10 seconds to connect, 30 seconds for the answer). Show a red message that says what is wrong, and let the user type the make and model by hand. | To be asked |
+| 5 | How will we count utilization over time correctly when rentals overlap? | Count each vehicle once per day, even if two rentals cover the same day, and divide by every vehicle times every day of the month. | To be asked |

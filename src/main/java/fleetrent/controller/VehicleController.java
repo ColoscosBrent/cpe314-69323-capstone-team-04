@@ -81,10 +81,14 @@ public class VehicleController {
 
     /** Returns how many active reservations a vehicle has. */
     public int activeReservations(int vehicleId) throws ControllerException {
-        return Guard.database("removing the vehicle", () -> db.countActiveReservationsOfVehicle(vehicleId));
+        return Guard.database("removing the vehicle", () ->
+                db.countActiveReservationsOfVehicle(vehicleId));
     }
 
-    /** Removes a vehicle from the fleet (owner only) and returns how many reservations were cancelled. */
+    /**
+     * Removes a vehicle from the fleet (owner only) and returns how many reservations were
+     * cancelled.
+     */
     public int remove(int vehicleId) throws ControllerException {
         session.requireOwner("remove vehicles");
         return Guard.database("removing the vehicle", () -> fleet.removeVehicle(vehicleId));
@@ -100,7 +104,8 @@ public class VehicleController {
 
     /** Returns the maintenance records of a vehicle, newest first. */
     public List<Maintenance> maintenanceOf(int vehicleId) throws ControllerException {
-        return Guard.database("loading the maintenance", () -> db.getMaintenanceByVehicle(vehicleId));
+        return Guard.database("loading the maintenance", () ->
+                db.getMaintenanceByVehicle(vehicleId));
     }
 
     /**
@@ -132,7 +137,8 @@ public class VehicleController {
      * Asks NHTSA for the models of a make. When the year has no models, it asks again for any
      * year. Slow, so call it from a background job.
      */
-    public Models fetchModels(String make, Integer year, String apiType) throws ControllerException {
+    public Models fetchModels(String make, Integer year,
+            String apiType) throws ControllerException {
         return Guard.web("NHTSA", () -> {
             List<VehicleModelInfo> list = vpic.fetchModels(make, year, apiType);
             boolean fellBack = false;

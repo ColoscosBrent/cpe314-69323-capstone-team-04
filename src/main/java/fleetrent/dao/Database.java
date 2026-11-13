@@ -2,6 +2,8 @@ package fleetrent.dao;
 
 import fleetrent.model.Account;
 import fleetrent.model.BusySpan;
+import fleetrent.model.ImportBatch;
+import fleetrent.model.ImportRecord;
 import fleetrent.model.Maintenance;
 import fleetrent.model.MaintenanceType;
 import fleetrent.model.Payment;
@@ -24,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,7 +50,7 @@ public class Database implements AutoCloseable {
     }
 
     /**
-     * Reads schema.sql and creates the five tables if they do not exist yet.
+     * Reads schema.sql and creates the eleven tables if they do not exist yet.
      */
     public synchronized void createTables() throws SQLException {
         String script;
@@ -82,6 +85,11 @@ public class Database implements AutoCloseable {
         if (!columnExists("Vehicle", "active")) {
             try (Statement st = connection.createStatement()) {
                 st.execute("ALTER TABLE Vehicle ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+            }
+        }
+        if (!columnExists("Account", "phone")) {
+            try (Statement st = connection.createStatement()) {
+                st.execute("ALTER TABLE Account ADD COLUMN phone TEXT");
             }
         }
     }
@@ -496,7 +504,11 @@ public class Database implements AutoCloseable {
     // ---------- Milestone 3 (Week 10 review): accounts ----------
 
     private static final String ACCOUNT_COLUMNS =
+<<<<<<< HEAD
+            "id, username, role, displayName, phone, passwordHash, passwordSalt, "
+=======
             "id, username, role, displayName, passwordHash, passwordSalt, "
+>>>>>>> origin/project/milestone-2
             + "securityQuestion, answerHash, answerSalt, renterId, createdOn";
 
     private Account readAccount(ResultSet rs) throws SQLException {
@@ -504,35 +516,49 @@ public class Database implements AutoCloseable {
         Integer renterId = rs.wasNull() ? null : renter;
         return new Account(rs.getInt("id"), rs.getString("username"),
                 Role.valueOf(rs.getString("role")),
+<<<<<<< HEAD
+                rs.getString("displayName"), rs.getString("phone"), rs.getString("passwordHash"),
+                rs.getString("passwordSalt"),
+                rs.getString("securityQuestion"), rs.getString("answerHash"),
+                rs.getString("answerSalt"),
+=======
                 rs.getString("displayName"), rs.getString("passwordHash"),
                         rs.getString("passwordSalt"),
                 rs.getString("securityQuestion"), rs.getString("answerHash"),
                         rs.getString("answerSalt"),
+>>>>>>> origin/project/milestone-2
                 renterId, LocalDate.parse(rs.getString("createdOn")));
     }
 
     /** Saves a new account and gives it its new id. */
     public synchronized int insertAccount(Account a) throws SQLException {
         String sql =
+<<<<<<< HEAD
+                "INSERT INTO Account (username, role, displayName, phone, passwordHash, "
+                + "passwordSalt, securityQuestion, answerHash, answerSalt, renterId, createdOn) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+=======
                 "INSERT INTO Account (username, role, displayName, passwordHash, passwordSalt, "
                 + "securityQuestion, answerHash, answerSalt, renterId, createdOn) VALUES (?, ?, "
                         + "?, ?, ?, ?, ?, ?, ?, ?)";
+>>>>>>> origin/project/milestone-2
         try (PreparedStatement ps = connection.prepareStatement(sql,
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, a.getUsername());
             ps.setString(2, a.getRole().name());
             ps.setString(3, a.getDisplayName());
-            ps.setString(4, a.getPasswordHash());
-            ps.setString(5, a.getPasswordSalt());
-            ps.setString(6, a.getSecurityQuestion());
-            ps.setString(7, a.getAnswerHash());
-            ps.setString(8, a.getAnswerSalt());
+            ps.setString(4, a.getPhone());
+            ps.setString(5, a.getPasswordHash());
+            ps.setString(6, a.getPasswordSalt());
+            ps.setString(7, a.getSecurityQuestion());
+            ps.setString(8, a.getAnswerHash());
+            ps.setString(9, a.getAnswerSalt());
             if (a.getRenterId() == null) {
-                ps.setNull(9, java.sql.Types.INTEGER);
+                ps.setNull(10, java.sql.Types.INTEGER);
             } else {
-                ps.setInt(9, a.getRenterId());
+                ps.setInt(10, a.getRenterId());
             }
-            ps.setString(10, a.getCreatedOn().toString());
+            ps.setString(11, a.getCreatedOn().toString());
             ps.executeUpdate();
             int newId = readGeneratedId(ps);
             a.setId(newId);
@@ -549,11 +575,19 @@ public class Database implements AutoCloseable {
         try {
             insertRenter(renter);
             Account linked = new Account(0, account.getUsername(), account.getRole(),
+<<<<<<< HEAD
+                    account.getDisplayName(), account.getPhone(),
+                    account.getPasswordHash(), account.getPasswordSalt(),
+                    account.getSecurityQuestion(),
+                    account.getAnswerHash(), account.getAnswerSalt(), renter.getId(),
+                    account.getCreatedOn());
+=======
                     account.getDisplayName(),
                     account.getPasswordHash(), account.getPasswordSalt(),
                             account.getSecurityQuestion(),
                     account.getAnswerHash(), account.getAnswerSalt(), renter.getId(),
                             account.getCreatedOn());
+>>>>>>> origin/project/milestone-2
             insertAccount(linked);
             commitWrite();
             account.setId(linked.getId());
@@ -1090,6 +1124,119 @@ public class Database implements AutoCloseable {
             ps.setInt(1, rentalId);
             ps.executeUpdate();
         }
+    }
+
+    // ---------- import history ----------
+
+    /** Saves a new, empty import in the history and returns its id. */
+    public synchronized int insertImportBatch(String fileName, String importedBy,
+            LocalDateTime importedOn) throws SQLException {
+        String sql = "INSERT INTO ImportBatch (fileName, importedBy, importedOn) VALUES (?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql,
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, fileName);
+            ps.setString(2, importedBy);
+            ps.setString(3, importedOn.toString());
+            ps.executeUpdate();
+            return readGeneratedId(ps);
+        }
+    }
+
+    /** Writes the final counts of an import. */
+    public synchronized void finishImportBatch(int batchId, int rowsRead, int rowsAdded,
+            int rowsSkipped) throws SQLException {
+        String sql = "UPDATE ImportBatch SET rowsRead = ?, rowsAdded = ?, rowsSkipped = ? "
+                + "WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, rowsRead);
+            ps.setInt(2, rowsAdded);
+            ps.setInt(3, rowsSkipped);
+            ps.setInt(4, batchId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Saves the rows of one import in one transaction. */
+    public synchronized void insertImportRecords(int batchId, List<ImportRecord> records)
+            throws SQLException {
+        String sql = "INSERT INTO ImportRecord (batchId, lineNo, plateNumber, vehicleType, make, "
+                + "model, year, renterName, startDate, endDate, milesDriven, status, message) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        beginWrite();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            for (ImportRecord r : records) {
+                ps.setInt(1, batchId);
+                ps.setInt(2, r.lineNo());
+                ps.setString(3, r.plateNumber());
+                ps.setString(4, r.vehicleType());
+                ps.setString(5, r.make());
+                ps.setString(6, r.model());
+                ps.setObject(7, r.year());
+                ps.setString(8, r.renterName());
+                ps.setString(9, r.startDate() == null ? null : r.startDate().toString());
+                ps.setString(10, r.endDate() == null ? null : r.endDate().toString());
+                ps.setObject(11, r.milesDriven());
+                ps.setString(12, r.added() ? "ADDED" : "SKIPPED");
+                ps.setString(13, r.message());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            commitWrite();
+        } catch (SQLException | RuntimeException e) {
+            rollbackWrite();
+            throw e;
+        }
+    }
+
+    /** Every import, the newest first. */
+    public synchronized List<ImportBatch> getImportBatches() throws SQLException {
+        String sql = "SELECT id, fileName, importedBy, importedOn, rowsRead, rowsAdded, "
+                + "rowsSkipped FROM ImportBatch ORDER BY id DESC";
+        List<ImportBatch> batches = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                batches.add(new ImportBatch(rs.getInt("id"), rs.getString("fileName"),
+                        rs.getString("importedBy"), LocalDateTime.parse(rs.getString("importedOn")),
+                        rs.getInt("rowsRead"), rs.getInt("rowsAdded"), rs.getInt("rowsSkipped")));
+            }
+        }
+        return batches;
+    }
+
+    /**
+     * The rows of one import in file order. Pass "ADDED" or "SKIPPED" to see only those rows, or
+     * null for all. At most limit rows are returned.
+     */
+    public synchronized List<ImportRecord> getImportRecords(int batchId, String status, int limit)
+            throws SQLException {
+        String sql = "SELECT id, batchId, lineNo, plateNumber, vehicleType, make, model, year, "
+                + "renterName, startDate, endDate, milesDriven, status, message FROM ImportRecord "
+                + "WHERE batchId = ? AND (? IS NULL OR status = ?) ORDER BY lineNo LIMIT ?";
+        List<ImportRecord> rows = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, batchId);
+            ps.setString(2, status);
+            ps.setString(3, status);
+            ps.setInt(4, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(readImportRecord(rs));
+                }
+            }
+        }
+        return rows;
+    }
+
+    private ImportRecord readImportRecord(ResultSet rs) throws SQLException {
+        String start = rs.getString("startDate");
+        String end = rs.getString("endDate");
+        return new ImportRecord(rs.getInt("id"), rs.getInt("batchId"), rs.getInt("lineNo"),
+                rs.getString("plateNumber"), rs.getString("vehicleType"), rs.getString("make"),
+                rs.getString("model"), (Integer) rs.getObject("year"), rs.getString("renterName"),
+                start == null ? null : LocalDate.parse(start),
+                end == null ? null : LocalDate.parse(end), (Integer) rs.getObject("milesDriven"),
+                "ADDED".equals(rs.getString("status")), rs.getString("message"));
     }
 
     private int readGeneratedId(PreparedStatement ps) throws SQLException {

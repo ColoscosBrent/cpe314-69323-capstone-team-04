@@ -8,6 +8,7 @@ public class ImportResult {
     private int imported;
     private int skipped;
     private final List<String> errors = new ArrayList<>();
+    private int batchId;
 
     /** Returns how many rentals were saved. */
     public int getImported() {
@@ -32,5 +33,15 @@ public class ImportResult {
     /** Adds the number of rentals saved in one batch. */
     public void addImported(int count) {
         imported += count;
+    }
+
+    /** Returns the id of this import in the Import history (0 when it was not saved there). */
+    public int getBatchId() {
+        return batchId;
+    }
+
+    /** Remembers the id of this import in the Import history. */
+    public void setBatchId(int batchId) {
+        this.batchId = batchId;
     }
 }

@@ -33,12 +33,13 @@ public abstract class Vehicle {
         this.categoryPath = categoryPath;
     }
 
-    // Each subclass answers with its own type: SEDAN, SUV, or MOTORCYCLE.
+    /** Each subclass answers with its own type: SEDAN, SUV, or MOTORCYCLE. */
     public abstract String getType();
 
-    // The extra-mile fee rule of the type, so the screens can show it to renters before they book.
+    /** The free miles per rental day of this type, shown to renters before they book. */
     public abstract int getFreeMilesPerDay();
 
+    /** The fee for each mile over the free miles. */
     public abstract double getFeePerExtraMile();
 
     /**
@@ -56,11 +57,12 @@ public abstract class Vehicle {
         return make + " " + model + (year > 0 ? " " + year : "");
     }
 
-    // Each subclass has its own mileage fee rule, so each one writes its own version.
+    /** The cost of a rental. Each subclass has its own mileage fee rule. */
     public abstract double computeRentalCost(int days, int milesDriven);
 
     // Shared formula that the subclasses call with their own free miles and fee per extra mile.
-    protected double baseCost(int days, int milesDriven, int freeMilesPerDay, double feePerExtraMile) {
+    protected double baseCost(int days, int milesDriven, int freeMilesPerDay,
+            double feePerExtraMile) {
         if (days <= 0) {
             throw new IllegalArgumentException("days must be at least 1");
         }
@@ -96,6 +98,7 @@ public abstract class Vehicle {
 
     @Override
     public String toString() {
-        return getType() + " - " + make + " " + model + (year > 0 ? " " + year : "") + " (" + plateNumber + ")";
+        return getType() + " - " + make + " " + model + (year > 0 ? " " + year : "") + " ("
+                + plateNumber + ")";
     }
 }

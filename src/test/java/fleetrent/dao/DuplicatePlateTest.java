@@ -37,7 +37,8 @@ class DuplicatePlateTest {
     }
 
     private static Vehicle sedan(String plate) {
-        return VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, plate, "White", 1500, 0, null, "Car > Sedan > Compact Sedan");
+        return VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, plate, "White", 1500, 0,
+                null, "Car > Sedan > Compact Sedan");
     }
 
     @Test

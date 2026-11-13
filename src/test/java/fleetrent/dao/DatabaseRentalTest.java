@@ -36,7 +36,8 @@ class DatabaseRentalTest {
         service = new RentalService(db);
         renterA = db.insertRenter(new Renter(0, "Ana", null, null, null));
         renterB = db.insertRenter(new Renter(0, "Ben", null, null, null));
-        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020, "ABC 123",
+        vehicleId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020,
+                "ABC 123",
                 "White", 1000, 0, null, "Car > Sedan"));
     }
 

@@ -45,7 +45,8 @@ class PaymentAndMaintenanceTest {
                 () -> new Maintenance(0, 1, DAY, MaintenanceType.PMS, -5, null));
         assertThrows(IllegalArgumentException.class,
                 () -> new Maintenance(0, 1, null, MaintenanceType.PMS, 5, null));
-        assertThrows(IllegalArgumentException.class, () -> new Maintenance(0, 1, DAY, null, 5, null));
+        assertThrows(IllegalArgumentException.class, () -> new Maintenance(0, 1, DAY, null, 5,
+                null));
     }
 
     @Test

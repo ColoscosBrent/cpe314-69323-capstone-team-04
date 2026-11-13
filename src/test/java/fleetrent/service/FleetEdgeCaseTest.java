@@ -41,9 +41,11 @@ class FleetEdgeCaseTest {
         db.createTables();
         fleet = new FleetService(db);
         booking = new BookingService(db, () -> TODAY);
-        carId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+        carId = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022,
+                "ABC 123", "White",
                 1500, 1000, null, "Car > Sedan"));
-        suvId = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021, "SUV 777", "Black",
+        suvId = db.insertVehicle(VehicleFactory.create(0, "SUV", "Ford", "Everest", 2021,
+                "SUV 777", "Black",
                 2500, 5000, null, "Car > SUV"));
         renterId = db.insertRenter(new Renter(0, "Ana Reyes", "09171234567", null, null));
     }
@@ -53,42 +55,56 @@ class FleetEdgeCaseTest {
         db.close();
     }
 
-    private Vehicle edited(String make, String model, int year, String plate, double rate, int mileage) {
-        return VehicleFactory.create(carId, "SEDAN", make, model, year, plate, "White", rate, mileage, null,
+    private Vehicle edited(String make, String model, int year, String plate, double rate,
+            int mileage) {
+        return VehicleFactory.create(carId, "SEDAN", make, model, year, plate, "White", rate,
+                mileage, null,
                 "Car > Sedan");
     }
 
     @Test
     void editRefusesAnEmptyMakeOrModel() {
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("", "Vios", 2022, "ABC 123", 1500, 0)));
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("   ", "Vios", 2022, "ABC 123", 1500, 0)));
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", null, 2022, "ABC 123", 1500, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("", "Vios",
+                2022, "ABC 123", 1500, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("   ",
+                "Vios", 2022, "ABC 123", 1500, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                null, 2022, "ABC 123", 1500, 0)));
     }
 
     @Test
     void editRefusesAnEmptyPlate() {
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "", 1500, 0)));
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, null, 1500, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "", 1500, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, null, 1500, 0)));
     }
 
     @Test
     void editRefusesARateOfZeroOrLessOrNotANumber() {
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", 0, 0)));
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", -5, 0)));
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", Double.NaN, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "ABC 123", 0, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "ABC 123", -5, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "ABC 123", Double.NaN, 0)));
         assertThrows(IllegalArgumentException.class,
-                () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", Double.POSITIVE_INFINITY, 0)));
+                () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123",
+                        Double.POSITIVE_INFINITY, 0)));
     }
 
     @Test
     void editRefusesANegativeMileageOrYear() {
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", 1500, -1)));
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", -2022, "ABC 123", 1500, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "ABC 123", 1500, -1)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", -2022, "ABC 123", 1500, 0)));
     }
 
     @Test
     void aRefusedEditChangesNothingInTheDatabase() throws SQLException {
-        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "ABC 123", 0, 0)));
+        assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "ABC 123", 0, 0)));
         Vehicle same = db.getVehicleById(carId);
         assertEquals(1500, same.getDailyRate(), 0.001);
         assertEquals(1000, same.getMileage());
@@ -102,8 +118,10 @@ class FleetEdgeCaseTest {
 
     @Test
     void editToThePlateOfAnotherVehicleIsRefusedEvenWithOtherCapitalsAndSpaces() {
-        assertThrows(IllegalStateException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "suv 777", 1500, 0)));
-        assertThrows(IllegalStateException.class, () -> fleet.updateVehicle(edited("Toyota", "Vios", 2022, "  SUV 777 ", 1500, 0)));
+        assertThrows(IllegalStateException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "suv 777", 1500, 0)));
+        assertThrows(IllegalStateException.class, () -> fleet.updateVehicle(edited("Toyota",
+                "Vios", 2022, "  SUV 777 ", 1500, 0)));
     }
 
     @Test
@@ -115,7 +133,8 @@ class FleetEdgeCaseTest {
 
     @Test
     void editOfAnUnknownVehicleIsRefused() {
-        Vehicle ghost = VehicleFactory.create(999, "SEDAN", "Toyota", "Vios", 2022, "GHO 999", "White", 1500, 0, null,
+        Vehicle ghost = VehicleFactory.create(999, "SEDAN", "Toyota", "Vios", 2022, "GHO 999",
+                "White", 1500, 0, null,
                 "Car > Sedan");
         assertThrows(IllegalArgumentException.class, () -> fleet.updateVehicle(ghost));
     }
@@ -160,7 +179,8 @@ class FleetEdgeCaseTest {
     @Test
     void aRemovedVehicleIsHiddenFromTheRenterBrowseList() throws SQLException {
         fleet.removeVehicle(carId);
-        assertTrue(booking.browse(TODAY, TODAY.plusDays(1)).stream().noneMatch(o -> o.vehicle().getId() == carId));
+        assertTrue(booking.browse(TODAY, TODAY.plusDays(1)).stream().noneMatch(o -> o.vehicle()
+                .getId() == carId));
         assertEquals(1, booking.browse(TODAY, TODAY.plusDays(1)).size());
     }
 
@@ -191,13 +211,18 @@ class FleetEdgeCaseTest {
     @Test
     void theFactoryRefusesAnUnknownOrMissingType() {
         assertThrows(IllegalArgumentException.class,
-                () -> VehicleFactory.create(0, "TRUCK", "A", "B", 2020, "X 1", "Red", 100, 0, null, "Car"));
+                () -> VehicleFactory.create(0, "TRUCK", "A", "B", 2020, "X 1", "Red", 100, 0, null,
+                        "Car"));
         assertThrows(IllegalArgumentException.class,
-                () -> VehicleFactory.create(0, null, "A", "B", 2020, "X 1", "Red", 100, 0, null, "Car"));
+                () -> VehicleFactory.create(0, null, "A", "B", 2020, "X 1", "Red", 100, 0, null,
+                        "Car"));
         assertThrows(IllegalArgumentException.class,
-                () -> VehicleFactory.create(0, "sedan", "A", "B", 2020, "X 1", "Red", 100, 0, null, "Car"));
-        assertThrows(IllegalArgumentException.class, () -> VehicleFactory.defaultCategoryPath(null));
-        assertThrows(IllegalArgumentException.class, () -> VehicleFactory.defaultCategoryPath("TRUCK"));
+                () -> VehicleFactory.create(0, "sedan", "A", "B", 2020, "X 1", "Red", 100, 0, null,
+                        "Car"));
+        assertThrows(IllegalArgumentException.class, () ->
+                VehicleFactory.defaultCategoryPath(null));
+        assertThrows(IllegalArgumentException.class, () ->
+                VehicleFactory.defaultCategoryPath("TRUCK"));
     }
 
     @Test
@@ -217,7 +242,8 @@ class FleetEdgeCaseTest {
     void strangeTextInVehicleFieldsIsStoredAsTextAndReadBackTheSame() throws SQLException {
         String make = "O'Brien; DROP TABLE Vehicle;--";
         String model = "Ñandú \"Ünï\" 日本語";
-        int id = db.insertVehicle(VehicleFactory.create(0, "SUV", make, model, 2020, "Ñ-1 '2'", "Red", 100, 0, null,
+        int id = db.insertVehicle(VehicleFactory.create(0, "SUV", make, model, 2020, "Ñ-1 '2'",
+                "Red", 100, 0, null,
                 "Car > SUV"));
         Vehicle back = db.getVehicleById(id);
         assertEquals(make, back.getMake());

@@ -32,8 +32,10 @@ public class Rental {
     /**
      * A new rental starts as ONGOING with no return date yet.
      */
-    public static Rental startNew(int renterId, int vehicleId, LocalDate startDate, LocalDate endDate) {
-        return new Rental(0, renterId, vehicleId, startDate, endDate, null, 0, RentalStatus.ONGOING);
+    public static Rental startNew(int renterId, int vehicleId, LocalDate startDate,
+            LocalDate endDate) {
+        return new Rental(0, renterId, vehicleId, startDate, endDate, null, 0,
+                RentalStatus.ONGOING);
     }
 
     /**

@@ -60,7 +60,8 @@ class DatabaseTest {
         int renterId = db.insertRenter(new Renter(0, "Ben", "0918", "ben@x.com", "Mandaue"));
         int vehicleId = db.insertVehicle(new Sedan(0, "Toyota", "Vios", 2020, "ABC123", "White",
                 1500.0, 3000, null, "Car > Sedan"));
-        db.insertRental(Rental.startNew(renterId, vehicleId, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 3)));
+        db.insertRental(Rental.startNew(renterId, vehicleId, LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 3)));
         List<Rental> rentals = db.getRentalsByRenter(renterId);
         assertEquals(1, rentals.size());
         assertEquals(RentalStatus.ONGOING, rentals.get(0).getStatus());
@@ -69,13 +70,15 @@ class DatabaseTest {
 
     @Test
     void rentalWithUnknownRenterIsRejected() {
-        Rental bad = Rental.startNew(999, 999, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 3));
+        Rental bad = Rental.startNew(999, 999, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10,
+                3));
         assertThrows(SQLException.class, () -> db.insertRental(bad));
     }
 
     @Test
     void unknownYearIsStoredAsNullAndReadBackAsZero() throws SQLException {
-        Vehicle bike = new Motorcycle(0, "Honda", "Rebel 500", 0, "MC 001", "Black", 900.0, 0, null, "Motorcycle");
+        Vehicle bike = new Motorcycle(0, "Honda", "Rebel 500", 0, "MC 001", "Black", 900.0, 0,
+                null, "Motorcycle");
         db.insertVehicle(bike);
         Vehicle loaded = db.getAllVehicles().get(0);
         assertEquals(0, loaded.getYear());

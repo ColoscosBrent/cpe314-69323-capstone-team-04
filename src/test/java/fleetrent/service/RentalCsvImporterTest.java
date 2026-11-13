@@ -44,7 +44,8 @@ class RentalCsvImporterTest {
 
     @Test
     void goodRowIsParsed() {
-        RentalCsvImporter.Row row = RentalCsvImporter.parseRow("abc 123, Ana Reyes ,2026-03-01,2026-03-04,250", plates);
+        RentalCsvImporter.Row row =
+                RentalCsvImporter.parseRow("abc 123, Ana Reyes ,2026-03-01,2026-03-04,250", plates);
         assertEquals("Ana Reyes", row.renterName);
         assertEquals(LocalDate.of(2026, 3, 4), row.end);
         assertEquals(250, row.miles);
@@ -64,7 +65,8 @@ class RentalCsvImporterTest {
             "ABC 123,Ana,2026-03-01,2026-03-04,-5"
         };
         for (String line : bad) {
-            assertThrows(IllegalArgumentException.class, () -> RentalCsvImporter.parseRow(line, plates), line);
+            assertThrows(IllegalArgumentException.class, () -> RentalCsvImporter.parseRow(line,
+                    plates), line);
         }
     }
 

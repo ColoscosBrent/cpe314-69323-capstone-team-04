@@ -39,9 +39,11 @@ class BookingEdgeCaseTest {
         db = new Database("jdbc:sqlite::memory:");
         db.createTables();
         booking = new BookingService(db, () -> TODAY);
-        car = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White", 1500, 0,
+        car = db.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2022, "ABC 123",
+                "White", 1500, 0,
                 null, "Car > Sedan"));
-        bike = db.insertVehicle(VehicleFactory.create(0, "MOTORCYCLE", "Honda", "Click", 2023, "MOTO 1", "Red", 600, 0,
+        bike = db.insertVehicle(VehicleFactory.create(0, "MOTORCYCLE", "Honda", "Click", 2023,
+                "MOTO 1", "Red", 600, 0,
                 null, "Motorcycle"));
         ana = db.insertRenter(new Renter(0, "Ana Reyes", "09171234567", null, null));
         ben = db.insertRenter(new Renter(0, "Ben Cruz", "09181234567", null, null));
@@ -64,27 +66,34 @@ class BookingEdgeCaseTest {
         LocalDate start = TODAY.plusDays(5);
         assertNotNull(booking.reserve(ana, car, start, start.plusDays(BookingService.MAX_DAYS)));
         assertThrows(IllegalArgumentException.class,
-                () -> booking.reserve(ana, bike, start, start.plusDays(BookingService.MAX_DAYS + 1)));
+                () -> booking.reserve(ana, bike, start, start.plusDays(BookingService.MAX_DAYS
+                        + 1)));
     }
 
     @Test
     void theLastAllowedStartDayIsOneHundredEightyDaysAhead() throws SQLException {
         LocalDate last = TODAY.plusDays(BookingService.MAX_DAYS_AHEAD);
         assertNotNull(booking.reserve(ana, car, last, last));
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, bike, last.plusDays(1), last.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, bike,
+                last.plusDays(1), last.plusDays(1)));
     }
 
     @Test
     void reservingTodayOrInThePastIsRefused() {
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY, TODAY.plusDays(1)));
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY.minusDays(3), TODAY));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY,
+                TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car,
+                TODAY.minusDays(3), TODAY));
     }
 
     @Test
     void anEndDateBeforeTheStartIsRefusedEverywhere() {
-        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car, TODAY.plusDays(5), TODAY.plusDays(4)));
-        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, car, TODAY.minusDays(1)));
-        assertThrows(IllegalArgumentException.class, () -> booking.browse(TODAY.plusDays(2), TODAY.plusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.reserve(ana, car,
+                TODAY.plusDays(5), TODAY.plusDays(4)));
+        assertThrows(IllegalArgumentException.class, () -> booking.rentNow(ana, car,
+                TODAY.minusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> booking.browse(TODAY.plusDays(2),
+                TODAY.plusDays(1)));
     }
 
     @Test
@@ -97,9 +106,11 @@ class BookingEdgeCaseTest {
     @Test
     void anUnknownVehicleOrRenterIsRefusedAndNothingIsSaved() throws SQLException {
         assertThrows(RuntimeException.class, () -> booking.rentNow(ana, 9999, TODAY.plusDays(1)));
-        assertThrows(RuntimeException.class, () -> booking.reserve(ana, 9999, TODAY.plusDays(2), TODAY.plusDays(3)));
+        assertThrows(RuntimeException.class, () -> booking.reserve(ana, 9999, TODAY.plusDays(2),
+                TODAY.plusDays(3)));
         assertThrows(RuntimeException.class, () -> booking.rentNow(9999, car, TODAY.plusDays(1)));
-        assertThrows(RuntimeException.class, () -> booking.reserve(9999, car, TODAY.plusDays(2), TODAY.plusDays(3)));
+        assertThrows(RuntimeException.class, () -> booking.reserve(9999, car, TODAY.plusDays(2),
+                TODAY.plusDays(3)));
         assertTrue(db.getAllRentals().isEmpty());
         assertTrue(db.getAllReservations().isEmpty());
     }
@@ -173,14 +184,17 @@ class BookingEdgeCaseTest {
     @Test
     void oneDayReservationOnTheSameDayAsAnotherIsRefused() throws SQLException {
         booking.reserve(ana, car, TODAY.plusDays(2), TODAY.plusDays(2));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(2), TODAY.plusDays(2)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(2), TODAY.plusDays(2)));
     }
 
     @Test
     void aReservationInsideALongerOneIsRefused() throws SQLException {
         booking.reserve(ana, car, TODAY.plusDays(2), TODAY.plusDays(10));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(4), TODAY.plusDays(5)));
-        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car, TODAY.plusDays(1), TODAY.plusDays(11)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(4), TODAY.plusDays(5)));
+        assertThrows(IllegalStateException.class, () -> booking.reserve(ben, car,
+                TODAY.plusDays(1), TODAY.plusDays(11)));
     }
 
     @Test
@@ -203,13 +217,15 @@ class BookingEdgeCaseTest {
     void browseOfAnEmptyFleetIsAnEmptyList() throws SQLException {
         Database empty = new Database("jdbc:sqlite::memory:");
         empty.createTables();
-        assertTrue(new BookingService(empty, () -> TODAY).browse(TODAY, TODAY.plusDays(2)).isEmpty());
+        assertTrue(new BookingService(empty, () -> TODAY).browse(TODAY, TODAY.plusDays(2))
+                .isEmpty());
         empty.close();
     }
 
     @Test
     void estimateOfASameDayRentalIsOneDailyRate() {
-        Vehicle v = VehicleFactory.create(1, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White", 1500, 0, null, "Car");
+        Vehicle v = VehicleFactory.create(1, "SEDAN", "Toyota", "Vios", 2022, "ABC 123", "White",
+                1500, 0, null, "Car");
         assertEquals(1500.0, BookingService.estimate(v, TODAY, TODAY), 0.001);
         assertEquals(1500.0, BookingService.estimate(v, TODAY, TODAY.plusDays(1)), 0.001);
         assertEquals(4500.0, BookingService.estimate(v, TODAY, TODAY.plusDays(3)), 0.001);

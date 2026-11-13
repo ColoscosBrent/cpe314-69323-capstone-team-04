@@ -22,7 +22,8 @@ public class Account {
 
     /** Creates an account. */
     public Account(int id, String username, Role role, String displayName, String passwordHash,
-                   String passwordSalt, String securityQuestion, String answerHash, String answerSalt,
+                   String passwordSalt, String securityQuestion, String answerHash,
+                           String answerSalt,
                    Integer renterId, LocalDate createdOn) {
         this.id = id;
         this.username = username;

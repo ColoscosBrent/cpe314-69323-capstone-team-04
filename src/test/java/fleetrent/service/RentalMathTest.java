@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 class RentalMathTest {
     @Test
     void normalRentalCountsTheDaysBetween() {
-        assertEquals(3, RentalMath.billableDays(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 4)));
+        assertEquals(3, RentalMath.billableDays(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3,
+                4)));
     }
 
     @Test
@@ -27,6 +28,7 @@ class RentalMathTest {
 
     @Test
     void missingDateIsRejected() {
-        assertThrows(IllegalArgumentException.class, () -> RentalMath.billableDays(null, LocalDate.now()));
+        assertThrows(IllegalArgumentException.class, () -> RentalMath.billableDays(null,
+                LocalDate.now()));
     }
 }

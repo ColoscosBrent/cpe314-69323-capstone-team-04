@@ -17,11 +17,14 @@ public class VehicleFactory {
         }
         switch (type) {
             case "SEDAN":
-                return new Sedan(id, make, model, year, plateNumber, color, dailyRate, mileage, lastPMS, categoryPath);
+                return new Sedan(id, make, model, year, plateNumber, color, dailyRate, mileage,
+                        lastPMS, categoryPath);
             case "SUV":
-                return new Suv(id, make, model, year, plateNumber, color, dailyRate, mileage, lastPMS, categoryPath);
+                return new Suv(id, make, model, year, plateNumber, color, dailyRate, mileage,
+                        lastPMS, categoryPath);
             case "MOTORCYCLE":
-                return new Motorcycle(id, make, model, year, plateNumber, color, dailyRate, mileage, lastPMS, categoryPath);
+                return new Motorcycle(id, make, model, year, plateNumber, color, dailyRate,
+                        mileage, lastPMS, categoryPath);
             default:
                 throw new IllegalArgumentException("Unknown vehicle type: " + type);
         }

@@ -82,7 +82,8 @@ class ValidatorsTest {
     void normalizeCleansText() {
         assertEquals("ABC 123", Validators.normalize(Validators.Kind.PLATE, " abc   123 "));
         assertEquals("a@b.com", Validators.normalize(Validators.Kind.EMAIL, " A@B.com "));
-        assertEquals("Juan dela Cruz", Validators.normalize(Validators.Kind.NAME, "Juan  dela Cruz"));
+        assertEquals("Juan dela Cruz", Validators.normalize(Validators.Kind.NAME,
+                "Juan  dela Cruz"));
     }
 
     @Test

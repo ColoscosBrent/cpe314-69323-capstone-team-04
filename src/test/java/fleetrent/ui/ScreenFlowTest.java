@@ -53,9 +53,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-// Clicks through the real screens (login, owner, renter) the way a person would. It uses a temporary
+// Clicks through the real screens (login, owner, renter) the way a person would. It uses a
+// temporary
 // database file and a fake NHTSA server, so it never touches fleetrent.db and needs no internet.
-// If the computer has no display for JavaFX (for example a server), every test here is skipped, not failed.
+// If the computer has no display for JavaFX (for example a server), every test here is skipped, not
+// failed.
 @Timeout(value = 90, unit = TimeUnit.SECONDS)
 class ScreenFlowTest {
     private static boolean fxReady;
@@ -70,9 +72,12 @@ class ScreenFlowTest {
             server.createContext("/", ex -> {
                 String path = ex.getRequestURI().toString();
                 String body = path.contains("GetMakesForVehicleType")
-                        ? "{\"Results\":[{\"MakeName\":\"HONDA\"},{\"MakeName\":\"YAMAHA\"},{\"MakeName\":\"DUCATI\"}]}"
-                        : "{\"Results\":[{\"Make_Name\":\"HONDA\",\"Model_ID\":1,\"Model_Name\":\"CB500F\"},"
-                        + "{\"Make_Name\":\"HONDA\",\"Model_ID\":2,\"Model_Name\":\"CB1000  Hornet\"},"
+                        ? "{\"Results\":[{\"MakeName\":\"HONDA\"},{\"MakeName\":\"YAMAHA\"},{\"Ma"
+                                + "keName\":\"DUCATI\"}]}"
+                        : "{\"Results\":[{\"Make_Name\":\"HONDA\",\"Model_ID\":1,\"Model_Nam"
+                                + "e\":\"CB500F\"},"
+                        + "{\"Make_Name\":\"HONDA\",\"Model_ID\":2,\"Model_Name\":\"CB1000  "
+                                + "Hornet\"},"
                         + "{\"Make_Name\":\"HONDA\",\"Model_ID\":3,\"Model_Name\":\"Rebel 500\"}]}";
                 byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                 ex.sendResponseHeaders(200, bytes.length);
@@ -80,7 +85,8 @@ class ScreenFlowTest {
                 ex.close();
             });
             server.start();
-            System.setProperty("fleetrent.vpicUrl", "http://127.0.0.1:" + server.getAddress().getPort() + "/api");
+            System.setProperty("fleetrent.vpicUrl", "http://127.0.0.1:" + server.getAddress()
+                    .getPort() + "/api");
             CountDownLatch started = new CountDownLatch(1);
             try {
                 Platform.startup(started::countDown);
@@ -104,7 +110,8 @@ class ScreenFlowTest {
 
     @BeforeEach
     void openApp() throws Exception {
-        Assumptions.assumeTrue(fxReady, "JavaFX cannot start here (no display), so the screen tests are skipped");
+        Assumptions.assumeTrue(fxReady,
+                "JavaFX cannot start here (no display), so the screen tests are skipped");
         file = Files.createTempFile("fleetrent-screen", ".db");
         String url = "jdbc:sqlite:" + file.toAbsolutePath();
         try (Database db = new Database(url)) {
@@ -113,9 +120,11 @@ class ScreenFlowTest {
                 db.insertVehicle(v);
             }
             AuthService auth = new AuthService(db);
-            auth.signUpOwner("owner01", "Passw0rd1", "Maria Santos", AuthService.SECURITY_QUESTIONS.get(0), "Rex",
+            auth.signUpOwner("owner01", "Passw0rd1", "Maria Santos",
+                    AuthService.SECURITY_QUESTIONS.get(0), "Rex",
                     AuthService.OWNER_CODE);
-            auth.signUpRenter("ana_reyes", "Passw0rd1", new Renter(0, "Ana Reyes", "09171234567", "ana@example.com",
+            auth.signUpRenter("ana_reyes", "Passw0rd1", new Renter(0, "Ana Reyes", "09171234567",
+                    "ana@example.com",
                     "12 Rizal St, Cebu"), AuthService.SECURITY_QUESTIONS.get(0), "Rex");
             ana = db.findAccountByUsername("ana_reyes").getRenterId();
         }
@@ -168,7 +177,8 @@ class ScreenFlowTest {
 
     private static Stage mainStage() {
         for (Window w : Window.getWindows()) {
-            if (w instanceof Stage s && s.isShowing() && s.getTitle() != null && s.getTitle().startsWith("FleetRent") && !s.getTitle().contains("database problem")) {
+            if (w instanceof Stage s && s.isShowing() && s.getTitle() != null && s.getTitle()
+                    .startsWith("FleetRent") && !s.getTitle().contains("database problem")) {
                 return s;
             }
         }
@@ -214,7 +224,8 @@ class ScreenFlowTest {
     }
 
     private static void click(String text) throws Exception {
-        until(() -> button(text) != null && !button(text).isDisabled(), "the button '" + text + "' can be pressed");
+        until(() -> button(text) != null && !button(text).isDisabled(), "the button '" + text
+                + "' can be pressed");
         onFx(() -> {
             button(text).fire();
             return null;
@@ -316,7 +327,8 @@ class ScreenFlowTest {
     // Runs on the JavaFX thread (call it inside until(...)).
     private static int sizeOfList(Class<?> itemType, String styleClass) {
         for (ListView<?> l : all(ListView.class)) {
-            if (l.getStyleClass().contains(styleClass) && !l.getItems().isEmpty() && itemType.isInstance(l.getItems().get(0))) {
+            if (l.getStyleClass().contains(styleClass) && !l.getItems().isEmpty()
+                    && itemType.isInstance(l.getItems().get(0))) {
                 return l.getItems().size();
             }
         }
@@ -420,7 +432,8 @@ class ScreenFlowTest {
         click("Reserve these days");
         until(() -> hasText("Reservation #"), "the reservation message");
         openTab("My bookings");
-        until(() -> button("Cancel selected reservation") != null, "My bookings with its cancel button");
+        until(() -> button("Cancel selected reservation") != null,
+                "My bookings with its cancel button");
         click("Sign out");
         until(() -> button("Log in") != null, "the login screen after sign out");
         assertTrue(onFx(() -> button("Sign out") == null));
@@ -460,7 +473,8 @@ class ScreenFlowTest {
         }
         login("owner01", "Passw0rd1");
         until(() -> button("Sign out") != null, "the owner screen");
-        assertEquals(List.of("Vehicles", "Rentals", "Reservations", "Import", "Dashboard"), tabNames());
+        assertEquals(List.of("Vehicles", "Rentals", "Reservations", "Import", "Dashboard"),
+                tabNames());
         openTab("Reservations");
         until(() -> anyListHas(Reservation.class), "the reservation is listed");
     }
@@ -483,7 +497,8 @@ class ScreenFlowTest {
             new BookingService(db, LocalDate::now).reserve(ana, db.getAllVehicles().get(1).getId(),
                     LocalDate.now().plusDays(2), LocalDate.now().plusDays(3));
         }
-        until(() -> anyListHas(Reservation.class), "the new reservation shows up without pressing anything");
+        until(() -> anyListHas(Reservation.class),
+                "the new reservation shows up without pressing anything");
     }
 
     @SuppressWarnings("unchecked")
@@ -503,7 +518,8 @@ class ScreenFlowTest {
         until(() -> hasListItem(String.class, "HONDA"), "the makes list from NHTSA");
         onFx(() -> {
             for (ListView<?> l : all(ListView.class)) {
-                if (l.getStyleClass().contains("plain-list") && !l.getItems().isEmpty() && l.getItems().get(0) instanceof String) {
+                if (l.getStyleClass().contains("plain-list") && !l.getItems().isEmpty()
+                        && l.getItems().get(0) instanceof String) {
                     ((ListView<String>) l).getSelectionModel().select("HONDA");
                 }
             }
@@ -512,7 +528,8 @@ class ScreenFlowTest {
         until(() -> anyListHas(VehicleModelInfo.class), "the models list from NHTSA");
         onFx(() -> {
             for (ListView<?> l : all(ListView.class)) {
-                if (l.getStyleClass().contains("plain-list") && !l.getItems().isEmpty() && l.getItems().get(0) instanceof VehicleModelInfo) {
+                if (l.getStyleClass().contains("plain-list") && !l.getItems().isEmpty()
+                        && l.getItems().get(0) instanceof VehicleModelInfo) {
                     ListView<VehicleModelInfo> models = (ListView<VehicleModelInfo>) l;
                     for (VehicleModelInfo m : models.getItems()) {
                         if (Validators.sameName(m.getModelName(), "CB1000 Hornet")) {
@@ -545,7 +562,8 @@ class ScreenFlowTest {
         type("1500", "950");
         click("Add Vehicle");
         until(() -> hasText("Saved:"), "the Saved message");
-        until(() -> sizeOfList(Vehicle.class, "vehicle-list") == before + 1, "the new vehicle is in the fleet list");
+        until(() -> sizeOfList(Vehicle.class, "vehicle-list") == before + 1,
+                "the new vehicle is in the fleet list");
         try (Database check = new Database(System.getProperty("fleetrent.dbUrl"))) {
             Vehicle saved = check.findVehicleByPlate("NEW 777");
             assertNotNull(saved);
@@ -557,7 +575,8 @@ class ScreenFlowTest {
 
     private static boolean hasListItem(Class<?> type, Object item) {
         for (ListView<?> l : all(ListView.class)) {
-            if (!l.getItems().isEmpty() && type.isInstance(l.getItems().get(0)) && l.getItems().contains(item)) {
+            if (!l.getItems().isEmpty() && type.isInstance(l.getItems().get(0)) && l.getItems()
+                    .contains(item)) {
                 return true;
             }
         }
@@ -572,7 +591,8 @@ class ScreenFlowTest {
             button("Edit").fire();
             return null;
         });
-        until(() -> button("Save changes") != null && button("Cancel editing") != null, "edit mode");
+        until(() -> button("Save changes") != null && button("Cancel editing") != null,
+                "edit mode");
         click("Cancel editing");
         until(() -> button("Add Vehicle") != null, "back to the Add form");
     }
@@ -582,12 +602,14 @@ class ScreenFlowTest {
         login("owner01", "Passw0rd1");
         until(() -> button("Remove") != null, "a vehicle card with a Remove button");
         int before = listSize(Vehicle.class, "vehicle-list");
-        // the confirm window waits for an answer, so the click is sent without waiting for it to return
+        // the confirm window waits for an answer, so the click is sent without waiting for it to
+        // return
         Platform.runLater(() -> button("Remove").fire());
         // the confirm window opens above the main window
         until(() -> {
             for (Window w : new ArrayList<>(Window.getWindows())) {
-                if (w instanceof Stage s && s != mainStage() && s.isShowing() && s.getScene() != null) {
+                if (w instanceof Stage s && s != mainStage() && s.isShowing()
+                        && s.getScene() != null) {
                     for (Node n : s.getScene().getRoot().lookupAll(".button")) {
                         if (n instanceof Button b && "Remove it".equals(b.getText())) {
                             return true;
@@ -599,7 +621,8 @@ class ScreenFlowTest {
         }, "the confirm window with the 'Remove it' button");
         Platform.runLater(() -> {
             for (Window w : new ArrayList<>(Window.getWindows())) {
-                if (w instanceof Stage s && s != mainStage() && s.isShowing() && s.getScene() != null) {
+                if (w instanceof Stage s && s != mainStage() && s.isShowing()
+                        && s.getScene() != null) {
                     for (Node n : s.getScene().getRoot().lookupAll(".button")) {
                         if (n instanceof Button b && "Remove it".equals(b.getText())) {
                             b.fire();
@@ -608,7 +631,8 @@ class ScreenFlowTest {
                 }
             }
         });
-        until(() -> sizeOfList(Vehicle.class, "vehicle-list") == before - 1, "the fleet list has one vehicle less");
+        until(() -> sizeOfList(Vehicle.class, "vehicle-list") == before - 1,
+                "the fleet list has one vehicle less");
         try (Database check = new Database(System.getProperty("fleetrent.dbUrl"))) {
             assertEquals(1, check.getRemovedVehicles().size());
         }
@@ -627,11 +651,13 @@ class ScreenFlowTest {
 
     // ---------- window size ----------
 
-    private static final double[][] SIZES = {{860, 560}, {1024, 640}, {1366, 700}, {1920, 1040}, {2560, 1400}};
+    private static final double[][] SIZES = {{860, 560}, {1024, 640}, {1366, 700}, {1920, 1040},
+            {2560, 1400}};
 
     // Makes the window this big (like dragging its corner or pressing Maximize) and checks that the
     // header buttons are still inside the window and the tabs fill the window.
-    private static void checkWindowAtEverySize(String buttonThatMustStayVisible, boolean tabs) throws Exception {
+    private static void checkWindowAtEverySize(String buttonThatMustStayVisible,
+            boolean tabs) throws Exception {
         for (double[] size : SIZES) {
             onFx(() -> {
                 Stage stage = mainStage();
@@ -640,7 +666,8 @@ class ScreenFlowTest {
                 return null;
             });
             Thread.sleep(350);
-            String where = " at " + (int) size[0] + "x" + (int) size[1] + " (tab " + currentTab() + ")";
+            String where = " at " + (int) size[0] + "x" + (int) size[1] + " (tab " + currentTab()
+                    + ")";
             onFx(() -> {
                 Stage stage = mainStage();
                 stage.getScene().getRoot().applyCss();
@@ -651,17 +678,24 @@ class ScreenFlowTest {
                 Button b = button(buttonThatMustStayVisible);
                 assertNotNull(b, buttonThatMustStayVisible + " is there" + where);
                 javafx.geometry.Bounds inScene = b.localToScene(b.getBoundsInLocal());
-                javafx.scene.layout.Region rootRegion = (javafx.scene.layout.Region) stage.getScene().getRoot();
-                assertTrue(inScene.getMaxX() <= w + 1, buttonThatMustStayVisible + " is not pushed out on the right" + where
-                        + " [scene " + (int) w + ", button right edge " + (int) inScene.getMaxX() + ", root min width "
-                        + (int) rootRegion.minWidth(-1) + ", root width " + (int) rootRegion.getWidth() + "]");
-                assertTrue(inScene.getMinX() >= 0, buttonThatMustStayVisible + " is not pushed out on the left" + where);
-                assertTrue(inScene.getMaxY() <= h + 1, buttonThatMustStayVisible + " is inside the window" + where);
+                javafx.scene.layout.Region rootRegion =
+                        (javafx.scene.layout.Region) stage.getScene().getRoot();
+                assertTrue(inScene.getMaxX() <= w + 1, buttonThatMustStayVisible
+                        + " is not pushed out on the right" + where
+                        + " [scene " + (int) w + ", button right edge " + (int) inScene.getMaxX()
+                                + ", root min width "
+                        + (int) rootRegion.minWidth(-1) + ", root width "
+                                + (int) rootRegion.getWidth() + "]");
+                assertTrue(inScene.getMinX() >= 0, buttonThatMustStayVisible
+                        + " is not pushed out on the left" + where);
+                assertTrue(inScene.getMaxY() <= h + 1, buttonThatMustStayVisible
+                        + " is inside the window" + where);
                 if (tabs) {
                     TabPane tp = all(TabPane.class).get(0);
                     javafx.geometry.Bounds tb = tp.localToScene(tp.getBoundsInLocal());
                     assertTrue(Math.abs(tb.getWidth() - w) <= 2, "the tabs fill the width" + where);
-                    assertTrue(tb.getMaxY() >= h - 2, "the tabs reach the bottom of the window" + where);
+                    assertTrue(tb.getMaxY() >= h - 2, "the tabs reach the bottom of the window"
+                            + where);
                     assertTrue(tb.getHeight() >= 250, "the tabs keep a usable height" + where);
                 }
                 return null;
@@ -678,7 +712,8 @@ class ScreenFlowTest {
     void theOwnerScreenFillsTheWindowAtEverySizeOnEveryTab() throws Exception {
         login("owner01", "Passw0rd1");
         until(() -> button("Sign out") != null, "the owner screen");
-        for (String tab : new String[]{"Vehicles", "Rentals", "Reservations", "Import", "Dashboard"}) {
+        for (String tab : new String[]{"Vehicles", "Rentals", "Reservations", "Import",
+                "Dashboard"}) {
             openTab(tab);
             checkWindowAtEverySize("Sign out", true);
         }
@@ -698,8 +733,10 @@ class ScreenFlowTest {
     void theWindowCannotBeMadeSmallerThanWhatTheScreensNeed() throws Exception {
         onFx(() -> {
             Stage stage = mainStage();
-            assertTrue(stage.getMinWidth() >= 700 && stage.getMinWidth() <= 1000, "minimum width " + stage.getMinWidth());
-            assertTrue(stage.getMinHeight() >= 450 && stage.getMinHeight() <= 700, "minimum height " + stage.getMinHeight());
+            assertTrue(stage.getMinWidth() >= 700 && stage.getMinWidth() <= 1000, "minimum width "
+                    + stage.getMinWidth());
+            assertTrue(stage.getMinHeight() >= 450 && stage.getMinHeight() <= 700,
+                    "minimum height " + stage.getMinHeight());
             return null;
         });
     }

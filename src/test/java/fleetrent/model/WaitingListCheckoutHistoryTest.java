@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-class QueueStackPersistenceShapeTest {
+class WaitingListCheckoutHistoryTest {
     @Test
     void waitingListKeepsFirstComeFirstServedOrder() {
         WaitingList line = new WaitingList();

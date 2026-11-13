@@ -62,3 +62,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS idxVehiclePlate ON Vehicle(UPPER(plateNumber))
 CREATE INDEX IF NOT EXISTS idxRentalVehicle ON Rental(vehicleId, status);
 CREATE INDEX IF NOT EXISTS idxReservationVehicle ON Reservation(vehicleId, status);
 CREATE INDEX IF NOT EXISTS idxReservationRenter ON Reservation(renterId);
+
+CREATE TABLE IF NOT EXISTS Payment (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    rentalId  INTEGER NOT NULL UNIQUE REFERENCES Rental(id) ON DELETE CASCADE,
+    amount    REAL NOT NULL CHECK (amount >= 0),
+    lateFee   REAL NOT NULL DEFAULT 0 CHECK (lateFee >= 0),
+    paidOn    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Maintenance (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicleId  INTEGER NOT NULL REFERENCES Vehicle(id),
+    doneOn     TEXT NOT NULL,
+    type       TEXT NOT NULL CHECK (type IN ('PMS', 'REPAIR', 'TIRES', 'INSPECTION', 'OTHER')),
+    cost       REAL NOT NULL DEFAULT 0 CHECK (cost >= 0),
+    note       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS WaitingEntry (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicleId  INTEGER NOT NULL REFERENCES Vehicle(id),
+    renterId   INTEGER NOT NULL REFERENCES Renter(id),
+    joinedOn   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CheckoutLog (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    rentalId  INTEGER NOT NULL UNIQUE REFERENCES Rental(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idxMaintenanceVehicle ON Maintenance(vehicleId, doneOn);
+CREATE INDEX IF NOT EXISTS idxWaitingVehicle ON WaitingEntry(vehicleId, id);

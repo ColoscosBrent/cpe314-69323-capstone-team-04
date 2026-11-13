@@ -5,20 +5,25 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
-// The rules for starting and returning a rental. It uses the database for saving, a Queue
-// (WaitingList) per vehicle for renters who want a vehicle that is already out, and a Stack
-// (CheckoutHistory) so the last check-out can be undone.
+/**
+ * The rules for starting and returning a rental. It uses the database for saving, a Queue
+ * (WaitingList) per vehicle for renters who want a vehicle that is already out, and a Stack
+ * (CheckoutHistory) so the last check-out can be undone.
+ */
 public class RentalService {
     private final Database db;
     private final Map<Integer, WaitingList> waitingByVehicle = new HashMap<>();
     private final CheckoutHistory history = new CheckoutHistory();
 
+    /** Creates a rental service. */
     public RentalService(Database db) {
         this.db = db;
     }
 
-    // Starts a rental and returns it. If the vehicle is already rented out, the renter joins the
-    // waiting list for that vehicle and the method returns null.
+    /**
+     * Starts a rental and returns it. If the vehicle is already rented out, the renter joins the
+     * waiting list for that vehicle and the method returns null.
+     */
     public Rental startRental(int renterId, int vehicleId, LocalDate start, LocalDate end) throws SQLException {
         RentalMath.billableDays(start, end);
         Vehicle vehicle = db.getVehicleById(vehicleId);
@@ -29,17 +34,31 @@ public class RentalService {
         if (renter == null) {
             throw new IllegalArgumentException("That renter does not exist.");
         }
+        if (!db.isVehicleActive(vehicleId)) {
+            throw new IllegalArgumentException("That vehicle was removed from the fleet.");
+        }
         if (db.hasOngoingRental(vehicleId)) {
             waitingByVehicle.computeIfAbsent(vehicleId, id -> new WaitingList()).join(renter);
             return null;
         }
+        if (db.hasReservationOverlap(vehicleId, start, end)) {
+            throw new IllegalStateException("That vehicle is reserved by a renter for some of those days. "
+                    + "Pick other dates or another vehicle.");
+        }
         Rental rental = Rental.startNew(renterId, vehicleId, start, end);
-        db.insertRental(rental);
+        // Check and save in one step: a renter in another window may have booked these days a
+        // moment ago.
+        if (!db.insertRentalIfFree(rental, start)) {
+            throw new IllegalStateException("That vehicle was just booked for some of those days. "
+                    + "Pick other dates or another vehicle.");
+        }
         history.record(rental);
         return rental;
     }
 
-    // Closes a rental and returns the final cost. Works for an early return too.
+    /**
+     * Closes a rental and returns the final cost. Works for an early return too.
+     */
     public double returnRental(int rentalId, LocalDate returnDate, int milesDriven) throws SQLException {
         if (milesDriven < 0) {
             throw new IllegalArgumentException("Miles driven cannot be negative.");
@@ -60,8 +79,10 @@ public class RentalService {
         return cost;
     }
 
-    // Undoes the most recent check-out (stack, last in first out). Returns it, or null if none.
-    // A rental that was already returned cannot be undone, so it is skipped with an exception.
+    /**
+     * Undoes the most recent check-out (stack, last in first out). Returns it, or null if none. A
+     * rental that was already returned cannot be undone, so it is skipped with an exception.
+     */
     public Rental undoLastCheckout() throws SQLException {
         Rental last = history.undoLast();
         if (last == null) {
@@ -78,12 +99,15 @@ public class RentalService {
         return fresh;
     }
 
-    // The next renter in line for this vehicle (removed from the line), or null.
+    /**
+     * The next renter in line for this vehicle (removed from the line), or null.
+     */
     public Renter serveNextWaiting(int vehicleId) {
         WaitingList line = waitingByVehicle.get(vehicleId);
         return line == null ? null : line.serveNext();
     }
 
+    /** Returns how many renters wait for a vehicle. */
     public int waitingCount(int vehicleId) {
         WaitingList line = waitingByVehicle.get(vehicleId);
         return line == null ? 0 : line.size();

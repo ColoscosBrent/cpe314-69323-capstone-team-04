@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.ui;
+
 
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;

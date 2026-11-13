@@ -1,11 +1,10 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.ImportController;
+import fleetrent.model.ImportResult;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.List;
 import javafx.concurrent.Task;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
@@ -23,7 +22,9 @@ import javafx.stage.FileChooser;
  * bar.
  */
 public class ImportTab extends Tab {
-    private final Database db;
+    private static final double PERCENT = 100.0;
+
+    private final ImportController controller;
     private final Label fileLabel = new Label("No file chosen.");
     private final Label status = new Label("Choose a CSV file, then press Import.");
     private final ProgressBar bar = new ProgressBar(0);
@@ -35,12 +36,12 @@ public class ImportTab extends Tab {
     private File chosen;
 
     /** Creates an import tab. */
-    public ImportTab(Database db) {
+    public ImportTab(ImportController controller) {
         super("Import");
-        this.db = db;
+        this.controller = controller;
         setClosable(false);
 
-        Label hint = new Label("CSV columns: " + RentalCsvImporter.HEADER);
+        Label hint = new Label("CSV columns: " + ImportController.HEADER);
         hint.getStyleClass().add("hint-label");
         fileLabel.getStyleClass().add("hint-label");
         status.getStyleClass().add("status-label");
@@ -92,26 +93,25 @@ public class ImportTab extends Tab {
         bar.setProgress(0);
         log.clear();
         status.setText("Importing...");
-        Task<RentalCsvImporter.ImportResult> task = new Task<RentalCsvImporter.ImportResult>() {
+        Task<ImportResult> task = new Task<ImportResult>() {
             @Override
-            protected RentalCsvImporter.ImportResult call() throws Exception {
+            protected ImportResult call() throws Exception {
                 // This code runs on the background thread. It only touches the window through
                 // Platform.runLater.
-                return new RentalCsvImporter().importFile(file.toPath(), db,
-                        percent -> Platform.runLater(() -> bar.setProgress(percent / 100.0)));
+                return controller.importFile(file.toPath(),
+                        percent -> Platform.runLater(() -> bar.setProgress(percent / PERCENT)));
             }
         };
         task.setOnSucceeded(e -> {
-            RentalCsvImporter.ImportResult r = task.getValue();
+            ImportResult r = task.getValue();
             status.setText("Done. Imported " + r.getImported() + " rentals, skipped " + r.getSkipped() + ".");
             log.setText(r.getErrors().isEmpty() ? "No problems found." : String.join("\n", r.getErrors()));
             setBusy(false);
         });
         task.setOnFailed(e -> {
             Throwable error = task.getException();
-            UiHelper.setStatus(status, "Import failed: " + (error instanceof java.sql.SQLException
-                    ? ErrorMessages.forDatabase("importing the rentals", (java.sql.SQLException) error)
-                    : (error == null ? "unknown error" : error.getMessage())), true);
+            UiHelper.setStatus(status, "Import failed: "
+                    + (error == null ? "unknown error" : error.getMessage()), true);
             setBusy(false);
         });
         UiHelper.runInBackground(task);
@@ -119,23 +119,17 @@ public class ImportTab extends Tab {
 
     private void addDemoVehicles() {
         try {
-            int added = 0;
-            for (Vehicle v : SampleData.demoVehicles()) {
-                if (db.findVehicleByPlate(v.getPlateNumber()) == null) {
-                    db.insertVehicle(v);
-                    added++;
-                }
-            }
-            status.setText(added == 0 ? "The demo vehicles are already there." : "Added " + added + " demo vehicles.");
-        } catch (SQLException ex) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("adding the demo vehicles", ex), true);
+            int added = controller.addDemoVehicles();
+            status.setText(added == 0 ? "The demo vehicles are already there."
+                    : "Added " + added + " demo vehicles.");
+        } catch (ControllerException ex) {
+            UiHelper.setStatus(status, ex.getMessage(), true);
         }
     }
 
     private void createSampleCsv() {
         try {
-            List<Vehicle> vehicles = db.getAllVehicles();
-            if (vehicles.isEmpty()) {
+            if (!controller.hasVehicles()) {
                 status.setText("Add some vehicles first (or press 'Add 6 demo vehicles').");
                 return;
             }
@@ -146,13 +140,13 @@ public class ImportTab extends Tab {
             if (file == null) {
                 return;
             }
-            Files.write(file.toPath(), SampleData.rentalLines(vehicles, 50000, 42L, LocalDate.now()));
+            controller.writeSampleCsv(file.toPath());
             chosen = file;
             fileLabel.setText(file.getAbsolutePath());
             importButton.setDisable(false);
             status.setText("Created a CSV with 50,000 rentals for your current vehicles. Press Import.");
-        } catch (IOException | SQLException ex) {
-            status.setText("Could not create the file: " + ex.getMessage());
+        } catch (ControllerException ex) {
+            status.setText(ex.getMessage());
         }
     }
 

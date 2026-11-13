@@ -1,6 +1,14 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.RenterController;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Reservation;
+import fleetrent.model.ReservationStatus;
+import fleetrent.model.Vehicle;
+import fleetrent.service.RentalMath;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -27,8 +35,7 @@ import javafx.scene.layout.VBox;
 public class RenterBookingsTab extends Tab {
     private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
 
-    private final Database db;
-    private final BookingService booking;
+    private final RenterController controller;
     private final VehiclePictures pictures;
     private final int renterId;
     private final Runnable onChanged;
@@ -38,11 +45,10 @@ public class RenterBookingsTab extends Tab {
     private final Map<Integer, Vehicle> vehicles = new HashMap<>();
 
     /** Creates a renter bookings tab. */
-    public RenterBookingsTab(Database db, BookingService booking, VehiclePictures pictures, int renterId,
+    public RenterBookingsTab(RenterController controller, VehiclePictures pictures, int renterId,
                              Runnable onChanged) {
         super("My bookings");
-        this.db = db;
-        this.booking = booking;
+        this.controller = controller;
         this.pictures = pictures;
         this.renterId = renterId;
         this.onChanged = onChanged;
@@ -90,34 +96,31 @@ public class RenterBookingsTab extends Tab {
             return;
         }
         try {
-            booking.cancelReservation(renterId, ((Reservation) picked).getId());
+            controller.cancelReservation(renterId, ((Reservation) picked).getId());
             UiHelper.setStatus(status, "Reservation #" + ((Reservation) picked).getId() + " was cancelled.", false);
             refresh();
             onChanged.run();
-        } catch (IllegalArgumentException | IllegalStateException ex) {
+        } catch (ControllerException ex) {
             UiHelper.setStatus(status, ex.getMessage(), true);
-        } catch (SQLException ex) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("cancelling the reservation", ex), true);
         }
     }
 
     /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
+            RenterController.Bookings data = controller.bookingsOf(renterId);
             vehicles.clear();
-            for (Vehicle v : db.getAllVehiclesIncludingRemoved()) {
-                vehicles.put(v.getId(), v);
-            }
+            vehicles.putAll(data.vehicles());
             List<Object> now = new ArrayList<>();
             List<Object> past = new ArrayList<>();
-            for (Reservation r : booking.reservationsOf(renterId)) {
+            for (Reservation r : data.reservations()) {
                 if (r.getStatus() == ReservationStatus.ACTIVE) {
                     now.add(r);
                 } else if (r.getStatus() == ReservationStatus.CANCELLED) {
                     past.add(r);
                 }
             }
-            for (Rental r : booking.rentalsOf(renterId)) {
+            for (Rental r : data.rentals()) {
                 (r.getStatus() == RentalStatus.ONGOING ? now : past).add(r);
             }
             now.sort(Comparator.comparing(BookingCell::startOf));
@@ -133,8 +136,8 @@ public class RenterBookingsTab extends Tab {
                     }
                 }
             }
-        } catch (SQLException e) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("loading your bookings", e), true);
+        } catch (ControllerException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
         }
     }
 
@@ -176,7 +179,7 @@ public class RenterBookingsTab extends Tab {
                 badge.setText(r.getStatus().name());
                 badge.getStyleClass().addAll("badge", "badge-" + r.getStatus().name().toLowerCase(Locale.ROOT));
                 if (v != null && r.getStatus() == ReservationStatus.ACTIVE) {
-                    text.getChildren().add(hint("Price for these days: " + money(BookingService.estimate(v, start, end))
+                    text.getChildren().add(hint("Price for these days: " + money(RenterController.estimate(v, start, end))
                             + "  (+ extra miles)"));
                 }
                 if (r.getStatus() == ReservationStatus.CANCELLED && r.getNote() != null) {
@@ -189,7 +192,7 @@ public class RenterBookingsTab extends Tab {
                     badge.setText(late ? "OVERDUE - RETURN IT" : "RENTED NOW");
                     badge.getStyleClass().addAll("badge", late ? "badge-late" : "badge-rented");
                     if (v != null) {
-                        text.getChildren().add(hint("Price for these days: " + money(BookingService.estimate(v, start, end))
+                        text.getChildren().add(hint("Price for these days: " + money(RenterController.estimate(v, start, end))
                                 + "  (+ extra miles)"));
                     }
                 } else {

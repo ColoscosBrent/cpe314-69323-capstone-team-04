@@ -1,4 +1,9 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.model.Account;
+import fleetrent.model.Rental;
+import fleetrent.model.Renter;
+import fleetrent.model.Role;
 
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;

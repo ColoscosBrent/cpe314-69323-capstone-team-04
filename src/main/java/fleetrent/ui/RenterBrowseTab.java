@@ -1,6 +1,16 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.RenterController;
+import fleetrent.model.Availability;
+import fleetrent.model.Offer;
+import fleetrent.model.BusySpan;
+import fleetrent.model.Rental;
+import fleetrent.model.Reservation;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleTypes;
+import fleetrent.service.RentalMath;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -35,7 +45,7 @@ public class RenterBrowseTab extends Tab {
     private static final String ALL_TYPES = "All types";
     private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
 
-    private final BookingService booking;
+    private final RenterController controller;
     private final VehiclePictures pictures;
     private final int renterId;
     private final Runnable onBookingChanged;
@@ -55,20 +65,20 @@ public class RenterBrowseTab extends Tab {
     private final Button reserveButton = new Button("Reserve these days");
     private final Button undoButton = new Button("Undo last");
 
-    private List<BookingService.Offer> offers = new ArrayList<>();
+    private List<Offer> offers = new ArrayList<>();
     private Integer selectedId;
     private boolean loading;
 
     /** Creates a renter browse tab. */
-    public RenterBrowseTab(BookingService booking, VehiclePictures pictures, int renterId, Runnable onBookingChanged) {
+    public RenterBrowseTab(RenterController controller, VehiclePictures pictures, int renterId, Runnable onBookingChanged) {
         super("Cars");
-        this.booking = booking;
+        this.controller = controller;
         this.pictures = pictures;
         this.renterId = renterId;
         this.onBookingChanged = onBookingChanged;
         setClosable(false);
 
-        LocalDate today = booking.today();
+        LocalDate today = controller.today();
         startPicker.setValue(today);
         endPicker.setValue(today.plusDays(2));
         startPicker.setEditable(false);
@@ -79,8 +89,8 @@ public class RenterBrowseTab extends Tab {
             @Override
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
-                setDisable(empty || date.isBefore(booking.today())
-                        || date.isAfter(booking.today().plusDays(BookingService.MAX_DAYS_AHEAD)));
+                setDisable(empty || date.isBefore(controller.today())
+                        || date.isAfter(controller.today().plusDays(RenterController.MAX_DAYS_AHEAD)));
             }
         });
         endPicker.setDayCellFactory(p -> new DateCell() {
@@ -88,8 +98,8 @@ public class RenterBrowseTab extends Tab {
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
                 LocalDate start = startPicker.getValue();
-                setDisable(empty || date.isBefore(start == null ? booking.today() : start)
-                        || date.isAfter((start == null ? booking.today() : start).plusDays(BookingService.MAX_DAYS)));
+                setDisable(empty || date.isBefore(start == null ? controller.today() : start)
+                        || date.isAfter((start == null ? controller.today() : start).plusDays(RenterController.MAX_DAYS)));
             }
         });
         startPicker.valueProperty().addListener((obs, o, n) -> {
@@ -97,8 +107,8 @@ public class RenterBrowseTab extends Tab {
                 endPicker.setValue(n);
             }
             if (n != null && endPicker.getValue() != null
-                    && endPicker.getValue().isAfter(n.plusDays(BookingService.MAX_DAYS))) {
-                endPicker.setValue(n.plusDays(BookingService.MAX_DAYS));
+                    && endPicker.getValue().isAfter(n.plusDays(RenterController.MAX_DAYS))) {
+                endPicker.setValue(n.plusDays(RenterController.MAX_DAYS));
             }
             refresh();
         });
@@ -119,7 +129,7 @@ public class RenterBrowseTab extends Tab {
         dateNote.setWrapText(true);
         dateNote.setMaxWidth(230);
         Label rule = new Label("Starting today? Press Rent. Starting on a later day? Press Reserve (up to "
-                + BookingService.MAX_DAYS_AHEAD + " days ahead, up to " + BookingService.MAX_DAYS + " days long). "
+                + RenterController.MAX_DAYS_AHEAD + " days ahead, up to " + RenterController.MAX_DAYS + " days long). "
                 + "The start day and the last day are both held for you.");
         rule.getStyleClass().add("hint-label");
         rule.setWrapText(true);
@@ -205,10 +215,10 @@ public class RenterBrowseTab extends Tab {
                 endPicker.setValue(start);
                 end = start;
             }
-            offers = booking.browse(start, end);
+            offers = controller.browse(start, end);
             int free = 0;
-            for (BookingService.Offer o : offers) {
-                if (o.availability() == BookingService.Availability.AVAILABLE) {
+            for (Offer o : offers) {
+                if (o.availability() == Availability.AVAILABLE) {
                     free++;
                 }
             }
@@ -216,27 +226,25 @@ public class RenterBrowseTab extends Tab {
             totalNumber.setText(String.valueOf(offers.size()));
             int days = RentalMath.billableDays(start, end);
             dateNote.setText(start.format(SHORT) + " to " + end.format(SHORT) + " = " + days + " day" + (days == 1 ? "" : "s")
-                    + (start.equals(booking.today()) ? "  (starts today)" : ""));
+                    + (start.equals(controller.today()) ? "  (starts today)" : ""));
             showCards(start, end);
             if (selectedId != null && offers.stream().noneMatch(o -> o.vehicle().getId() == selectedId)) {
                 selectedId = null;
                 UiHelper.setStatus(bookStatus, "That car is not in the fleet anymore.", true);
             }
             showDetail();
-        } catch (SQLException e) {
-            UiHelper.setStatus(listNote, ErrorMessages.forDatabase("loading the cars", e), true);
-        } catch (IllegalArgumentException e) {
+        } catch (ControllerException e) {
             UiHelper.setStatus(listNote, e.getMessage(), true);
         } finally {
             loading = false;
         }
     }
 
-    private BookingService.Offer selectedOffer() {
+    private Offer selectedOffer() {
         if (selectedId == null) {
             return null;
         }
-        for (BookingService.Offer o : offers) {
+        for (Offer o : offers) {
             if (o.vehicle().getId() == selectedId) {
                 return o;
             }
@@ -247,9 +255,9 @@ public class RenterBrowseTab extends Tab {
     private void showCards(LocalDate start, LocalDate end) {
         cards.getChildren().clear();
         int shown = 0;
-        for (BookingService.Offer offer : offers) {
+        for (Offer offer : offers) {
             Vehicle v = offer.vehicle();
-            boolean free = offer.availability() == BookingService.Availability.AVAILABLE;
+            boolean free = offer.availability() == Availability.AVAILABLE;
             if (!ALL_TYPES.equals(typeFilter.getValue()) && !v.getType().equals(typeFilter.getValue())) {
                 continue;
             }
@@ -268,7 +276,7 @@ public class RenterBrowseTab extends Tab {
         }
     }
 
-    private Node card(BookingService.Offer offer, LocalDate start, LocalDate end) {
+    private Node card(Offer offer, LocalDate start, LocalDate end) {
         Vehicle v = offer.vehicle();
         Label name = new Label(v.displayName());
         name.getStyleClass().add("vehicle-name");
@@ -290,7 +298,7 @@ public class RenterBrowseTab extends Tab {
                 + v.getFreeMilesPerDay() + " free miles a day");
         fee.getStyleClass().add("fee-text");
         fee.setMaxWidth(220);
-        Label total = new Label("Your dates: " + money(BookingService.estimate(v, start, end)));
+        Label total = new Label("Your dates: " + money(RenterController.estimate(v, start, end)));
         total.getStyleClass().add("hint-label");
         VBox box = new VBox(6, pictures.stage(v, 232, 132), name, state, row, rate, fee, total);
         box.getStyleClass().add("offer-card");
@@ -298,7 +306,7 @@ public class RenterBrowseTab extends Tab {
         box.setMinWidth(256);
         box.setMaxWidth(256);
         box.setMinHeight(330);
-        if (offer.availability() != BookingService.Availability.AVAILABLE) {
+        if (offer.availability() != Availability.AVAILABLE) {
             box.getStyleClass().add("offer-dim");
         }
         if (selectedId != null && selectedId == v.getId()) {
@@ -316,7 +324,7 @@ public class RenterBrowseTab extends Tab {
         return box;
     }
 
-    private Label statusBadge(BookingService.Offer offer) {
+    private Label statusBadge(Offer offer) {
         Label l;
         switch (offer.availability()) {
             case AVAILABLE:
@@ -338,8 +346,8 @@ public class RenterBrowseTab extends Tab {
     // ---------- the detail and the buttons ----------
 
     private void showDetail() {
-        BookingService.Offer offer = selectedOffer();
-        undoButton.setDisable(!booking.canUndo());
+        Offer offer = selectedOffer();
+        undoButton.setDisable(!controller.canUndo());
         if (offer == null) {
             Label empty = new Label("Click a car to see its details, the days it is busy, and to book it.");
             empty.getStyleClass().add("hint-label");
@@ -385,7 +393,7 @@ public class RenterBrowseTab extends Tab {
                 + (days == 1 ? "" : "s") + ")");
         mine.getStyleClass().add("vehicle-details");
         mine.setWrapText(true);
-        Label estimate = new Label("Rent for these days: " + money(BookingService.estimate(v, start, end)));
+        Label estimate = new Label("Rent for these days: " + money(RenterController.estimate(v, start, end)));
         estimate.getStyleClass().add("vehicle-price");
         estimate.setWrapText(true);
         Label why = new Label();
@@ -394,8 +402,8 @@ public class RenterBrowseTab extends Tab {
         why.setMaxWidth(310);
         why.setMinHeight(Region.USE_PREF_SIZE);
 
-        boolean free = offer.availability() == BookingService.Availability.AVAILABLE;
-        boolean startsToday = start.equals(booking.today());
+        boolean free = offer.availability() == Availability.AVAILABLE;
+        boolean startsToday = start.equals(controller.today());
         rentButton.setDisable(!(free && startsToday));
         reserveButton.setDisable(!(free && !startsToday));
         if (!free) {
@@ -412,48 +420,42 @@ public class RenterBrowseTab extends Tab {
     }
 
     private void rent() {
-        BookingService.Offer offer = selectedOffer();
+        Offer offer = selectedOffer();
         if (offer == null) {
             UiHelper.setStatus(bookStatus, "Click a car first.", true);
             return;
         }
         try {
-            Rental r = booking.rentNow(renterId, offer.vehicle().getId(), endPicker.getValue());
+            Rental r = controller.rentNow(renterId, offer.vehicle().getId(), endPicker.getValue());
             afterChange("Rental #" + r.getId() + " started: " + offer.vehicle().displayName() + " until "
                     + r.getEndDate().format(SHORT) + ". Pick it up at the shop. The owner closes the rental when you return it.", false);
-        } catch (IllegalArgumentException | IllegalStateException ex) {
+        } catch (ControllerException ex) {
             afterChange(ex.getMessage(), true);
-        } catch (SQLException ex) {
-            afterChange(ErrorMessages.forDatabase("renting the car", ex), true);
         }
     }
 
     private void reserve() {
-        BookingService.Offer offer = selectedOffer();
+        Offer offer = selectedOffer();
         if (offer == null) {
             UiHelper.setStatus(bookStatus, "Click a car first.", true);
             return;
         }
         try {
-            Reservation r = booking.reserve(renterId, offer.vehicle().getId(), startPicker.getValue(), endPicker.getValue());
+            Reservation r = controller.reserve(renterId, offer.vehicle().getId(), startPicker.getValue(), endPicker.getValue());
             afterChange("Reservation #" + r.getId() + " saved: " + offer.vehicle().displayName() + " from "
                     + r.getStartDate().format(SHORT) + " to " + r.getEndDate().format(SHORT)
                     + ". You can see it in My bookings.", false);
-        } catch (IllegalArgumentException | IllegalStateException ex) {
+        } catch (ControllerException ex) {
             afterChange(ex.getMessage(), true);
-        } catch (SQLException ex) {
-            afterChange(ErrorMessages.forDatabase("reserving the car", ex), true);
         }
     }
 
     private void undo() {
         try {
-            String message = booking.undoLast(renterId);
+            String message = controller.undoLast(renterId);
             afterChange(message == null ? "Nothing to undo." : message, false);
-        } catch (IllegalStateException ex) {
+        } catch (ControllerException ex) {
             afterChange(ex.getMessage(), true);
-        } catch (SQLException ex) {
-            afterChange(ErrorMessages.forDatabase("undoing", ex), true);
         }
     }
 

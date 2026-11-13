@@ -1,6 +1,13 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.AuthController;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.RuleException;
+import fleetrent.model.Account;
+import fleetrent.model.Renter;
+import fleetrent.model.Vehicle;
+import fleetrent.service.Validators;
+
 import java.util.function.Consumer;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -26,14 +33,14 @@ import javafx.util.Duration;
 // The first screen: Log in, Sign up (renter or rental owner) and Forgot password. Nothing else of
 // the app can be seen until a login works.
 final class AuthScreen {
-    private final AuthService auth;
+    private final AuthController auth;
     private final Consumer<Account> onLogin;
     private final Runnable onNewWindow;
     private final VBox root = new VBox();
     private final VBox cardContent = new VBox(12);
     private Timeline roadAnimation;
 
-    AuthScreen(AuthService auth, Consumer<Account> onLogin, Runnable onNewWindow) {
+    AuthScreen(AuthController auth, Consumer<Account> onLogin, Runnable onNewWindow) {
         this.auth = auth;
         this.onLogin = onLogin;
         this.onNewWindow = onNewWindow;
@@ -197,10 +204,8 @@ final class AuthScreen {
                 Account account = auth.login(user.text(), pass.text());
                 pass.clear();
                 onLogin.accept(account);
-            } catch (AuthException e) {
+            } catch (ControllerException e) {
                 UiHelper.setStatus(status, e.getMessage(), true);
-            } catch (SQLException e) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("logging in", e), true);
             }
         };
         go.setOnAction(e -> doLogin.run());
@@ -239,7 +244,7 @@ final class AuthScreen {
         PasswordInput pass = new PasswordInput("8+ characters, a letter and a digit");
         PasswordInput confirm = new PasswordInput("Type the password again");
         ChoiceBox<String> question = new ChoiceBox<>();
-        question.getItems().setAll(AuthService.SECURITY_QUESTIONS);
+        question.getItems().setAll(AuthController.securityQuestions());
         question.setPrefWidth(300);
         Label questionError = UiHelper.errorLabel();
         question.valueProperty().addListener((obs, o, n) -> UiHelper.setError(questionError, null));
@@ -269,12 +274,12 @@ final class AuthScreen {
         create.setOnAction(e -> {
             boolean owner = ownerTab.isSelected();
             boolean ok = true;
-            String m = AuthService.checkUsername(user.text());
+            String m = AuthController.checkUsername(user.text());
             if (m != null) {
                 UiHelper.setError(user.error, m);
                 ok = false;
             }
-            m = AuthService.checkPassword(pass.text());
+            m = AuthController.checkPassword(pass.text());
             if (m != null) {
                 pass.showError(m);
                 ok = false;
@@ -286,7 +291,7 @@ final class AuthScreen {
                 UiHelper.setError(questionError, "Pick a question.");
                 ok = false;
             }
-            m = AuthService.checkAnswer(answer.text());
+            m = AuthController.checkAnswer(answer.text());
             if (m != null) {
                 UiHelper.setError(answer.error, m);
                 ok = false;
@@ -316,7 +321,7 @@ final class AuthScreen {
                             email.textOrNull(), address.textOrNull()), question.getValue(), answer.text());
                 }
                 showLogin("Account created. Log in with your new username and password.", user.text());
-            } catch (AuthException ex) {
+            } catch (RuleException ex) {
                 String text = ex.getMessage();
                 if (text.contains("owner code")) {
                     ownerCode.showError(text);
@@ -324,8 +329,8 @@ final class AuthScreen {
                     UiHelper.setError(user.error, text);
                 }
                 UiHelper.setStatus(status, text, true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("creating the account", ex), true);
+            } catch (ControllerException ex) {
+                UiHelper.setStatus(status, ex.getMessage(), true);
             }
         });
         VBox form = new VBox(10, UiHelper.title("Create an account"), segments,
@@ -376,20 +381,18 @@ final class AuthScreen {
                 find.setVisible(false);
                 user.field.setDisable(true);
                 UiHelper.setStatus(status, "Answer your security question and choose a new password.", false);
-            } catch (AuthException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("finding the account", ex), true);
             }
         });
         reset.setOnAction(e -> {
             boolean ok = true;
-            String m = AuthService.checkAnswer(answer.text());
+            String m = AuthController.checkAnswer(answer.text());
             if (m != null) {
                 UiHelper.setError(answer.error, m);
                 ok = false;
             }
-            m = AuthService.checkPassword(newPass.text());
+            m = AuthController.checkPassword(newPass.text());
             if (m != null) {
                 newPass.showError(m);
                 ok = false;
@@ -404,10 +407,8 @@ final class AuthScreen {
             try {
                 auth.resetPassword(user.text(), answer.text(), newPass.text());
                 showLogin("Your password was changed. Log in with the new password.", user.text());
-            } catch (AuthException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("changing the password", ex), true);
             }
         });
         user.field.setOnAction(e -> find.fire());

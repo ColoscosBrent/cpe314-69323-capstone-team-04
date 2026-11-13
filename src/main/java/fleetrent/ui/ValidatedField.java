@@ -1,4 +1,6 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.service.Validators;
 
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;

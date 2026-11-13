@@ -1,8 +1,8 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import fleetrent.controller.Background;
+
+
 import javafx.application.Platform;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -11,7 +11,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 
 // Small helpers shared by the tabs.
-final class UiHelper {
+public final class UiHelper {
     private UiHelper() {
     }
 
@@ -103,24 +103,10 @@ final class UiHelper {
         return sp;
     }
 
-    // One shared pool for every background job of every window. A fast double click cannot start
-    // many threads: at most WORKER_COUNT jobs run at once and the rest wait in line.
-    private static final int WORKER_COUNT = 4;
-    private static final AtomicInteger WORKER_NUMBER = new AtomicInteger();
-    private static final ExecutorService WORKERS = Executors.newFixedThreadPool(WORKER_COUNT, job -> {
-        Thread thread = new Thread(job, "fleetrent-worker-" + WORKER_NUMBER.incrementAndGet());
-        thread.setDaemon(true);
-        return thread;
-    });
-
-    // Runs the job (usually a Task) on the shared pool so the window never freezes.
+    // Runs the job (usually a Task) on the shared pool of the controller layer, so the window
+    // never freezes and a double click cannot start many threads.
     static void runInBackground(Runnable job) {
-        WORKERS.execute(job);
-    }
-
-    // Stops the shared pool when the program closes. Jobs that are still running are interrupted.
-    static void stopWorkers() {
-        WORKERS.shutdownNow();
+        Background.run(job);
     }
 
     static void onFxThread(Runnable r) {

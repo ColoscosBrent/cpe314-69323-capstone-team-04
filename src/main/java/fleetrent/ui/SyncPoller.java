@@ -1,6 +1,8 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.ChangeSource;
+import fleetrent.controller.ControllerException;
+
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -11,13 +13,13 @@ import javafx.util.Duration;
 // it did, runs the refresh. So a renter's reservation shows up in the owner's window without
 // pressing anything.
 final class SyncPoller {
-    private final Database db;
+    private final ChangeSource source;
     private final Runnable onChange;
     private final Timeline timeline;
     private String last;
 
-    SyncPoller(Database db, Runnable onChange, double seconds) {
-        this.db = db;
+    SyncPoller(ChangeSource source, Runnable onChange, double seconds) {
+        this.source = source;
         this.onChange = onChange;
         this.timeline = new Timeline(new KeyFrame(Duration.seconds(seconds), e -> tick()));
         this.timeline.setCycleCount(Animation.INDEFINITE);
@@ -36,20 +38,20 @@ final class SyncPoller {
     // reason.
     void markSeen() {
         try {
-            last = db.changeStamp();
-        } catch (SQLException e) {
+            last = source.stamp();
+        } catch (ControllerException e) {
             last = null;
         }
     }
 
     private void tick() {
         try {
-            String now = db.changeStamp();
+            String now = source.stamp();
             if (last == null || !last.equals(now)) {
                 last = now;
                 onChange.run();
             }
-        } catch (SQLException e) {
+        } catch (ControllerException e) {
             // The next tick tries again. The screens show their own database messages when they
             // load.
         }

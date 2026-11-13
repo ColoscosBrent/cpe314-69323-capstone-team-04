@@ -1,4 +1,8 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.controller.AppController;
+import fleetrent.model.Account;
+import fleetrent.model.Vehicle;
 
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -12,12 +16,12 @@ final class AdminView {
     private final VBox root = new VBox();
     private final SyncPoller poller;
 
-    AdminView(Database db, Account account, VehiclePictures pictures, Runnable signOut, Runnable newWindow) {
-        VehicleTab vehicleTab = new VehicleTab(db, pictures);
-        RentalTab rentalTab = new RentalTab(db, pictures);
-        ReservationTab reservationTab = new ReservationTab(db, pictures);
-        ImportTab importTab = new ImportTab(db);
-        DashboardTab dashboardTab = new DashboardTab(db);
+    AdminView(AppController app, Account account, VehiclePictures pictures, Runnable signOut, Runnable newWindow) {
+        VehicleTab vehicleTab = new VehicleTab(app.vehicles(), pictures);
+        RentalTab rentalTab = new RentalTab(app.rentals(), pictures);
+        ReservationTab reservationTab = new ReservationTab(app.reservations(), pictures);
+        ImportTab importTab = new ImportTab(app.importer());
+        DashboardTab dashboardTab = new DashboardTab(app.dashboard());
 
         TabPane tabs = new TabPane(vehicleTab, rentalTab, reservationTab, importTab, dashboardTab);
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
@@ -39,7 +43,7 @@ final class AdminView {
                 dashboardTab.refresh();
             }
         });
-        poller = new SyncPoller(db, refreshSelected, 3);
+        poller = new SyncPoller(app.changes(), refreshSelected, 3);
         root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management  |  Owner", account, signOut, newWindow), tabs);
         poller.start();
     }

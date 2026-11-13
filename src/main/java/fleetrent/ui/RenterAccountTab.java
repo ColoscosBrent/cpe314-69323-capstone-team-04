@@ -1,6 +1,11 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.AuthController;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.RenterController;
+import fleetrent.model.Account;
+import fleetrent.model.Renter;
+
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import javafx.geometry.Insets;
@@ -16,14 +21,14 @@ import javafx.scene.layout.VBox;
  */
 public class RenterAccountTab extends Tab {
     /** Creates a renter account tab. */
-    public RenterAccountTab(Database db, AuthService auth, Account account) {
+    public RenterAccountTab(AuthController auth, RenterController renters, Account account) {
         super("My account");
         setClosable(false);
 
         Renter renter = null;
         try {
-            renter = account.getRenterId() == null ? null : db.getRenterById(account.getRenterId());
-        } catch (SQLException e) {
+            renter = account.getRenterId() == null ? null : renters.findRenter(account.getRenterId());
+        } catch (ControllerException e) {
             // The page still opens. The details below stay empty.
         }
         GridPane info = new GridPane();
@@ -56,7 +61,7 @@ public class RenterAccountTab extends Tab {
                 current.showError("Type your current password.");
                 ok = false;
             }
-            String m = AuthService.checkPassword(next.text());
+            String m = AuthController.checkPassword(next.text());
             if (m != null) {
                 next.showError(m);
                 ok = false;
@@ -74,10 +79,8 @@ public class RenterAccountTab extends Tab {
                 next.clear();
                 again.clear();
                 UiHelper.setStatus(status, "Your password was changed.", false);
-            } catch (AuthException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("changing the password", ex), true);
             }
         });
         VBox password = new VBox(10, UiHelper.title("Change password"), field("Current password", current),

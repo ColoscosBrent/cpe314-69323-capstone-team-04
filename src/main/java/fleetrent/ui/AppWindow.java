@@ -1,7 +1,11 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.controller.AppController;
+import fleetrent.controller.ControllerException;
+import fleetrent.model.Account;
+import fleetrent.model.Role;
 
 import java.net.URL;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.animation.FadeTransition;
@@ -19,20 +23,19 @@ import javafx.util.Duration;
 // screen for the owner's or the renter's. Sign out brings the login screen back. Every window has
 // its own database connection to the same file, so two windows (an owner and a renter) stay in
 // sync.
-final class AppWindow {
+public final class AppWindow {
     private static final List<AppWindow> OPEN = new ArrayList<>();
     private static int opened;
 
     private final Stage stage;
-    private final VehiclePictures pictures = new VehiclePictures(new CarImageStore());
-    private Database db;
-    private AuthService auth;
+    private VehiclePictures pictures;
+    private AppController app;
     private Scene scene;
     private AuthScreen authScreen;
     private AdminView adminView;
     private RenterView renterView;
 
-    AppWindow(Stage stage) {
+    public AppWindow(Stage stage) {
         this.stage = stage;
     }
 
@@ -41,23 +44,22 @@ final class AppWindow {
         new AppWindow(new Stage()).open();
     }
 
-    static void closeAll() {
+    public static void closeAll() {
         for (AppWindow w : new ArrayList<>(OPEN)) {
             w.closeDatabase();
         }
     }
 
-    boolean open() {
+    public boolean open() {
         try {
             // The file name can be changed with -Dfleetrent.dbUrl=..., which the screen tests use
             // so they never touch your data.
-            db = new Database(System.getProperty("fleetrent.dbUrl", "jdbc:sqlite:fleetrent.db"));
-            db.createTables();
-        } catch (SQLException e) {
+            app = AppController.open(System.getProperty("fleetrent.dbUrl", "jdbc:sqlite:fleetrent.db"));
+        } catch (ControllerException e) {
             // The database is the heart of the app, so without it the app tells the user why and
             // stops.
             Alert alert = new Alert(Alert.AlertType.ERROR,
-                    ErrorMessages.forDatabase("opening the database", e) + "\n\nFleetRent will close now.");
+                    e.getMessage() + "\n\nFleetRent will close now.");
             alert.setTitle("FleetRent - database problem");
             alert.setHeaderText("The database cannot be opened");
             alert.showAndWait();
@@ -67,7 +69,7 @@ final class AppWindow {
             }
             return false;
         }
-        auth = new AuthService(db);
+        pictures = new VehiclePictures(app.vehicles()::photoFile);
         OPEN.add(this);
         int number = opened++;
 
@@ -103,13 +105,9 @@ final class AppWindow {
 
     private void closeDatabase() {
         OPEN.remove(this);
-        if (db != null) {
-            try {
-                db.close();
-            } catch (SQLException e) {
-                // The window is closing anyway.
-            }
-            db = null;
+        if (app != null) {
+            app.close();
+            app = null;
         }
     }
 
@@ -137,21 +135,23 @@ final class AppWindow {
     }
 
     void showAuth() {
+        app.auth().signOut();
         disposeViews();
         stage.setTitle("FleetRent - Log in");
-        authScreen = new AuthScreen(auth, this::showFor, AppWindow::openNew);
+        authScreen = new AuthScreen(app.auth(), this::showFor, AppWindow::openNew);
         swap(authScreen.root());
     }
 
     private void showFor(Account account) {
+        app.auth().session().start(account);
         disposeViews();
         if (account.getRole() == Role.ADMIN) {
             stage.setTitle("FleetRent - Owner: " + account.getDisplayName());
-            adminView = new AdminView(db, account, pictures, this::showAuth, AppWindow::openNew);
+            adminView = new AdminView(app, account, pictures, this::showAuth, AppWindow::openNew);
             swap(adminView.root());
         } else {
             stage.setTitle("FleetRent - " + account.getDisplayName());
-            renterView = new RenterView(db, account, auth, pictures, this::showAuth, AppWindow::openNew);
+            renterView = new RenterView(app, account, pictures, this::showAuth, AppWindow::openNew);
             swap(renterView.root());
         }
     }

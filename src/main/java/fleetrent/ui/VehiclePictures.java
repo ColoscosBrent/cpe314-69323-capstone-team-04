@@ -1,10 +1,13 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.model.Vehicle;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.IntFunction;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -14,20 +17,16 @@ import javafx.scene.shape.Rectangle;
 // One place that makes the picture of a vehicle, so the Vehicles tab and the Rentals tab show the
 // same thing: the saved photo if there is one, otherwise the drawn car in the vehicle's color.
 final class VehiclePictures {
-    private final CarImageStore store;
+    private final IntFunction<Path> photos;
     private final Map<String, Image> cache = new HashMap<>();
 
-    VehiclePictures(CarImageStore store) {
-        this.store = store;
-    }
-
-    CarImageStore store() {
-        return store;
+    VehiclePictures(IntFunction<Path> photos) {
+        this.photos = photos;
     }
 
     // The framed picture used in the lists (about 172 x 106).
     Node stage(Vehicle v) {
-        Path photo = store.find(v.getId());
+        Path photo = photos.apply(v.getId());
         Image image = photo == null ? null : load(photo, 320);
         StackPane stage = new StackPane(image != null ? photoNode(image, 156, 98)
                 : CarGraphic.create(v.getType(), v.getColor(), 130));
@@ -40,7 +39,7 @@ final class VehiclePictures {
 
     // A framed picture of any size, for the renter's cards: the saved photo or the drawn car.
     Node stage(Vehicle v, double width, double height) {
-        Path photo = store.find(v.getId());
+        Path photo = photos.apply(v.getId());
         Image image = photo == null ? null : load(photo, width * 2);
         Node inner = image != null ? photoNode(image, width - 16, height - 8)
                 : CarGraphic.create(v.getType(), v.getColor(), Math.min(width - 24, (height - 12) * 200.0 / 90.0));

@@ -1,8 +1,19 @@
-package fleetrent;
+package fleetrent.ui;
+
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.RuleException;
+import fleetrent.controller.VehicleController;
+import fleetrent.controller.VehicleController.Models;
+import fleetrent.dto.VehicleModelInfo;
+import fleetrent.model.Maintenance;
+import fleetrent.model.MaintenanceType;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
+import fleetrent.model.VehicleTypes;
+import fleetrent.service.Validators;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,15 +51,13 @@ import javafx.stage.FileChooser;
  * asked for, so the type and the model can never disagree.
  */
 public class VehicleTab extends Tab {
+    private static final double MAINTENANCE_WIDTH = 460;
+    private static final double MAINTENANCE_LIST_HEIGHT = 200;
     private static final String NO_YEAR = "Not specified";
     private static final String PHOTO_HINT = "No photo chosen. FleetRent will try to find one online.";
 
-    private final Database db;
-    private final VpicClient vpic = new VpicClient();
+    private final VehicleController controller;
     private final VehiclePictures pictures;
-    private final CarImageStore store;
-    private final PhotoFinder photoFinder;
-    private final FleetService fleet;
     private Path chosenPhoto;
     // The vehicle being edited, or null while the form adds a new vehicle.
     private Vehicle editing;
@@ -62,6 +71,7 @@ public class VehicleTab extends Tab {
     private final Label countLabel = new Label("0 vehicles");
     private final Button findPhotosButton = new Button("Find photos for all");
     private final Button removedButton = new Button("Removed vehicles");
+    private final Button maintenanceButton = new Button("Maintenance");
     private final Button addButton = new Button("Add Vehicle");
     private final Button cancelEditButton = new Button("Cancel editing");
     private final Button removePhotoButton = new Button("Remove saved photo");
@@ -102,13 +112,10 @@ public class VehicleTab extends Tab {
     private Label previewName;
 
     /** Creates a vehicle tab. */
-    public VehicleTab(Database db, VehiclePictures pictures) {
+    public VehicleTab(VehicleController controller, VehiclePictures pictures) {
         super("Vehicles");
-        this.db = db;
+        this.controller = controller;
         this.pictures = pictures;
-        this.fleet = new FleetService(db);
-        this.store = pictures.store();
-        this.photoFinder = new PhotoFinder(new CarImageClient(), store);
         setClosable(false);
 
         typeBox.setValue(VehicleTypes.ALL.get(0));
@@ -180,7 +187,7 @@ public class VehicleTab extends Tab {
                     "Pictures (JPG, PNG, GIF, BMP)", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp"));
             File file = chooser.showOpenDialog(photoButton.getScene().getWindow());
             if (file != null) {
-                if (!CarImageStore.isPictureName(file.getName())) {
+                if (!VehicleController.isPictureName(file.getName())) {
                     UiHelper.setStatus(status, "Please choose a JPG, PNG, GIF or BMP picture.", true);
                     return;
                 }
@@ -305,9 +312,11 @@ public class VehicleTab extends Tab {
         findPhotosButton.setOnAction(e -> findAllPhotos());
         removedButton.getStyleClass().add("secondary-button");
         removedButton.setOnAction(e -> showRemovedVehicles());
+        maintenanceButton.getStyleClass().add("secondary-button");
+        maintenanceButton.setOnAction(e -> showMaintenance());
         HBox titleRow = new HBox(10, UiHelper.title("Our fleet"), spacer, countLabel);
         titleRow.setAlignment(Pos.CENTER_LEFT);
-        HBox fleetButtons = new HBox(8, removedButton, findPhotosButton);
+        HBox fleetButtons = new HBox(8, maintenanceButton, removedButton, findPhotosButton);
         VBox listHeader = new VBox(8, titleRow, fleetButtons);
         Label hint = new Label("Price shown is for 1 day with no extra miles. " + feeHint()
                 + " Photos come from your file or Wikipedia.");
@@ -355,7 +364,7 @@ public class VehicleTab extends Tab {
             previewName.setText("Your photo");
             return;
         }
-        Path saved = editing == null ? null : store.find(editing.getId());
+        Path saved = editing == null ? null : controller.photoFile(editing.getId());
         Image savedImage = saved == null ? null : pictures.load(saved, 300);
         if (savedImage != null) {
             preview.getChildren().setAll(VehiclePictures.photoNode(savedImage, 240, 125));
@@ -424,7 +433,7 @@ public class VehicleTab extends Tab {
         Task<List<String>> task = new Task<List<String>>() {
             @Override
             protected List<String> call() throws Exception {
-                return vpic.fetchMakes(apiType);
+                return controller.fetchMakes(apiType);
             }
         };
         task.setOnSucceeded(e -> {
@@ -451,7 +460,7 @@ public class VehicleTab extends Tab {
             }
             apiReady = false;
             setManualEntry(true);
-            UiHelper.setStatus(lookupStatus, ErrorMessages.forApi("NHTSA", task.getException())
+            UiHelper.setStatus(lookupStatus, task.getException().getMessage()
                     + " Until it works you can type the make and model by hand.", true);
             finishLookup();
         });
@@ -506,40 +515,34 @@ public class VehicleTab extends Tab {
         modelList.getItems().clear();
         allModels = new ArrayList<>();
 
-        Task<ModelResult> task = new Task<ModelResult>() {
+        Task<Models> task = new Task<Models>() {
             @Override
-            protected ModelResult call() throws Exception {
-                List<VehicleModelInfo> list = vpic.fetchModels(make, year, apiType);
-                boolean fellBack = false;
-                if (list.isEmpty() && year != null) {
-                    list = vpic.fetchModels(make, null, apiType);
-                    fellBack = true;
-                }
-                return new ModelResult(list, fellBack);
+            protected Models call() throws Exception {
+                return controller.fetchModels(make, year, apiType);
             }
         };
         task.setOnSucceeded(e -> {
             if (request != modelsRequest) {
                 return;
             }
-            ModelResult result = task.getValue();
-            allModels = result.models;
+            Models result = task.getValue();
+            allModels = result.models();
             modelSearch.reset();
             filterModels();
             showYearNote(null);
-            if (result.models.isEmpty()) {
+            if (result.models().isEmpty()) {
                 modelField.field().clear();
                 UiHelper.setStatus(lookupStatus, "NHTSA has no " + typeBox.getValue() + " models for " + make
                         + ". Pick another make.", true);
-            } else if (result.fellBack) {
+            } else if (result.fellBack()) {
                 busyChangingForm = true;
                 yearBox.setValue(NO_YEAR);
                 busyChangingForm = false;
                 showYearNote("NHTSA has no " + make + " models for " + year + ", so Year was set to \"" + NO_YEAR + "\".");
                 UiHelper.setStatus(lookupStatus, "No models listed for " + year + ". Showing all "
-                        + result.models.size() + " " + make + " models. Click one.", false);
+                        + result.models().size() + " " + make + " models. Click one.", false);
             } else {
-                UiHelper.setStatus(lookupStatus, result.models.size() + " models for " + make
+                UiHelper.setStatus(lookupStatus, result.models().size() + " models for " + make
                         + (year == null ? "" : " " + year) + ". Click one.", false);
             }
             lookupBar.setVisible(false);
@@ -550,7 +553,7 @@ public class VehicleTab extends Tab {
             }
             apiReady = false;
             setManualEntry(true);
-            UiHelper.setStatus(lookupStatus, ErrorMessages.forApi("NHTSA", task.getException())
+            UiHelper.setStatus(lookupStatus, task.getException().getMessage()
                     + " You can type the model by hand.", true);
             lookupBar.setVisible(false);
         });
@@ -560,16 +563,6 @@ public class VehicleTab extends Tab {
     private void finishLookup() {
         lookupBar.setVisible(false);
         reloadButton.setDisable(false);
-    }
-
-    private static final class ModelResult {
-        final List<VehicleModelInfo> models;
-        final boolean fellBack;
-
-        ModelResult(List<VehicleModelInfo> models, boolean fellBack) {
-            this.models = models;
-            this.fellBack = fellBack;
-        }
     }
 
     // ---------- saving ----------
@@ -643,7 +636,7 @@ public class VehicleTab extends Tab {
             Vehicle vehicle = VehicleFactory.create(id, type, makeField.text(), modelField.text(), year,
                     plateField.text(), colorBox.getValue(), Double.parseDouble(rateField.text()),
                     mileage, pms, categoryBox.getValue());
-            Vehicle samePlate = db.findVehicleByPlate(vehicle.getPlateNumber());
+            Vehicle samePlate = controller.findByPlate(vehicle.getPlateNumber());
             if (samePlate != null && samePlate.getId() != id) {
                 plateField.showError("A vehicle with that plate number already exists.");
                 UiHelper.setStatus(status, "Please fix the red messages first.", true);
@@ -653,7 +646,7 @@ public class VehicleTab extends Tab {
                 saveEdit(vehicle);
                 return;
             }
-            db.insertVehicle(vehicle);
+            controller.add(vehicle);
             UiHelper.setStatus(status, "Saved: " + vehicle, false);
             afterAdd(vehicle);
             resetForm();
@@ -664,23 +657,23 @@ public class VehicleTab extends Tab {
             // VehicleFactory throws this for an unknown vehicle type. Show a red message, do not
             // let it escape.
             UiHelper.setStatus(status, e.getMessage() == null ? "A value in the form is not valid." : e.getMessage(), true);
-        } catch (SQLException e) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("saving the vehicle", e), true);
+        } catch (ControllerException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
         }
     }
 
-    private void saveEdit(Vehicle vehicle) throws SQLException {
+    private void saveEdit(Vehicle vehicle) throws ControllerException {
         try {
-            fleet.updateVehicle(vehicle);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+            controller.update(vehicle);
+        } catch (RuleException e) {
             UiHelper.setStatus(status, e.getMessage(), true);
             return;
         }
         String photoNote = "";
         if (chosenPhoto != null) {
             try {
-                store.copyFrom(vehicle.getId(), chosenPhoto);
-            } catch (java.io.IOException | IllegalArgumentException e) {
+                controller.savePhoto(vehicle.getId(), chosenPhoto);
+            } catch (ControllerException e) {
                 photoNote = " The photo could not be used: " + e.getMessage();
             }
         }
@@ -732,9 +725,9 @@ public class VehicleTab extends Tab {
         UiHelper.setError(colorError, null);
         UiHelper.setError(categoryError, null);
         chosenPhoto = null;
-        photoName.setText(store.has(v.getId()) ? "Keeping the saved photo. Choose a new one to replace it."
+        photoName.setText(controller.hasPhoto(v.getId()) ? "Keeping the saved photo. Choose a new one to replace it."
                 : "No photo yet. Choose one, or FleetRent will use the drawn car.");
-        removePhotoButton.setDisable(!store.has(v.getId()));
+        removePhotoButton.setDisable(!controller.hasPhoto(v.getId()));
         redraw();
         UiHelper.setStatus(status, "Editing " + v.displayName() + ". Change what you need, then press Save changes.", false);
     }
@@ -755,15 +748,15 @@ public class VehicleTab extends Tab {
             return;
         }
         try {
-            store.delete(editing.getId());
+            controller.deletePhoto(editing.getId());
             chosenPhoto = null;
             photoName.setText("The saved photo was removed. Choose a new one, or the drawn car is used.");
             removePhotoButton.setDisable(true);
             redraw();
             refresh();
             UiHelper.setStatus(status, "The saved photo was removed.", false);
-        } catch (java.io.IOException e) {
-            UiHelper.setStatus(status, "The photo could not be removed: " + e.getMessage(), true);
+        } catch (ControllerException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
         }
     }
 
@@ -780,7 +773,7 @@ public class VehicleTab extends Tab {
 
     private void removeVehicle(Vehicle v) {
         try {
-            int reserved = db.countActiveReservationsOfVehicle(v.getId());
+            int reserved = controller.activeReservations(v.getId());
             ButtonType remove = new ButtonType("Remove it", ButtonBar.ButtonData.OK_DONE);
             ButtonType keep = new ButtonType("Keep it", ButtonBar.ButtonData.CANCEL_CLOSE);
             String text = "Renters will not see this vehicle anymore and cannot rent or reserve it."
@@ -794,7 +787,7 @@ public class VehicleTab extends Tab {
             if (answer.isEmpty() || answer.get() != remove) {
                 return;
             }
-            int cancelled = fleet.removeVehicle(v.getId());
+            int cancelled = controller.remove(v.getId());
             if (editing != null && editing.getId() == v.getId()) {
                 exitEditMode();
                 resetForm();
@@ -803,10 +796,8 @@ public class VehicleTab extends Tab {
             UiHelper.setStatus(status, "Removed " + v.displayName() + " (" + v.getPlateNumber() + ")"
                     + (cancelled > 0 ? ". " + cancelled + " reservation(s) were cancelled." : ".")
                     + " It is hidden from renters.", false);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (ControllerException e) {
             UiHelper.setStatus(status, e.getMessage(), true);
-        } catch (SQLException e) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("removing the vehicle", e), true);
         }
     }
 
@@ -831,10 +822,10 @@ public class VehicleTab extends Tab {
         restore.getStyleClass().add("primary-button");
         Runnable load = () -> {
             try {
-                list.getItems().setAll(db.getRemovedVehicles());
+                list.getItems().setAll(controller.removedVehicles());
                 info.setText(list.getItems().isEmpty() ? "No removed vehicles." : "Pick a vehicle, then press Restore.");
-            } catch (SQLException e) {
-                UiHelper.setStatus(info, ErrorMessages.forDatabase("loading the removed vehicles", e), true);
+            } catch (ControllerException e) {
+                UiHelper.setStatus(info, e.getMessage(), true);
             }
         };
         restore.setOnAction(e -> {
@@ -844,15 +835,15 @@ public class VehicleTab extends Tab {
                 return;
             }
             try {
-                fleet.restoreVehicle(picked.getId());
+                controller.restore(picked.getId());
                 load.run();
                 refresh();
                 UiHelper.setStatus(info, picked.displayName() + " is back in the fleet.", false);
                 UiHelper.setStatus(status, picked.displayName() + " was restored to the fleet.", false);
             } catch (IllegalArgumentException | IllegalStateException ex) {
                 UiHelper.setStatus(info, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(info, ErrorMessages.forDatabase("restoring the vehicle", ex), true);
+            } catch (ControllerException ex) {
+                UiHelper.setStatus(info, ex.getMessage(), true);
             }
         });
         load.run();
@@ -860,6 +851,75 @@ public class VehicleTab extends Tab {
         dialog.setTitle("Removed vehicles");
         dialog.setHeaderText("Vehicles you removed from the fleet");
         dialog.getDialogPane().setContent(new VBox(10, list, info, restore));
+        dialog.getDialogPane().getButtonTypes().add(new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE));
+        java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
+        if (css != null) {
+            dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
+        }
+        dialog.initOwner(vehicleList.getScene() == null ? null : vehicleList.getScene().getWindow());
+        dialog.showAndWait();
+    }
+
+    // A small window with the maintenance of the selected vehicle and a form to add a record.
+    private void showMaintenance() {
+        Vehicle picked = vehicleList.getSelectionModel().getSelectedItem();
+        if (picked == null) {
+            UiHelper.setStatus(status, "Pick a vehicle in the list first.", true);
+            return;
+        }
+        ListView<String> list = new ListView<>();
+        list.setPrefSize(MAINTENANCE_WIDTH, MAINTENANCE_LIST_HEIGHT);
+        list.getStyleClass().add("plain-list");
+        Label info = new Label();
+        info.getStyleClass().add("status-label");
+        info.setWrapText(true);
+        info.setMaxWidth(MAINTENANCE_WIDTH);
+        javafx.scene.control.ComboBox<MaintenanceType> typeBox = new javafx.scene.control.ComboBox<>();
+        typeBox.getItems().setAll(MaintenanceType.values());
+        typeBox.getSelectionModel().select(MaintenanceType.PMS);
+        javafx.scene.control.DatePicker datePicker = new javafx.scene.control.DatePicker(LocalDate.now());
+        javafx.scene.control.TextField costField = new javafx.scene.control.TextField();
+        costField.setPromptText("Cost, for example 2500");
+        javafx.scene.control.TextField noteField = new javafx.scene.control.TextField();
+        noteField.setPromptText("Note (optional)");
+        Button save = new Button("Save record");
+        save.getStyleClass().add("primary-button");
+        Runnable load = () -> {
+            try {
+                List<String> lines = new ArrayList<>();
+                for (Maintenance m : controller.maintenanceOf(picked.getId())) {
+                    lines.add(m.getDoneOn() + "  |  " + m.getType().getLabel()
+                            + String.format(Locale.US, "  |  %.2f", m.getCost())
+                            + (m.getNote().isEmpty() ? "" : "  |  " + m.getNote()));
+                }
+                list.getItems().setAll(lines);
+                info.setText(lines.isEmpty() ? "No maintenance recorded yet." : lines.size() + " record(s).");
+            } catch (ControllerException e) {
+                UiHelper.setStatus(info, e.getMessage(), true);
+            }
+        };
+        save.setOnAction(e -> {
+            try {
+                double cost = Double.parseDouble(costField.getText().trim());
+                controller.logMaintenance(picked.getId(), datePicker.getValue(), typeBox.getValue(), cost,
+                        noteField.getText());
+                costField.clear();
+                noteField.clear();
+                load.run();
+                refresh();
+                UiHelper.setStatus(info, "Saved.", false);
+            } catch (NumberFormatException ex) {
+                UiHelper.setStatus(info, "Enter the cost as a number.", true);
+            } catch (ControllerException ex) {
+                UiHelper.setStatus(info, ex.getMessage(), true);
+            }
+        });
+        load.run();
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Maintenance");
+        dialog.setHeaderText("Maintenance of " + picked.displayName() + " (" + picked.getPlateNumber() + ")");
+        dialog.getDialogPane().setContent(new VBox(10, list, info, typeBox, datePicker, costField,
+                noteField, save));
         dialog.getDialogPane().getButtonTypes().add(new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE));
         java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
         if (css != null) {
@@ -893,11 +953,11 @@ public class VehicleTab extends Tab {
     /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
-            vehicleList.getItems().setAll(db.getAllVehicles());
+            vehicleList.getItems().setAll(controller.vehicles());
             int count = vehicleList.getItems().size();
             countLabel.setText(count + (count == 1 ? " vehicle" : " vehicles"));
-        } catch (SQLException e) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("loading the vehicles", e), true);
+        } catch (ControllerException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
         }
     }
 
@@ -905,8 +965,8 @@ public class VehicleTab extends Tab {
     private void afterAdd(Vehicle vehicle) {
         if (chosenPhoto != null) {
             try {
-                store.copyFrom(vehicle.getId(), chosenPhoto);
-            } catch (java.io.IOException | IllegalArgumentException e) {
+                controller.savePhoto(vehicle.getId(), chosenPhoto);
+            } catch (ControllerException e) {
                 UiHelper.setStatus(status, "Saved, but the photo could not be used: " + e.getMessage(), true);
             }
             return;
@@ -915,7 +975,7 @@ public class VehicleTab extends Tab {
         Task<Boolean> task = new Task<Boolean>() {
             @Override
             protected Boolean call() throws Exception {
-                return photoFinder.findAndSave(vehicle);
+                return controller.findPhoto(vehicle);
             }
         };
         task.setOnSucceeded(e -> {
@@ -926,7 +986,7 @@ public class VehicleTab extends Tab {
             refresh();
         });
         task.setOnFailed(e -> UiHelper.setStatus(status, "Saved: " + vehicle + ". "
-                + ErrorMessages.forApi("Wikipedia", task.getException()) + " Showing the drawn car.", true));
+                + task.getException().getMessage() + " Showing the drawn car.", true));
         UiHelper.runInBackground(task);
     }
 
@@ -935,7 +995,7 @@ public class VehicleTab extends Tab {
     private void findAllPhotos() {
         final List<Vehicle> missing = new ArrayList<>();
         for (Vehicle v : vehicleList.getItems()) {
-            if (!store.has(v.getId())) {
+            if (!controller.hasPhoto(v.getId())) {
                 missing.add(v);
             }
         }
@@ -947,27 +1007,8 @@ public class VehicleTab extends Tab {
         Task<int[]> task = new Task<int[]>() {
             @Override
             protected int[] call() throws Exception {
-                int found = 0;
-                int failed = 0;
-                int done = 0;
-                Throwable last = null;
-                for (Vehicle v : missing) {
-                    done++;
-                    updateMessage("Looking for photos... " + done + " of " + missing.size());
-                    try {
-                        if (photoFinder.findAndSave(v)) {
-                            found++;
-                        }
-                    } catch (java.io.IOException e) {
-                        failed++;
-                        last = e;
-                        System.out.println("[photo] " + v + ": " + e.getMessage());
-                    }
-                }
-                if (failed == missing.size() && last != null) {
-                    throw new java.io.IOException("all failed", last);
-                }
-                return new int[] {found, failed};
+                return controller.findPhotos(missing, (done, total) ->
+                        updateMessage("Looking for photos... " + done + " of " + total));
             }
         };
         task.messageProperty().addListener((obs, o, n) -> UiHelper.setStatus(status, n, false));
@@ -979,8 +1020,9 @@ public class VehicleTab extends Tab {
             refresh();
         });
         task.setOnFailed(e -> {
-            Throwable cause = task.getException() == null ? null : task.getException().getCause();
-            UiHelper.setStatus(status, "Photo search stopped. " + ErrorMessages.forApi("Wikipedia", cause), true);
+            Throwable cause = task.getException();
+            UiHelper.setStatus(status, "Photo search stopped. "
+                    + (cause == null ? "Unknown problem." : cause.getMessage()), true);
             findPhotosButton.setDisable(false);
         });
         UiHelper.runInBackground(task);

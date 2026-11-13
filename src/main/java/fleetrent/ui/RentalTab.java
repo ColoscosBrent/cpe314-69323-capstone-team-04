@@ -1,6 +1,15 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.RentalController;
+import fleetrent.model.Payment;
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Vehicle;
+import fleetrent.service.RentalMath;
+import fleetrent.service.Validators;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,8 +36,7 @@ import javafx.scene.layout.VBox;
  * cost. Ongoing and returned rentals show the picture of the vehicle, like the Vehicles tab.
  */
 public class RentalTab extends Tab {
-    private final Database db;
-    private final RentalService service;
+    private final RentalController controller;
     private final VehiclePictures pictures;
 
     private final ChoiceBox<Renter> renterBox = new ChoiceBox<>();
@@ -46,13 +54,13 @@ public class RentalTab extends Tab {
     private final StackPane vehiclePreview = new StackPane();
     private final Map<Integer, Renter> renters = new HashMap<>();
     private final Map<Integer, Vehicle> vehicles = new HashMap<>();
+    private final Map<Integer, Payment> payments = new HashMap<>();
 
     /** Creates a rental tab. */
-    public RentalTab(Database db, VehiclePictures pictures) {
+    public RentalTab(RentalController controller, VehiclePictures pictures) {
         super("Rentals");
-        this.db = db;
+        this.controller = controller;
         this.pictures = pictures;
-        this.service = new RentalService(db);
         setClosable(false);
 
         // ----- new renter: name, contact, email, address (the Renter ERD) -----
@@ -83,7 +91,7 @@ public class RentalTab extends Tab {
             }
             try {
                 String name = nameField.text();
-                db.insertRenter(new Renter(0, name, contactField.text(), emailField.textOrNull(),
+                controller.addRenter(new Renter(0, name, contactField.text(), emailField.textOrNull(),
                         addressField.textOrNull()));
                 nameField.reset();
                 contactField.reset();
@@ -91,8 +99,8 @@ public class RentalTab extends Tab {
                 addressField.reset();
                 UiHelper.setStatus(renterStatus, "Renter saved: " + name, false);
                 refresh();
-            } catch (SQLException ex) {
-                UiHelper.setStatus(renterStatus, ErrorMessages.forDatabase("saving the renter", ex), true);
+            } catch (ControllerException ex) {
+                UiHelper.setStatus(renterStatus, ex.getMessage(), true);
             }
         });
 
@@ -159,33 +167,29 @@ public class RentalTab extends Tab {
                 return;
             }
             try {
-                Rental rental = service.startRental(renter.getId(), vehicle.getId(),
+                Rental rental = controller.start(renter.getId(), vehicle.getId(),
                         startPicker.getValue(), endPicker.getValue());
                 if (rental == null) {
                     UiHelper.setStatus(startStatus, vehicle.getMake() + " " + vehicle.getModel()
                             + " is already rented. " + renter.getName() + " joined the waiting list ("
-                            + service.waitingCount(vehicle.getId()) + " waiting).", false);
+                            + controller.waitingCount(vehicle.getId()) + " waiting).", false);
                 } else {
                     UiHelper.setStatus(startStatus, "Rental #" + rental.getId() + " started for "
                             + renter.getName() + ".", false);
                 }
                 refresh();
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(startStatus, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(startStatus, ErrorMessages.forDatabase("starting the rental", ex), true);
             }
         });
         undoButton.setOnAction(e -> {
             try {
-                Rental undone = service.undoLastCheckout();
+                Rental undone = controller.undoLastCheckout();
                 UiHelper.setStatus(startStatus,
                         undone == null ? "Nothing to undo." : "Rental #" + undone.getId() + " was undone.", false);
                 refresh();
-            } catch (IllegalStateException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(startStatus, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(startStatus, ErrorMessages.forDatabase("undoing the check-out", ex), true);
             }
         });
 
@@ -242,16 +246,14 @@ public class RentalTab extends Tab {
             }
             try {
                 int miles = Integer.parseInt(milesField.text());
-                double cost = service.returnRental(selected.getId(), returnPicker.getValue(), miles);
-                UiHelper.setStatus(returnStatus, String.format(Locale.US, "Returned. Final cost: %.2f", cost), false);
+                double cost = controller.returnRental(selected.getId(), returnPicker.getValue(), miles);
+                UiHelper.setStatus(returnStatus, String.format(Locale.US, "Returned. Amount to pay: %.2f", cost), false);
                 milesField.reset();
                 refresh();
             } catch (NumberFormatException ex) {
                 milesField.showError("Enter a whole number (digits only).");
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(returnStatus, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(returnStatus, ErrorMessages.forDatabase("returning the vehicle", ex), true);
             }
         });
         Label historyTitle = UiHelper.title("Returned rentals");
@@ -277,11 +279,11 @@ public class RentalTab extends Tab {
         }
         vehiclePreview.getChildren().setAll(pictures.stage(v));
         try {
-            availability.setText(db.hasOngoingRental(v.getId())
+            availability.setText(controller.isRentedOut(v.getId())
                     ? "This vehicle is rented out now. Starting a rental puts the renter on its waiting list."
                     : "This vehicle is available.");
-        } catch (SQLException e) {
-            availability.setText(ErrorMessages.forDatabase("checking the vehicle", e));
+        } catch (ControllerException e) {
+            availability.setText(e.getMessage());
         }
     }
 
@@ -314,7 +316,7 @@ public class RentalTab extends Tab {
             VBox text = new VBox(4, title, car, dates, state);
             if (returned) {
                 Label back = new Label("Returned " + r.getReturnedOn() + "  |  " + r.getMilesDriven() + " mi"
-                        + finalCost(r, v));
+                        + finalCost(r, v, payments.get(r.getId())));
                 back.getStyleClass().add("hint-label");
                 back.setWrapText(true);
                 text.getChildren().add(back);
@@ -331,7 +333,12 @@ public class RentalTab extends Tab {
         }
     }
 
-    private static String finalCost(Rental r, Vehicle v) {
+    private static String finalCost(Rental r, Vehicle v, Payment paid) {
+        if (paid != null) {
+            String late = paid.getLateFee() > 0
+                    ? String.format(Locale.US, " (late fee %.2f)", paid.getLateFee()) : "";
+            return String.format(Locale.US, "  |  paid %.2f", paid.getTotal()) + late;
+        }
         if (v == null || r.getReturnedOn() == null) {
             return "";
         }
@@ -346,18 +353,17 @@ public class RentalTab extends Tab {
     /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
-            List<Renter> allRenters = db.getAllRenters();
-            List<Vehicle> allVehicles = db.getAllVehicles();
-            List<Rental> allRentals = db.getAllRentals();
+            RentalController.Data data = controller.load();
+            List<Renter> allRenters = data.renters();
+            List<Vehicle> allVehicles = data.activeVehicles();
+            List<Rental> allRentals = data.rentals();
             renters.clear();
-            vehicles.clear();
-            for (Renter r : allRenters) {
-                renters.put(r.getId(), r);
-            }
+            renters.putAll(data.rentersById());
             // The lists below also show rentals of vehicles that were removed later.
-            for (Vehicle v : db.getAllVehiclesIncludingRemoved()) {
-                vehicles.put(v.getId(), v);
-            }
+            vehicles.clear();
+            vehicles.putAll(data.vehiclesById());
+            payments.clear();
+            payments.putAll(data.paymentsByRental());
             Renter keepRenter = renterBox.getValue();
             Vehicle keepVehicle = vehicleBox.getValue();
             renterBox.getItems().setAll(allRenters);
@@ -394,8 +400,8 @@ public class RentalTab extends Tab {
                     }
                 }
             }
-        } catch (SQLException e) {
-            UiHelper.setStatus(startStatus, ErrorMessages.forDatabase("loading the rentals", e), true);
+        } catch (ControllerException e) {
+            UiHelper.setStatus(startStatus, e.getMessage(), true);
         }
     }
 }

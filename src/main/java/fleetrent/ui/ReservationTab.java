@@ -1,6 +1,13 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.ReservationController;
+import fleetrent.model.Rental;
+import fleetrent.model.Renter;
+import fleetrent.model.Reservation;
+import fleetrent.model.ReservationStatus;
+import fleetrent.model.Vehicle;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,8 +35,7 @@ public class ReservationTab extends Tab {
     private static final String ACTIVE_ONLY = "Active reservations";
     private static final String EVERYTHING = "All reservations";
 
-    private final Database db;
-    private final BookingService booking;
+    private final ReservationController controller;
     private final VehiclePictures pictures;
     private final ListView<Reservation> list = new ListView<>();
     private final ChoiceBox<String> filter = new ChoiceBox<>();
@@ -39,11 +45,10 @@ public class ReservationTab extends Tab {
     private final Map<Integer, Vehicle> vehicles = new HashMap<>();
 
     /** Creates a reservation tab. */
-    public ReservationTab(Database db, VehiclePictures pictures) {
+    public ReservationTab(ReservationController controller, VehiclePictures pictures) {
         super("Reservations");
-        this.db = db;
+        this.controller = controller;
         this.pictures = pictures;
-        this.booking = new BookingService(db);
         setClosable(false);
 
         filter.getItems().setAll(ACTIVE_ONLY, EVERYTHING);
@@ -78,14 +83,12 @@ public class ReservationTab extends Tab {
                 return;
             }
             try {
-                Rental rental = booking.handOver(r.getId());
+                Rental rental = controller.handOver(r.getId());
                 UiHelper.setStatus(status, "Handed over. Rental #" + rental.getId() + " started for "
                         + nameOf(r.getRenterId()) + ".", false);
                 refresh();
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("handing over the vehicle", ex), true);
             }
         });
         cancel.setOnAction(e -> {
@@ -95,13 +98,11 @@ public class ReservationTab extends Tab {
                 return;
             }
             try {
-                booking.cancelReservationByOwner(r.getId());
+                controller.cancel(r.getId());
                 UiHelper.setStatus(status, "Reservation #" + r.getId() + " was cancelled.", false);
                 refresh();
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
-            } catch (SQLException ex) {
-                UiHelper.setStatus(status, ErrorMessages.forDatabase("cancelling the reservation", ex), true);
             }
         });
         HBox buttons = new HBox(10, handOver, cancel);
@@ -123,17 +124,14 @@ public class ReservationTab extends Tab {
     /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
+            ReservationController.Data data = controller.load();
             renters.clear();
+            renters.putAll(data.renters());
             vehicles.clear();
-            for (Renter r : db.getAllRenters()) {
-                renters.put(r.getId(), r);
-            }
-            for (Vehicle v : db.getAllVehiclesIncludingRemoved()) {
-                vehicles.put(v.getId(), v);
-            }
+            vehicles.putAll(data.vehicles());
             Reservation keep = list.getSelectionModel().getSelectedItem();
             List<Reservation> shown = new ArrayList<>();
-            for (Reservation r : db.getAllReservations()) {
+            for (Reservation r : data.reservations()) {
                 if (EVERYTHING.equals(filter.getValue()) || r.getStatus() == ReservationStatus.ACTIVE) {
                     shown.add(r);
                 }
@@ -148,8 +146,8 @@ public class ReservationTab extends Tab {
                 }
             }
             countLabel.setText(String.valueOf(shown.size()));
-        } catch (SQLException e) {
-            UiHelper.setStatus(status, ErrorMessages.forDatabase("loading the reservations", e), true);
+        } catch (ControllerException e) {
+            UiHelper.setStatus(status, e.getMessage(), true);
         }
     }
 

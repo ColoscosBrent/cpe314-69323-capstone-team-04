@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.ui;
+
 
 import java.util.LinkedHashMap;
 import java.util.Map;

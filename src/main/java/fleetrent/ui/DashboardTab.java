@@ -1,12 +1,13 @@
-package fleetrent;
+package fleetrent.ui;
 
-import java.sql.SQLException;
+import fleetrent.controller.ControllerException;
+import fleetrent.controller.DashboardController;
+import fleetrent.controller.DashboardController.Metric;
+
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.Set;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.scene.chart.BarChart;
@@ -31,18 +32,10 @@ import javafx.scene.layout.VBox;
  * calculated from the saved rentals (or from live NHTSA data) every time, never typed in.
  */
 public class DashboardTab extends Tab {
-    private static final String MOST_RENTED = "Most rented vehicle type";
-    private static final String UTILIZATION = "Fleet utilization per month (%)";
-    private static final String REVENUE = "Revenue by vehicle type";
-    private static final String MONTHLY = "Rentals per month";
-    private static final String TOP = "Top 5 rented models";
-    private static final String LIVE = "NHTSA models per make in our fleet (live)";
+    private final DashboardController controller;
 
-    private final Database db;
-    private final VpicClient vpic = new VpicClient();
-
-    private final ChoiceBox<String> metricBox = new ChoiceBox<>(
-            FXCollections.observableArrayList(MOST_RENTED, UTILIZATION, REVENUE, MONTHLY, TOP, LIVE));
+    private final ChoiceBox<String> metricBox = new ChoiceBox<>(FXCollections.observableArrayList(
+            Arrays.stream(Metric.values()).map(Metric::label).toList()));
     private final DatePicker fromPicker = new DatePicker(LocalDate.now().minusYears(1));
     private final DatePicker toPicker = new DatePicker(LocalDate.now());
     private final Button showButton = new Button("Show");
@@ -61,12 +54,12 @@ public class DashboardTab extends Tab {
     private final StackPane chartHolder = new StackPane(barChart);
 
     /** Creates a dashboard tab. */
-    public DashboardTab(Database db) {
+    public DashboardTab(DashboardController controller) {
         super("Dashboard");
-        this.db = db;
+        this.controller = controller;
         setClosable(false);
 
-        metricBox.setValue(MOST_RENTED);
+        metricBox.setValue(Metric.MOST_RENTED.label());
         metricBox.setPrefWidth(300);
         showButton.getStyleClass().add("primary-button");
         bar.setVisible(false);
@@ -125,66 +118,26 @@ public class DashboardTab extends Tab {
             clearCharts();
             return;
         }
+        Metric metric = Metric.fromLabel(metricBox.getValue());
         try {
-            List<Vehicle> vehicles = db.getAllVehicles();
-            // Old rentals of a removed vehicle still count in the money and the counts.
-            List<Vehicle> everAdded = db.getAllVehiclesIncludingRemoved();
-            treeText.setText(FleetAnalytics.mileageTree(vehicles).toText(0));
-            String metric = metricBox.getValue();
-            if (LIVE.equals(metric)) {
-                showLive(vehicles);
+            if (metric == Metric.LIVE) {
+                treeText.setText(controller.mileageTree());
+                showLive(controller.ownedMakes());
                 return;
             }
-            List<Rental> rentals = db.getAllRentals();
-            Map<String, Number> data = new LinkedHashMap<>();
-            String yLabel;
-            String xLabel;
-            if (MOST_RENTED.equals(metric)) {
-                for (Map.Entry<String, Integer> e : FleetAnalytics.rentalsByType(rentals, everAdded, from, to).entrySet()) {
-                    data.put(e.getKey(), e.getValue());
-                }
-                xLabel = "Vehicle type";
-                yLabel = "Number of rentals";
-            } else if (UTILIZATION.equals(metric)) {
-                for (Map.Entry<YearMonth, Double> e : FleetAnalytics.utilizationByMonth(rentals, vehicles, from, to).entrySet()) {
-                    data.put(e.getKey().toString(), Math.round(e.getValue() * 10) / 10.0);
-                }
-                xLabel = "Month";
-                yLabel = "Fleet in use (%)";
-            } else if (REVENUE.equals(metric)) {
-                for (Map.Entry<String, Double> e : FleetAnalytics.revenueByType(rentals, everAdded, from, to).entrySet()) {
-                    data.put(e.getKey(), e.getValue());
-                }
-                xLabel = "Vehicle type";
-                yLabel = "Revenue";
-            } else if (MONTHLY.equals(metric)) {
-                for (Map.Entry<YearMonth, Integer> e : FleetAnalytics.rentalsPerMonth(rentals, from, to).entrySet()) {
-                    data.put(e.getKey().toString(), e.getValue());
-                }
-                xLabel = "Month";
-                yLabel = "Number of rentals";
-            } else {
-                for (Map.Entry<String, Integer> e : FleetAnalytics.topModels(rentals, everAdded, from, to, 5)) {
-                    data.put(e.getKey(), e.getValue());
-                }
-                xLabel = "Model";
-                yLabel = "Number of rentals";
-            }
-            summary.setText(FleetAnalytics.summary(rentals, everAdded, from, to));
+            DashboardController.Result result = controller.answer(metric, from, to);
+            treeText.setText(result.treeText());
+            summary.setText(result.summary());
             statusLabel.setText("");
-            draw(metric, xLabel, yLabel, data);
-        } catch (SQLException e) {
-            UiHelper.setStatus(summary, ErrorMessages.forDatabase("loading the dashboard data", e), true);
+            draw(metric, result.data());
+        } catch (ControllerException e) {
+            UiHelper.setStatus(summary, e.getMessage(), true);
         }
     }
 
     // Live mining on real API data: how many models does NHTSA list for each make we own?
     // One API call per make, all on a background thread.
-    private void showLive(List<Vehicle> vehicles) {
-        TreeSet<String> makes = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        for (Vehicle v : vehicles) {
-            makes.add(v.getMake());
-        }
+    private void showLive(Set<String> makes) {
         if (makes.isEmpty()) {
             summary.setText("No vehicles yet. Add vehicles first.");
             clearCharts();
@@ -197,11 +150,7 @@ public class DashboardTab extends Tab {
         Task<Map<String, Number>> task = new Task<Map<String, Number>>() {
             @Override
             protected Map<String, Number> call() throws Exception {
-                Map<String, Number> counts = new LinkedHashMap<>();
-                for (String make : makes) {
-                    counts.put(make, vpic.fetchModels(make).size());
-                }
-                return counts;
+                return controller.modelsPerMake(makes);
             }
         };
         task.setOnSucceeded(e -> {
@@ -213,13 +162,13 @@ public class DashboardTab extends Tab {
                 }
             }
             summary.setText("NHTSA lists the most models for " + top + " (" + counts.get(top) + ").");
-            draw(LIVE, "Make", "Models listed by NHTSA", counts);
+            draw(Metric.LIVE, counts);
             bar.setVisible(false);
             showButton.setDisable(false);
         });
         task.setOnFailed(e -> {
             Throwable error = task.getException();
-            UiHelper.setStatus(summary, ErrorMessages.forApi("NHTSA", error), true);
+            UiHelper.setStatus(summary, error == null ? "NHTSA could not be reached." : error.getMessage(), true);
             clearCharts();
             bar.setVisible(false);
             showButton.setDisable(false);
@@ -234,24 +183,23 @@ public class DashboardTab extends Tab {
 
     // Draws the mining result. Utilization and rentals per month change over time, so they use the
     // line chart. The other questions compare groups, so they use the bar chart.
-    private void draw(String title, String xLabel, String yLabel, Map<String, Number> data) {
-        boolean asLine = UTILIZATION.equals(title) || MONTHLY.equals(title);
+    private void draw(Metric metric, Map<String, Number> data) {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName(title);
+        series.setName(metric.label());
         for (Map.Entry<String, Number> e : data.entrySet()) {
             series.getData().add(new XYChart.Data<String, Number>(e.getKey(), e.getValue()));
         }
         clearCharts();
-        if (asLine) {
-            lineChart.setTitle(title);
-            lineX.setLabel(xLabel);
-            lineY.setLabel(yLabel);
+        if (metric.isOverTime()) {
+            lineChart.setTitle(metric.label());
+            lineX.setLabel(metric.xLabel());
+            lineY.setLabel(metric.yLabel());
             lineChart.getData().add(series);
             chartHolder.getChildren().setAll(lineChart);
         } else {
-            barChart.setTitle(title);
-            barX.setLabel(xLabel);
-            barY.setLabel(yLabel);
+            barChart.setTitle(metric.label());
+            barX.setLabel(metric.xLabel());
+            barY.setLabel(metric.yLabel());
             barChart.getData().add(series);
             chartHolder.getChildren().setAll(barChart);
         }

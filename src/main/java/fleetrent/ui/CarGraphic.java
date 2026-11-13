@@ -1,4 +1,5 @@
-package fleetrent;
+package fleetrent.ui;
+
 
 import javafx.scene.Group;
 import javafx.scene.Node;

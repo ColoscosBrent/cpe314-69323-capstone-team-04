@@ -1,4 +1,11 @@
-package fleetrent;
+package fleetrent.dao;
+
+import fleetrent.model.Rental;
+import fleetrent.model.RentalStatus;
+import fleetrent.model.Renter;
+import fleetrent.model.Sedan;
+import fleetrent.model.VehicleFactory;
+import fleetrent.service.RentalService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

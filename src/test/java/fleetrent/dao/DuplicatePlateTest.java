@@ -1,4 +1,10 @@
-package fleetrent;
+package fleetrent.dao;
+
+import fleetrent.model.Sedan;
+import fleetrent.model.Vehicle;
+import fleetrent.model.VehicleFactory;
+import fleetrent.service.ErrorMessages;
+import fleetrent.controller.Background;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -79,7 +85,7 @@ class DuplicatePlateTest {
         Set<String> names = ConcurrentHashMap.newKeySet();
         CountDownLatch done = new CountDownLatch(40);
         for (int i = 0; i < 40; i++) {
-            UiHelper.runInBackground(() -> {
+            Background.run(() -> {
                 names.add(Thread.currentThread().getName());
                 done.countDown();
             });

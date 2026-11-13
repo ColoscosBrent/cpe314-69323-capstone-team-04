@@ -14,6 +14,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -25,6 +28,8 @@ public class CarImageClient {
     private static final long CONNECT_TIMEOUT_SECONDS = 10;
     private static final long REQUEST_TIMEOUT_SECONDS = 30;
     private static final int HTTP_OK = 200;
+    private static final int SEARCH_LIMIT = 6;
+    private static final int THUMBNAIL_WIDTH = 800;
     private static final Logger LOG = Logger.getLogger(CarImageClient.class.getName());
     public static final String DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php";
     public static final int MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -51,26 +56,54 @@ public class CarImageClient {
 
     /** Builds the Wikipedia search address for a make and model. */
     public String searchUrl(String make, String model) {
+        return searchUrl(make, model, null);
+    }
+
+    /**
+     * Builds the Wikipedia search address for a make, a model and (when known) the model year.
+     */
+    public String searchUrl(String make, String model, Integer year) {
         if (make == null || make.isBlank() || model == null || model.isBlank()) {
             throw new IllegalArgumentException("make and model are required");
         }
-        String term = make.trim() + " " + model.trim();
+        String term = (year == null ? "" : year + " ") + make.trim() + " " + model.trim();
         return apiUrl + "?action=query&generator=search&gsrsearch=" + encode(term)
-                + "&gsrnamespace=0&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=600&fo"
-                        + "rmat=json";
+                + "&gsrnamespace=0&gsrlimit=" + SEARCH_LIMIT + "&prop=pageimages&piprop=thumbnail"
+                + "&pithumbsize=" + THUMBNAIL_WIDTH + "&pilimit=" + SEARCH_LIMIT + "&format=json";
     }
 
     /**
      * Returns the address of a photo, or null when Wikipedia has no picture for that car.
      */
     public String findImageUrl(String make, String model) throws IOException, InterruptedException {
-        String body = getText(searchUrl(make, model));
-        try {
-            return parseThumbnailUrl(body);
-        } catch (IllegalArgumentException e) {
-            throw new IOException("Wikipedia sent an answer we could not read: " + e.getMessage(),
-                    e);
+        return findImageUrl(make, model, null);
+    }
+
+    /**
+     * Returns the address of a photo of exactly this car, or null. It searches with the year first
+     * (for example "2021 Toyota Vios") and then without it. A page is used only when its title has
+     * both the make and the model, so a photo of another car is never picked.
+     */
+    public String findImageUrl(String make, String model, Integer year)
+            throws IOException, InterruptedException {
+        List<Integer> years = new ArrayList<>();
+        if (year != null && year > 0) {
+            years.add(year);
         }
+        years.add(null);
+        for (Integer y : years) {
+            String body = getText(searchUrl(make, model, y));
+            try {
+                String url = parseThumbnailUrl(body, make, model);
+                if (url != null) {
+                    return url;
+                }
+            } catch (IllegalArgumentException e) {
+                throw new IOException("Wikipedia sent an answer we could not read: "
+                        + e.getMessage(), e);
+            }
+        }
+        return null;
     }
 
     /**
@@ -119,6 +152,14 @@ public class CarImageClient {
      * IllegalArgumentException if the text is not what we expect.
      */
     public static String parseThumbnailUrl(String json) {
+        return parseThumbnailUrl(json, null, null);
+    }
+
+    /**
+     * Same as above, and when a make and a model are given it only takes a page whose title has
+     * both of them (spaces, dashes and capital letters do not matter).
+     */
+    public static String parseThumbnailUrl(String json, String make, String model) {
         if (json == null || json.isBlank()) {
             throw new IllegalArgumentException("empty answer");
         }
@@ -146,6 +187,9 @@ public class CarImageClient {
                 continue;
             }
             JsonObject page = entry.getValue().getAsJsonObject();
+            if (!titleMatches(page, make, model)) {
+                continue;
+            }
             JsonElement thumb = page.get("thumbnail");
             if (thumb == null || !thumb.isJsonObject() || !thumb.getAsJsonObject().has("source")) {
                 continue;
@@ -159,6 +203,24 @@ public class CarImageClient {
             }
         }
         return best;
+    }
+
+    // True when no make or model is asked for, or the page title has both of them.
+    private static boolean titleMatches(JsonObject page, String make, String model) {
+        if (make == null || model == null) {
+            return true;
+        }
+        JsonElement title = page.get("title");
+        if (title == null || !title.isJsonPrimitive()) {
+            return false;
+        }
+        String t = squash(title.getAsString());
+        return t.contains(squash(make)) && t.contains(squash(model));
+    }
+
+    // Lower case letters and digits only, so "F-150" and "f 150" are the same.
+    private static String squash(String text) {
+        return text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}0-9]", "");
     }
 
     private static String encode(String text) {

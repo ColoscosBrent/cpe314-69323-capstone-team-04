@@ -131,4 +131,25 @@ class CarImageClientTest {
         assertFalse(new PhotoFinder(client(), store).findAndSave(v));
         assertFalse(store.has(8));
     }
+
+    @Test
+    void theSearchWordsStartWithTheYear() {
+        String withYear = new CarImageClient().searchUrl("Honda", "Civic", 2018);
+        assertTrue(withYear.contains("2018"));
+        assertTrue(withYear.indexOf("2018") < withYear.indexOf("Civic"));
+        assertFalse(new CarImageClient().searchUrl("Honda", "Civic", null).contains("2018"));
+    }
+
+    @Test
+    void onlyAPageWhoseTitleHasTheMakeAndTheModelIsUsed() {
+        String json = "{\"query\":{\"pages\":{"
+                + "\"1\":{\"title\":\"Toyota Camry\",\"index\":1,\"thumbnail\":"
+                + "{\"source\":\"https://x/camry.jpg\"}},"
+                + "\"2\":{\"title\":\"Honda Civic (eleventh generation)\",\"index\":2,"
+                + "\"thumbnail\":{\"source\":\"https://x/civic.jpg\"}}}}}";
+        assertEquals("https://x/civic.jpg",
+                CarImageClient.parseThumbnailUrl(json, "HONDA", "Civic"));
+        assertNull(CarImageClient.parseThumbnailUrl(json, "Ford", "Fiesta"));
+        assertEquals("https://x/camry.jpg", CarImageClient.parseThumbnailUrl(json));
+    }
 }

@@ -59,10 +59,12 @@ public class AuthController {
     }
 
     /** Creates an owner account after the owner code is checked. */
-    public Account signUpOwner(String username, String password, String displayName, String question,
+    public Account signUpOwner(String username, String password, String displayName,
+            String question,
             String answer, String ownerCode) throws ControllerException {
         Account account = Guard.database("creating the account",
-                () -> auth.signUpOwner(username, password, displayName, question, answer, ownerCode));
+                () -> auth.signUpOwner(username, password, displayName, question, answer,
+                        ownerCode));
         session.start(account);
         return account;
     }
@@ -84,7 +86,8 @@ public class AuthController {
     /** Sets a new password when the security answer is right. */
     public void resetPassword(String username, String answer, String newPassword)
             throws ControllerException {
-        Guard.database("changing the password", () -> auth.resetPassword(username, answer, newPassword));
+        Guard.database("changing the password", () -> auth.resetPassword(username, answer,
+                newPassword));
     }
 
     /** Changes the password of a logged-in account when the old password is right. */

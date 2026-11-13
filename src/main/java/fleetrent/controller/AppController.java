@@ -42,7 +42,9 @@ public final class AppController {
         this.dashboard = new DashboardController(db, vpic);
     }
 
-    /** Opens the database file (it is created when it does not exist) and builds the controllers. */
+    /**
+     * Opens the database file (it is created when it does not exist) and builds the controllers.
+     */
     public static AppController open(String url) throws ControllerException {
         Database db = null;
         try {

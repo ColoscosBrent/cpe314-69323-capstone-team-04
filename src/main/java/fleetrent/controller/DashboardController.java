@@ -9,17 +9,21 @@ import fleetrent.service.VpicClient;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 
 /**
  * What the owner's Dashboard asks for. It reads the saved rentals, lets FleetAnalytics do the
  * counting, and hands the chart a ready list of labels and numbers. The chart only draws.
  */
-public class DashboardController {
+public class DashboardController extends ObservableController<DashboardController.Point> {
+    private static final String SLOT_ANSWER = "answer";
+    private static final String SLOT_LIVE = "live";
     /** The questions the dashboard can answer. */
     public enum Metric {
         /** Which vehicle type was rented most. */
@@ -88,26 +92,87 @@ public class DashboardController {
     public record Result(String treeText, Map<String, Number> data, String summary) {
     }
 
+    /**
+     * One bar or one point of the chart.
+     *
+     * @param label the name under the bar or the month of the point
+     * @param value the number
+     */
+    public record Point(String label, Number value) {
+    }
+
+    /**
+     * What the live question needs before it asks NHTSA.
+     *
+     * @param treeText the mileage tree as text
+     * @param makes    the makes of the fleet
+     */
+    public record Fleet(String treeText, Set<String> makes) {
+    }
+
     private static final int TOP_COUNT = 5;
     private static final double ROUND_TO_TENTH = 10.0;
 
     private final Database db;
     private final VpicClient vpic;
+    private final Session session;
 
-    /** Creates the controller. */
-    public DashboardController(Database db, VpicClient vpic) {
+    /** Creates the controller. Only the owner may read the dashboard. */
+    public DashboardController(Database db, VpicClient vpic, Session session) {
         this.db = db;
         this.vpic = vpic;
+        this.session = session;
+    }
+
+    /**
+     * Answers a saved-rentals question in the background. The bars or points go into items() and
+     * show gets the whole result. A problem is put in the status property.
+     */
+    public void ask(Metric metric, LocalDate from, LocalDate to, Consumer<Result> show) {
+        runTask(SLOT_ANSWER, () -> answer(metric, from, to), result -> {
+            setPoints(result.data());
+            show.accept(result);
+        }, null);
+    }
+
+    /**
+     * Reads the mileage tree and the makes of the fleet in the background, for the live question.
+     * A problem is put in the status property.
+     */
+    public void loadFleet(Consumer<Fleet> show) {
+        runTask(SLOT_ANSWER, () -> new Fleet(mileageTree(), ownedMakes()), show, null);
+    }
+
+    /**
+     * Live question, in the background: how many models does NHTSA list for each make? The bars
+     * go into items() and done gets the counts.
+     */
+    public void countModels(Set<String> makes, Consumer<Map<String, Number>> done,
+            Consumer<String> failed) {
+        runTask(SLOT_LIVE, () -> modelsPerMake(makes), counts -> {
+            setPoints(counts);
+            done.accept(counts);
+        }, failed);
+    }
+
+    private void setPoints(Map<String, Number> data) {
+        List<Point> points = new ArrayList<>();
+        for (Map.Entry<String, Number> e : data.entrySet()) {
+            points.add(new Point(e.getKey(), e.getValue()));
+        }
+        items().setAll(points);
     }
 
     /** Returns the mileage tree of the fleet as text. */
     public String mileageTree() throws ControllerException {
+        session.requireOwner("see the dashboard");
         return Guard.database("loading the dashboard data",
                 () -> FleetAnalytics.mileageTree(db.getAllVehicles()).toText(0));
     }
 
     /** Answers one saved-rentals question for the date range (from and to may be null). */
     public Result answer(Metric metric, LocalDate from, LocalDate to) throws ControllerException {
+        session.requireOwner("see the dashboard");
         try {
             List<Vehicle> vehicles = db.getAllVehicles();
             // Old rentals of a removed vehicle still count in the money and the counts.
@@ -149,6 +214,7 @@ public class DashboardController {
 
     /** Returns the makes of the vehicles in the fleet, sorted, without repeats. */
     public Set<String> ownedMakes() throws ControllerException {
+        session.requireOwner("see the dashboard");
         return Guard.database("loading the dashboard data", () -> {
             Set<String> makes = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
             for (Vehicle v : db.getAllVehicles()) {
@@ -163,6 +229,7 @@ public class DashboardController {
      * it from a background job.
      */
     public Map<String, Number> modelsPerMake(Set<String> makes) throws ControllerException {
+        session.requireOwner("see the dashboard");
         return Guard.web("NHTSA", () -> {
             Map<String, Number> counts = new LinkedHashMap<>();
             for (String make : makes) {

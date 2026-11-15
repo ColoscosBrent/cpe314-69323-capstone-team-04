@@ -37,7 +37,7 @@ public class RenterAccountTab extends Tab {
         Renter renter = null;
         try {
             renter = account.getRenterId() == null ? null
-                    : renters.findRenter(account.getRenterId());
+                    : renters.myDetails();
         } catch (ControllerException e) {
             // The page still opens. The details below stay empty.
         }

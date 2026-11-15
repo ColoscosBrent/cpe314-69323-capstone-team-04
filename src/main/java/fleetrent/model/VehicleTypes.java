@@ -11,6 +11,7 @@ import java.util.Locale;
  * example Motorcycle > Sport > Manual (clutch)).
  */
 public final class VehicleTypes {
+    /** The three vehicle types of FleetRent. */
     public static final List<String> ALL = List.of("SEDAN", "SUV", "MOTORCYCLE");
 
     private VehicleTypes() {

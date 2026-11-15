@@ -60,8 +60,9 @@ public class CategoryNode {
      */
     public String toText(int depth) {
         StringBuilder text = new StringBuilder();
-        text.append("  ".repeat(depth)).append(name)
-            .append(" (").append(totalMileage()).append(" mi)").append("\n");
+        String miles = String.format(java.util.Locale.US, "%,d", totalMileage());
+        text.append("  ".repeat(depth)).append(name).append(" (").append(miles).append(" mi)")
+                .append("\n");
         for (CategoryNode child : children.values()) {
             text.append(child.toText(depth + 1));
         }

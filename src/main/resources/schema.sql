@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS Rental (
     endDate      TEXT NOT NULL,
     returnedOn   TEXT,
     milesDriven  INTEGER NOT NULL DEFAULT 0,
-    status       TEXT NOT NULL DEFAULT 'ONGOING' CHECK (status IN ('ONGOING', 'RETURNED'))
+    status       TEXT NOT NULL DEFAULT 'ONGOING' CHECK (status IN ('ONGOING', 'RETURNED')),
+    processedBy  INTEGER REFERENCES Account(id)
 );
 
 CREATE TABLE IF NOT EXISTS Account (
@@ -101,6 +102,7 @@ CREATE TABLE IF NOT EXISTS ImportBatch (
     fileName     TEXT NOT NULL,
     importedBy   TEXT,
     importedOn   TEXT NOT NULL,
+    fileHash     TEXT,
     rowsRead     INTEGER NOT NULL DEFAULT 0,
     rowsAdded    INTEGER NOT NULL DEFAULT 0,
     rowsSkipped  INTEGER NOT NULL DEFAULT 0

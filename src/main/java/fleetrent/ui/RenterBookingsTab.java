@@ -38,40 +38,48 @@ public class RenterBookingsTab extends Tab {
     private static final double HISTORY_MIN_HEIGHT = 160;
     private static final double HISTORY_PREF_HEIGHT = 200;
     private static final Insets CONTENT_PADDING = new Insets(16, 18, 16, 18);
+    private static final double WAITING_MIN_HEIGHT = 110;
     private static final double CONTENT_MIN_WIDTH = 960;
     private static final DateTimeFormatter SHORT = DateTimeFormatter.ofPattern("d MMM yyyy",
             Locale.ENGLISH);
 
     private final RenterController controller;
     private final VehiclePictures pictures;
-    private final int renterId;
     private final Runnable onChanged;
     private final ListView<Object> current = new ListView<>();
     private final ListView<Object> history = new ListView<>();
+    private final ListView<String> waiting = new ListView<>();
+    private final List<Integer> waitingVehicleIds = new ArrayList<>();
     private final Label status = new Label("Your reservations and rentals show here.");
     private final Map<Integer, Vehicle> vehicles = new HashMap<>();
 
     /** Creates a renter bookings tab. */
-    public RenterBookingsTab(RenterController controller, VehiclePictures pictures, int renterId,
+    public RenterBookingsTab(RenterController controller, VehiclePictures pictures,
                              Runnable onChanged) {
         super("My bookings");
         this.controller = controller;
         this.pictures = pictures;
-        this.renterId = renterId;
         this.onChanged = onChanged;
         setClosable(false);
 
+        VBox left = buildLeftCard();
+        VBox right = buildRightCard();
+        HBox.setHgrow(left, Priority.ALWAYS);
+        HBox.setHgrow(right, Priority.ALWAYS);
+        HBox content = new HBox(Layout.GAP_LARGE, left, right);
+        content.setPadding(CONTENT_PADDING);
+        content.setMinWidth(CONTENT_MIN_WIDTH);
+        setContent(UiHelper.scroll(content));
+        refresh();
+    }
+
+    // The current and upcoming bookings with the cancel button.
+    private VBox buildLeftCard() {
         current.getStyleClass().add("vehicle-list");
         current.setCellFactory(l -> new BookingCell());
         current.setMinHeight(CURRENT_MIN_HEIGHT);
         current.setPrefHeight(CURRENT_PREF_HEIGHT);
-        history.getStyleClass().add("vehicle-list");
-        history.setCellFactory(l -> new BookingCell());
-        history.setMinHeight(HISTORY_MIN_HEIGHT);
-        history.setPrefHeight(HISTORY_PREF_HEIGHT);
-        history.setFocusTraversable(false);
         VBox.setVgrow(current, Priority.ALWAYS);
-
         Button cancel = new Button("Cancel selected reservation");
         cancel.getStyleClass().add("danger-button");
         cancel.setOnAction(e -> cancelSelected());
@@ -82,20 +90,30 @@ public class RenterBookingsTab extends Tab {
                 + "(with any extra miles) shows here under Past bookings.");
         hint.getStyleClass().add("hint-label");
         hint.setWrapText(true);
-
         VBox left = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Current and upcoming"), current,
-                cancel, status,
-                hint);
+                cancel, status, hint);
         left.getStyleClass().add("card");
-        VBox right = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Past bookings"), history);
+        return left;
+    }
+
+    // The past bookings and the waiting lists with the leave button.
+    private VBox buildRightCard() {
+        history.getStyleClass().add("vehicle-list");
+        history.setCellFactory(l -> new BookingCell());
+        history.setMinHeight(HISTORY_MIN_HEIGHT);
+        history.setPrefHeight(HISTORY_PREF_HEIGHT);
+        history.setFocusTraversable(false);
+        waiting.getStyleClass().add("vehicle-list");
+        waiting.setMinHeight(WAITING_MIN_HEIGHT);
+        waiting.setPrefHeight(WAITING_MIN_HEIGHT);
+        waiting.setPlaceholder(new Label("You are not in any waiting list."));
+        Button leave = new Button("Leave selected waiting list");
+        leave.getStyleClass().add("secondary-button");
+        leave.setOnAction(e -> leaveSelected());
+        VBox right = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Past bookings"), history,
+                UiHelper.title("My waiting lists"), waiting, leave);
         right.getStyleClass().add("card");
-        HBox.setHgrow(left, Priority.ALWAYS);
-        HBox.setHgrow(right, Priority.ALWAYS);
-        HBox content = new HBox(Layout.GAP_LARGE, left, right);
-        content.setPadding(CONTENT_PADDING);
-        content.setMinWidth(CONTENT_MIN_WIDTH);
-        setContent(UiHelper.scroll(content));
-        refresh();
+        return right;
     }
 
     private void cancelSelected() {
@@ -117,45 +135,75 @@ public class RenterBookingsTab extends Tab {
         }
     }
 
+    private void leaveSelected() {
+        int index = waiting.getSelectionModel().getSelectedIndex();
+        if (index < 0 || index >= waitingVehicleIds.size()) {
+            UiHelper.setStatus(status, "Pick a waiting list first.", true);
+            return;
+        }
+        try {
+            controller.leaveWaitingList(waitingVehicleIds.get(index));
+            UiHelper.setStatus(status, "You left the waiting list.", false);
+            refresh();
+            onChanged.run();
+        } catch (ControllerException ex) {
+            UiHelper.setStatus(status, ex.getMessage(), true);
+        }
+    }
+
+    private void showWaitingLists(RenterController.WaitingPlaces data) {
+        waitingVehicleIds.clear();
+        List<String> rows = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> e : data.places().entrySet()) {
+            Vehicle v = data.vehicles().get(e.getKey());
+            waitingVehicleIds.add(e.getKey());
+            rows.add((v == null ? "?" : v.displayName()) + "  -  place " + e.getValue()
+                    + " in line");
+        }
+        waiting.getItems().setAll(rows);
+    }
+
     /** Reloads the data of this tab from the database. */
     public void refresh() {
-        try {
-            RenterController.Bookings data = controller.bookings();
-            vehicles.clear();
-            vehicles.putAll(data.vehicles());
-            List<Object> now = new ArrayList<>();
-            List<Object> past = new ArrayList<>();
-            for (Reservation r : data.reservations()) {
-                if (r.getStatus() == ReservationStatus.ACTIVE) {
-                    now.add(r);
-                } else if (r.getStatus() == ReservationStatus.CANCELLED) {
-                    past.add(r);
+        controller.refreshBookings(this::show,
+                message -> UiHelper.setStatus(status, message, true));
+    }
+
+    private void show(RenterController.MyBookings loaded) {
+        showWaitingLists(loaded.places());
+        RenterController.Bookings data = loaded.bookings();
+        vehicles.clear();
+        vehicles.putAll(data.vehicles());
+        List<Object> now = new ArrayList<>();
+        List<Object> past = new ArrayList<>();
+        for (Reservation r : data.reservations()) {
+            if (r.getStatus() == ReservationStatus.ACTIVE) {
+                now.add(r);
+            } else if (r.getStatus() == ReservationStatus.CANCELLED) {
+                past.add(r);
+            }
+        }
+        for (Rental r : data.rentals()) {
+            (r.getStatus() == RentalStatus.ONGOING ? now : past).add(r);
+        }
+        now.sort(Comparator.comparing(BookingCell::startOf));
+        past.sort(Comparator.comparing(BookingCell::startOf).reversed());
+        Object keep = current.getSelectionModel().getSelectedItem();
+        current.getItems().setAll(now);
+        history.getItems().setAll(past);
+        if (keep != null) {
+            for (Object o : now) {
+                if (o.getClass() == keep.getClass()
+                        && BookingCell.idOf(o) == BookingCell.idOf(keep)) {
+                    current.getSelectionModel().select(o);
+                    break;
                 }
             }
-            for (Rental r : data.rentals()) {
-                (r.getStatus() == RentalStatus.ONGOING ? now : past).add(r);
-            }
-            now.sort(Comparator.comparing(BookingCell::startOf));
-            past.sort(Comparator.comparing(BookingCell::startOf).reversed());
-            Object keep = current.getSelectionModel().getSelectedItem();
-            current.getItems().setAll(now);
-            history.getItems().setAll(past);
-            if (keep != null) {
-                for (Object o : now) {
-                    if (o.getClass() == keep.getClass()
-                            && BookingCell.idOf(o) == BookingCell.idOf(keep)) {
-                        current.getSelectionModel().select(o);
-                        break;
-                    }
-                }
-            }
-        } catch (ControllerException e) {
-            UiHelper.setStatus(status, e.getMessage(), true);
         }
     }
 
     private static String money(double amount) {
-        return String.format(Locale.US, "%.2f", amount);
+        return Format.money(amount);
     }
 
     private class BookingCell extends ListCell<Object> {
@@ -245,8 +293,8 @@ public class RenterBookingsTab extends Tab {
                 cost = "  |  final price " + money(v.computeRentalCost(days, r.getMilesDriven())
                         + lateFee);
             }
-            text.getChildren().add(hint("Returned " + r.getReturnedOn() + "  |  "
-                    + r.getMilesDriven() + " mi" + cost));
+            text.getChildren().add(hint("Returned " + Format.date(r.getReturnedOn()) + "  |  "
+                    + Format.miles(r.getMilesDriven()) + cost));
         }
 
         private Label hint(String text) {

@@ -101,6 +101,27 @@ class ValidatorsEdgeCaseTest {
     }
 
     @Test
+    void anEmailMustBeInSmallLettersAndHaveARealShape() {
+        // Capital letters are refused with their own message, and cannot be typed.
+        String capitals = Validators.check(Kind.EMAIL, "Ana@Example.com", true);
+        assertNotNull(capitals);
+        assertTrue(capitals.contains("small letters"));
+        assertFalse(Kind.EMAIL.typingAllowed("Ana@example.com"));
+        assertTrue(Kind.EMAIL.typingAllowed("ana@example.com"));
+        // The name and every part of the domain start and end with a letter or a digit.
+        assertNotNull(Validators.check(Kind.EMAIL, ".ana@example.com", true));
+        assertNotNull(Validators.check(Kind.EMAIL, "ana.@example.com", true));
+        assertNotNull(Validators.check(Kind.EMAIL, "ana..reyes@example.com", true));
+        assertNotNull(Validators.check(Kind.EMAIL, "ana@-example.com", true));
+        assertNotNull(Validators.check(Kind.EMAIL, "ana@example-.com", true));
+        assertNotNull(Validators.check(Kind.EMAIL, "ana@example..com", true));
+        // The last part has at least two letters and no digits.
+        assertNotNull(Validators.check(Kind.EMAIL, "ana@example.c", true));
+        assertNotNull(Validators.check(Kind.EMAIL, "ana@example.123", true));
+        assertNull(Validators.check(Kind.EMAIL, "ana_reyes-01@mail.uc.edu.ph", true));
+    }
+
+    @Test
     void namesAcceptLettersFromAnyLanguageButNotDigitsOrEmoji() {
         assertNull(Validators.check(Kind.NAME, "José Ñandú", true));
         assertNull(Validators.check(Kind.NAME, "李小龍", true));

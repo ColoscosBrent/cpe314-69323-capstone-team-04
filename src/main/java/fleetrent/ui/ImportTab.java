@@ -5,8 +5,6 @@ import fleetrent.controller.ImportController;
 import fleetrent.model.ImportResult;
 
 import java.io.File;
-import javafx.concurrent.Task;
-import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -22,8 +20,8 @@ import javafx.stage.FileChooser;
  * bar.
  */
 public class ImportTab extends Tab {
+    private static final int LOG_ROWS = 10;
     private static final double STATUS_MAX_WIDTH = 560;
-    private static final double PERCENT = 100.0;
 
     private final ImportController controller;
     private final Label fileLabel = new Label("No file chosen.");
@@ -32,9 +30,10 @@ public class ImportTab extends Tab {
     private final TextArea log = new TextArea();
     private final Button chooseButton = new Button("Choose CSV...");
     private final Button importButton = new Button("Import");
+    private final Button cancelButton = new Button("Cancel import");
     private final Button demoVehiclesButton = new Button("Add 6 demo vehicles");
     private final Button sampleButton = new Button("Create practice CSV...");
-    private final Button exportButton = new Button("Export records (CSV)...");
+    private final Button exportButton = new Button("Export all records (CSV)...");
     private File chosen;
     private Runnable onImported = () -> { };
 
@@ -44,18 +43,40 @@ public class ImportTab extends Tab {
         this.controller = controller;
         setClosable(false);
 
-        Label hint = new Label("CSV columns: " + ImportController.HEADER);
-        hint.getStyleClass().add("hint-label");
+        VBox card = buildCard();
+        card.getStyleClass().add("card");
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        HBox content = new HBox(card);
+        content.setPadding(new javafx.geometry.Insets(Layout.GAP_XLARGE));
+        setContent(UiHelper.scroll(content));
+    }
+
+    // Sets the look of the controls and what the Cancel button does.
+    private void configureControls() {
         fileLabel.getStyleClass().add("hint-label");
         status.getStyleClass().add("status-label");
         status.setMaxWidth(STATUS_MAX_WIDTH);
         bar.setMaxWidth(Double.MAX_VALUE);
         importButton.getStyleClass().add("primary-button");
         importButton.setDisable(true);
+        cancelButton.getStyleClass().add("danger-button");
+        cancelButton.setVisible(false);
+        cancelButton.setManaged(false);
+        // The import checks the request after every row and stops, keeping the rows that are
+        // already saved.
+        cancelButton.setOnAction(e -> {
+            controller.cancelImport();
+            cancelButton.setDisable(true);
+            status.setText("Stopping the import...");
+        });
         log.setEditable(false);
-        log.setPrefRowCount(10);
+        log.setPrefRowCount(LOG_ROWS);
         VBox.setVgrow(log, Priority.ALWAYS);
+    }
 
+    // Connects every button to its job.
+    private void wireButtons() {
         chooseButton.setOnAction(e -> {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Choose a rentals CSV file");
@@ -74,28 +95,32 @@ public class ImportTab extends Tab {
         sampleButton.setOnAction(e -> createSampleCsv());
         exportButton.getStyleClass().add("secondary-button");
         exportButton.setOnAction(e -> exportRecords());
+    }
 
+    private VBox buildCard() {
+        configureControls();
+        wireButtons();
+        Label hint = new Label("CSV columns: " + ImportController.HEADER);
+        hint.getStyleClass().add("hint-label");
         Label step1 = new Label("Step 1 (optional demo data, made-up names):");
         step1.getStyleClass().add("field-label");
         Label step2 = new Label("Step 2:");
         step2.getStyleClass().add("field-label");
         Label step3 = new Label("Your records:");
         step3.getStyleClass().add("field-label");
-        Label exportHint = new Label("Export writes every rental in the app: the imported ones and "
-                + "the ones made here. A value that is not known is left blank. The imported "
-                + "files are listed in the Import history tab.");
+        Label exportHint = new Label("Export all writes every rental in the app: the rentals of "
+                + "every imported file and the ones made here, so it can have more rows than one "
+                + "file. To get the rows of one file only, open the Import history tab, choose "
+                + "the file and press Export this import. A value that is not known is left "
+                + "blank.");
         exportHint.getStyleClass().add("hint-label");
         exportHint.setWrapText(true);
         VBox card = new VBox(Layout.GAP_WIDE, UiHelper.title("Import rentals from CSV"), hint,
                 step1, new HBox(Layout.GAP_MEDIUM, demoVehiclesButton, sampleButton),
-                step2, new HBox(Layout.GAP_MEDIUM, chooseButton, importButton), fileLabel, bar,
-                        status, log, step3, new HBox(Layout.GAP_MEDIUM, exportButton), exportHint);
-        card.getStyleClass().add("card");
-        card.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(card, Priority.ALWAYS);
-        HBox content = new HBox(card);
-        content.setPadding(new javafx.geometry.Insets(18));
-        setContent(UiHelper.scroll(content));
+                step2, new HBox(Layout.GAP_MEDIUM, chooseButton, importButton, cancelButton),
+                fileLabel, bar, status, log, step3, new HBox(Layout.GAP_MEDIUM, exportButton),
+                exportHint);
+        return card;
     }
 
     /** Sets what happens after an import finishes (the history tab reloads itself). */
@@ -113,31 +138,29 @@ public class ImportTab extends Tab {
         bar.setProgress(0);
         log.clear();
         status.setText("Importing...");
-        Task<ImportResult> task = new Task<ImportResult>() {
-            @Override
-            protected ImportResult call() throws Exception {
-                // This code runs on the background thread. It only touches the window through
-                // Platform.runLater.
-                return controller.importFile(file.toPath(),
-                        percent -> Platform.runLater(() -> bar.setProgress(percent / PERCENT)));
-            }
-        };
-        task.setOnSucceeded(e -> {
-            ImportResult r = task.getValue();
-            status.setText("Done. Imported " + r.getImported() + " rentals, skipped "
-                    + r.getSkipped() + ".");
-            log.setText(r.getErrors().isEmpty() ? "No problems found." : String.join("\n",
-                    r.getErrors()));
+        // The controller runs the import as a background Task and reports back on this thread.
+        controller.startImport(file.toPath(), bar::setProgress, this::finishImport, message -> {
+            UiHelper.setStatus(status, "Import failed: " + message, true);
             setBusy(false);
             onImported.run();
         });
-        task.setOnFailed(e -> {
-            Throwable error = task.getException();
-            UiHelper.setStatus(status, "Import failed: "
-                    + (error == null ? "unknown error" : error.getMessage()), true);
-            setBusy(false);
-        });
-        UiHelper.runInBackground(task);
+    }
+
+    // Shows what the import did. The same file cannot be imported twice, so the Import button
+    // stays off until another file is chosen.
+    private void finishImport(ImportResult r) {
+        String done = r.isCancelled() ? "Cancelled. " + Format.number(r.getImported())
+                + " rentals were saved before you stopped. The rest of the file was not read."
+                : "Done. Imported " + Format.number(r.getImported()) + " rentals, skipped "
+                        + Format.number(r.getSkipped()) + ". The app now has "
+                        + Format.number(r.getTotalRentals()) + " rentals in all.";
+        UiHelper.setStatus(status, done, r.isCancelled());
+        log.setText(r.getErrors().isEmpty() ? "No problems found." : String.join("\n",
+                r.getErrors()));
+        chosen = null;
+        fileLabel.setText("Choose another file to import again.");
+        setBusy(false);
+        onImported.run();
     }
 
     private void addDemoVehicles() {
@@ -185,16 +208,21 @@ public class ImportTab extends Tab {
         if (file == null) {
             return;
         }
-        try {
-            int rows = controller.exportRecords(file.toPath());
-            UiHelper.setStatus(status, "Saved " + rows + " rentals to " + file.getName() + ".",
-                    false);
-        } catch (ControllerException ex) {
-            UiHelper.setStatus(status, ex.getMessage(), true);
-        }
+        exportButton.setDisable(true);
+        controller.exportRecordsLater(file.toPath(), rows -> {
+            UiHelper.setStatus(status, "Saved " + Format.number(rows) + " rentals (every rental "
+                    + "in the app) to " + file.getName() + ".", false);
+            exportButton.setDisable(false);
+        }, message -> {
+            UiHelper.setStatus(status, message, true);
+            exportButton.setDisable(false);
+        });
     }
 
     private void setBusy(boolean busy) {
+        cancelButton.setVisible(busy);
+        cancelButton.setManaged(busy);
+        cancelButton.setDisable(!busy);
         chooseButton.setDisable(busy);
         importButton.setDisable(busy || chosen == null);
         demoVehiclesButton.setDisable(busy);

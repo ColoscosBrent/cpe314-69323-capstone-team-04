@@ -17,6 +17,10 @@ import javafx.scene.layout.VBox;
 // whole app looks like one program: the same title, the same little road of cars, the same colors.
 final class Chrome {
     private static final double NAME_MAX_WIDTH = 190;
+    private static final double ROAD_MIN_HEADER_WIDTH = 1060;
+    private static final double ROAD_SEDAN_WIDTH = 90;
+    private static final double ROAD_SUV_WIDTH = 96;
+    private static final double ROAD_MOTORCYCLE_WIDTH = 78;
     private Chrome() {
     }
 
@@ -32,10 +36,11 @@ final class Chrome {
         title.setMinWidth(Region.USE_PREF_SIZE);
         Label subtitle = new Label(subtitleText);
         subtitle.getStyleClass().add("app-subtitle");
-        VBox titles = new VBox(2, title, subtitle);
-        HBox road = new HBox(Layout.GAP_SMALL, CarGraphic.create("SEDAN", "Purple", 90),
-                CarGraphic.create("SUV", "White", 96), CarGraphic.create("MOTORCYCLE", "Orange",
-                        78));
+        VBox titles = new VBox(Layout.GAP_MINI, title, subtitle);
+        HBox road = new HBox(Layout.GAP_SMALL,
+                CarGraphic.create("SEDAN", "Purple", ROAD_SEDAN_WIDTH),
+                CarGraphic.create("SUV", "White", ROAD_SUV_WIDTH),
+                CarGraphic.create("MOTORCYCLE", "Orange", ROAD_MOTORCYCLE_WIDTH));
         road.getStyleClass().add("road");
         road.setAlignment(Pos.BOTTOM_CENTER);
         Region spacer = new Region();
@@ -43,10 +48,14 @@ final class Chrome {
         HBox header = new HBox(Layout.GAP_WIDER, titles, spacer, road);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("header");
-        // The little road of cars is decoration: it hides in a narrow window so the buttons keep
-        // their room.
-        road.visibleProperty().bind(header.widthProperty().greaterThan(1060));
-        road.managedProperty().bind(road.visibleProperty());
+        // The little road of cars is decoration. It may shrink to nothing and is clipped, so it
+        // never widens the header, and it hides in a narrow window so the buttons keep their room.
+        road.setMinWidth(0);
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        clip.widthProperty().bind(road.widthProperty());
+        clip.heightProperty().bind(road.heightProperty());
+        road.setClip(clip);
+        road.visibleProperty().bind(header.widthProperty().greaterThan(ROAD_MIN_HEADER_WIDTH));
         if (newWindow != null) {
             Button another = new Button("New window");
             another.getStyleClass().add("ghost-button");
@@ -55,26 +64,31 @@ final class Chrome {
             header.getChildren().add(another);
         }
         if (account != null) {
-            Label name = new Label(account.getDisplayName());
-            name.getStyleClass().add("user-name");
-            name.setMaxWidth(NAME_MAX_WIDTH);
-            Label role = new Label(roleText(account.getRole()));
-            role.getStyleClass().addAll("badge", account.getRole() == Role.ADMIN
-                    ? "role-badge-admin" : "role-badge-renter");
-            role.setMinWidth(Region.USE_PREF_SIZE);
-            Button out = new Button("Sign out");
-            out.getStyleClass().add("secondary-button");
-            out.setMinWidth(Region.USE_PREF_SIZE);
-            out.setOnAction(e -> {
-                if (signOut != null) {
-                    signOut.run();
-                }
-            });
-            HBox chip = new HBox(Layout.GAP_MEDIUM, new VBox(Layout.GAP_HAIR, name, role), out);
-            chip.setAlignment(Pos.CENTER_LEFT);
-            chip.getStyleClass().add("user-chip");
-            header.getChildren().add(chip);
+            header.getChildren().add(userChip(account, signOut));
         }
         return header;
+    }
+
+    // The name, the role badge and the Sign out button of the signed-in account.
+    private static HBox userChip(Account account, Runnable signOut) {
+        Label name = new Label(account.getDisplayName());
+        name.getStyleClass().add("user-name");
+        name.setMaxWidth(NAME_MAX_WIDTH);
+        Label role = new Label(roleText(account.getRole()));
+        role.getStyleClass().addAll("badge", account.getRole() == Role.ADMIN
+                ? "role-badge-admin" : "role-badge-renter");
+        role.setMinWidth(Region.USE_PREF_SIZE);
+        Button out = new Button("Sign out");
+        out.getStyleClass().add("secondary-button");
+        out.setMinWidth(Region.USE_PREF_SIZE);
+        out.setOnAction(e -> {
+            if (signOut != null) {
+                signOut.run();
+            }
+        });
+        HBox chip = new HBox(Layout.GAP_MEDIUM, new VBox(Layout.GAP_HAIR, name, role), out);
+        chip.setAlignment(Pos.CENTER_LEFT);
+        chip.getStyleClass().add("user-chip");
+        return chip;
     }
 }

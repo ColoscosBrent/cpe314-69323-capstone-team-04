@@ -10,6 +10,7 @@ import javafx.scene.paint.Color;
  * car picture on the screen has the same color as the vehicle in the database.
  */
 public final class ColorNames {
+    /** The gray used when the color text is empty or not known. */
     public static final Color FALLBACK = Color.web("#9aa0b4");
 
     private static final Map<String, Color> KNOWN = new LinkedHashMap<>();

@@ -27,9 +27,12 @@ public class AuthService {
     private static final int ANSWER_MIN = 2;
     private static final int ANSWER_MAX = 60;
     private static final long MILLIS_PER_SECOND = 1000;
+    /** How many wrong log-in tries in a row lock a username. */
     public static final int MAX_FAILURES = 5;
+    /** How long a locked username must wait, in milliseconds. */
     public static final long LOCK_MILLIS = 30_000;
 
+    /** The security questions offered at sign up. */
     public static final List<String> SECURITY_QUESTIONS = List.of(
             "What was the name of your first pet?",
             "What is the name of the street you grew up on?",

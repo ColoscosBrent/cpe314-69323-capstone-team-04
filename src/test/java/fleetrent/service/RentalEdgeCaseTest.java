@@ -213,8 +213,11 @@ class RentalEdgeCaseTest {
         List<Integer> seen = new java.util.ArrayList<>();
         java.util.ArrayList<String> lines = new java.util.ArrayList<>();
         lines.add(RentalCsvImporter.HEADER);
+        // Every row is another rental (another start day), so none is skipped as a repeat.
+        java.time.LocalDate first = java.time.LocalDate.of(2025, 1, 1);
         for (int i = 0; i < 400; i++) {
-            lines.add("ABC 123,Renter " + (i % 7) + ",2026-03-01,2026-03-02,5");
+            lines.add("ABC 123,Renter " + (i % 7) + "," + first.plusDays(i) + ","
+                    + first.plusDays(i + 1) + ",5");
         }
         new RentalCsvImporter().importLines(lines, db, seen::add);
         for (int i = 1; i < seen.size(); i++) {

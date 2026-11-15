@@ -46,6 +46,14 @@ class SampleDataTest {
     }
 
     @Test
+    void noTwoGeneratedRowsAreTheSameRental() {
+        // The import skips a repeated rental, so the practice file must not repeat one.
+        List<String> lines = SampleData.rentalLines(SampleData.demoVehicles(), 50_000, 42L, END);
+        assertEquals(50_001, lines.size());
+        assertEquals(50_001, new java.util.HashSet<>(lines).size());
+    }
+
+    @Test
     void badArgumentsAreRejected() {
         assertThrows(IllegalArgumentException.class, () ->
                 SampleData.rentalLines(new ArrayList<>(), 5, 1L, END));

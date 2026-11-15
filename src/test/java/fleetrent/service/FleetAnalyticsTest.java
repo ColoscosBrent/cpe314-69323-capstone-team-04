@@ -185,6 +185,33 @@ class FleetAnalyticsTest {
     }
 
     @Test
+    void theMonthThatIsNotOverIsDividedByTheDaysSoFar() {
+        List<Rental> november = new ArrayList<>();
+        november.add(returned(1, "2026-11-03", "2026-11-05", 10));
+        // Seen on November 10: 2 vehicle-days out of 2 vehicles x 10 days.
+        Map<YearMonth, Double> u = FleetAnalytics.utilizationByMonth(november, vehicles, null,
+                null, LocalDate.of(2026, 11, 10));
+        assertEquals(2 * 100.0 / 20, u.get(YearMonth.of(2026, 11)), 0.001);
+        // Seen in December the month is over, so all its 30 days count.
+        u = FleetAnalytics.utilizationByMonth(november, vehicles, null, null,
+                LocalDate.of(2026, 12, 1));
+        assertEquals(2 * 100.0 / 60, u.get(YearMonth.of(2026, 11)), 0.001);
+    }
+
+    @Test
+    void aMonthCutByTheChosenDatesIsDividedByTheDaysInside() {
+        // From January 16: only the Jan 20 rental (1 day) counts, over 2 vehicles x 16 days.
+        Map<YearMonth, Double> u = FleetAnalytics.utilizationByMonth(rentals, vehicles,
+                LocalDate.of(2026, 1, 16), null, LocalDate.of(2026, 12, 31));
+        assertEquals(1 * 100.0 / 32, u.get(YearMonth.of(2026, 1)), 0.001);
+        // To March 10: the March rental (3 days) counts over 2 vehicles x 10 days.
+        u = FleetAnalytics.utilizationByMonth(rentals, vehicles, null, LocalDate.of(2026, 3, 10),
+                LocalDate.of(2026, 12, 31));
+        assertEquals(3 * 100.0 / 20, u.get(YearMonth.of(2026, 3)), 0.001);
+        assertEquals(3 * 100.0 / 62, u.get(YearMonth.of(2026, 1)), 0.001);
+    }
+
+    @Test
     void utilizationWithNoVehiclesOrNoRentalsIsEmpty() {
         assertTrue(FleetAnalytics.utilizationByMonth(rentals, new ArrayList<>(), null, null)
                 .isEmpty());

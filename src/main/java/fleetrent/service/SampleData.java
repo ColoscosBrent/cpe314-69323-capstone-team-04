@@ -1,6 +1,5 @@
 package fleetrent.service;
 
-import fleetrent.model.Motorcycle;
 import fleetrent.model.Sedan;
 import fleetrent.model.Vehicle;
 import fleetrent.model.VehicleFactory;
@@ -13,8 +12,10 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Makes demo data so the dashboard has something to mine. The same seed always gives the same file.
@@ -65,18 +66,23 @@ public final class SampleData {
         }
         Random random = new Random(seed);
         List<String> lines = new ArrayList<>();
+        // No two rows are the same rental, because the import skips a repeated rental.
+        Set<String> used = new HashSet<>();
         lines.add(RentalCsvImporter.HEADER);
-        for (int i = 0; i < rows; i++) {
+        while (lines.size() <= rows) {
             Vehicle v = vehicles.get(random.nextInt(vehicles.size()));
             LocalDate start = endOfPeriod.minusDays(MIN_AGE_DAYS + random.nextInt(SPREAD_DAYS));
             LocalDate end = start.plusDays(1 + random.nextInt(MAX_LENGTH_DAYS));
             int miles = (1 + (end.toEpochDay() > start.toEpochDay()
                     ? (int) (end.toEpochDay() - start.toEpochDay()) : 1))
                     * (40 + random.nextInt(120));
-            lines.add(CsvLine.join(Arrays.asList(v.getPlateNumber(), v.getType(), v.getMake(),
+            String line = CsvLine.join(Arrays.asList(v.getPlateNumber(), v.getType(), v.getMake(),
                     v.getModel(), v.getYear() > 0 ? String.valueOf(v.getYear()) : null,
                     RENTERS[random.nextInt(RENTERS.length)], null, null, null, start.toString(),
-                    end.toString(), String.valueOf(miles), "RETURNED")));
+                    end.toString(), String.valueOf(miles), "RETURNED"));
+            if (used.add(line)) {
+                lines.add(line);
+            }
         }
         return lines;
     }

@@ -1131,7 +1131,7 @@ public class VehicleTab extends Tab {
         Task<Boolean> task = new Task<Boolean>() {
             @Override
             protected Boolean call() throws Exception {
-                return controller.findPhoto(vehicle);
+                return controller.findPhoto(vehicle) != VehicleController.Photo.NONE;
             }
         };
         task.setOnSucceeded(e -> {

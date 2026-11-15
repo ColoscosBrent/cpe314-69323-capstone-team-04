@@ -488,7 +488,7 @@ public class RenterBrowseTab extends Tab {
             return;
         }
         try {
-            Rental r = controller.rentNow(renterId, offer.vehicle().getId(), endPicker.getValue());
+            Rental r = controller.rentNow(offer.vehicle().getId(), endPicker.getValue());
             afterChange("Rental #" + r.getId() + " started: " + offer.vehicle().displayName()
                     + " until "
                     + r.getEndDate().format(SHORT)
@@ -506,7 +506,7 @@ public class RenterBrowseTab extends Tab {
             return;
         }
         try {
-            Reservation r = controller.reserve(renterId, offer.vehicle().getId(),
+            Reservation r = controller.reserve(offer.vehicle().getId(),
                     startPicker.getValue(), endPicker.getValue());
             afterChange("Reservation #" + r.getId() + " saved: " + offer.vehicle().displayName()
                     + " from "
@@ -519,7 +519,7 @@ public class RenterBrowseTab extends Tab {
 
     private void undo() {
         try {
-            String message = controller.undoLast(renterId);
+            String message = controller.undoLast();
             afterChange(message == null ? "Nothing to undo." : message, false);
         } catch (ControllerException ex) {
             afterChange(ex.getMessage(), true);

@@ -23,8 +23,8 @@ public final class Validators {
                 Pattern.compile("[\\p{L} .'\\-]{0,60}")),
         CONTACT("Digits, spaces and - only (a + is allowed at the start).",
                 Pattern.compile("\\+?[0-9 \\-]{0,20}")),
-        EMAIL("Letters, digits and @ . _ + - only (no spaces).",
-                Pattern.compile("[A-Za-z0-9@._+\\-]{0,80}")),
+        EMAIL("Small letters, digits and @ . _ + - only (no spaces or capital letters).",
+                Pattern.compile("[a-z0-9@._+\\-]{0,80}")),
         ADDRESS("Letters, digits, spaces and , . # / ' - only.",
                 Pattern.compile("[\\p{L}0-9 ,.#/'\\-]{0,120}")),
         PLATE("Letters, digits, spaces and - only (up to 10 characters).",
@@ -79,8 +79,11 @@ public final class Validators {
 
     private static final Pattern NAME_OK = Pattern.compile("\\p{L}[\\p{L} .'\\-]*");
     private static final Pattern CONTACT_OK = Pattern.compile("\\+?[0-9][0-9 \\-]*");
-    private static final Pattern EMAIL_OK =
-            Pattern.compile("[A-Za-z0-9._+\\-]+@[A-Za-z0-9\\-]+(\\.[A-Za-z0-9\\-]+)+");
+    // name@domain.tld in small letters: the name and every part of the domain start and end with
+    // a letter or a digit, and the last part has at least two letters.
+    private static final Pattern EMAIL_OK = Pattern.compile(
+            "[a-z0-9]+([._+\\-][a-z0-9]+)*@[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)*"
+                    + "\\.[a-z]{2,}");
 
     /**
      * Returns null when the text is fine, otherwise a short message for the user. Empty text is an
@@ -105,7 +108,11 @@ public final class Validators {
                 }
                 return null;
             case EMAIL:
-                return EMAIL_OK.matcher(t).matches() ? null
+                if (EMAIL_OK.matcher(t).matches()) {
+                    return null;
+                }
+                return EMAIL_OK.matcher(t.toLowerCase(Locale.ROOT)).matches()
+                        ? "Use small letters only, like name@example.com."
                         : "Enter an email like name@example.com.";
             case ADDRESS:
                 if (t.length() < ADDRESS_MIN || letterCount(t) < 1) {

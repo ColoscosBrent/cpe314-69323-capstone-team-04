@@ -30,6 +30,22 @@ public class Session {
         return current != null && current.getRole() == Role.ADMIN;
     }
 
+    /** Returns the id of the signed-in account, or 0 when nobody is signed in. */
+    public synchronized int accountId() {
+        return current == null ? 0 : current.getId();
+    }
+
+    /**
+     * Returns the renter id of the signed-in renter. Stops an owner or a signed-out window with a
+     * message the screen can show.
+     */
+    public synchronized int requireRenterId(String job) throws RuleException {
+        if (current == null || current.getRole() != Role.RENTER || current.getRenterId() == null) {
+            throw new RuleException("Only a signed-in renter can " + job + ".");
+        }
+        return current.getRenterId();
+    }
+
     /**
      * Stops anyone who is not the owner. Renters and signed-out windows get a message the screen
      * can show.

@@ -107,7 +107,7 @@ public class RenterBookingsTab extends Tab {
             return;
         }
         try {
-            controller.cancelReservation(renterId, ((Reservation) picked).getId());
+            controller.cancelReservation(((Reservation) picked).getId());
             UiHelper.setStatus(status, "Reservation #" + ((Reservation) picked).getId()
                     + " was cancelled.", false);
             refresh();
@@ -120,7 +120,7 @@ public class RenterBookingsTab extends Tab {
     /** Reloads the data of this tab from the database. */
     public void refresh() {
         try {
-            RenterController.Bookings data = controller.bookingsOf(renterId);
+            RenterController.Bookings data = controller.bookings();
             vehicles.clear();
             vehicles.putAll(data.vehicles());
             List<Object> now = new ArrayList<>();

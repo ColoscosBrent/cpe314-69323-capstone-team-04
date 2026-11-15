@@ -26,6 +26,8 @@ public final class AppController {
     private final RenterController renter;
     private final ImportController importer;
     private final DashboardController dashboard;
+    // The background jobs of this window. Every controller runs its Tasks through it.
+    private final TaskRunner jobs = new TaskRunner();
 
     private AppController(Database db) {
         this.db = db;
@@ -35,11 +37,18 @@ public final class AppController {
         this.auth = new AuthController(new AuthService(db), session);
         this.vehicles = new VehicleController(db, new FleetService(db), vpic, store,
                 new PhotoFinder(new CarImageClient(), store), session);
-        this.rentals = new RentalController(db, new RentalService(db));
-        this.reservations = new ReservationController(db, new BookingService(db));
-        this.renter = new RenterController(db, new BookingService(db));
+        this.rentals = new RentalController(db, new RentalService(db), session);
+        this.reservations = new ReservationController(db, new BookingService(db), session);
+        this.renter = new RenterController(db, new BookingService(db), session);
+        auth.onSessionChange(renter::clearUndo);
         this.importer = new ImportController(db, session);
-        this.dashboard = new DashboardController(db, vpic);
+        this.dashboard = new DashboardController(db, vpic, session);
+        vehicles.useRunner(jobs);
+        rentals.useRunner(jobs);
+        reservations.useRunner(jobs);
+        renter.useRunner(jobs);
+        importer.useRunner(jobs);
+        dashboard.useRunner(jobs);
     }
 
     /**
@@ -98,15 +107,34 @@ public final class AppController {
         return dashboard;
     }
 
-    /** Tells a screen when the saved data changed (by this window or another one). */
-    public ChangeSource changes() {
-        return () -> {
+    /**
+     * Returns a message when the database opened with a problem the owner must fix (for example
+     * two vehicles with the same plate in an old file), or null. The message is given only once.
+     */
+    public String takeSetupWarning() {
+        return db.takeSetupWarning();
+    }
+
+    /**
+     * Tells a screen when the saved data changed (by this window or another one). The question
+     * runs as a background Task, so a long import never freezes the window.
+     */
+    public ChangeWatcher changes() {
+        return (answer, failed) -> jobs.start(() -> {
             try {
                 return db.changeStamp();
             } catch (SQLException e) {
                 throw ControllerException.database("checking for changes", e);
             }
-        };
+        }, answer, error -> failed.run(), failed);
+    }
+
+    /**
+     * Stops the background jobs of this window and waits until they end (at most waitMillis).
+     * Call it before close, so no job uses a closed connection.
+     */
+    public void stopJobs(long waitMillis) {
+        jobs.shutDown(waitMillis);
     }
 
     /** Closes the database connection of this window. */

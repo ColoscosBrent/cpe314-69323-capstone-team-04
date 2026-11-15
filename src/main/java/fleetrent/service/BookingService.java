@@ -27,7 +27,9 @@ import java.util.function.Supplier;
  * free for a request only if no ongoing rental and no active reservation touches any of those days.
  */
 public class BookingService {
+    /** The longest booking, in days. */
     public static final int MAX_DAYS = 30;
+    /** How far ahead a reservation may start, in days. */
     public static final int MAX_DAYS_AHEAD = 180;
 
     // The last things a renter did, newest on top, so Undo can take them back one by one.
@@ -159,6 +161,11 @@ public class BookingService {
         return !undoStack.isEmpty();
     }
 
+    /** Forgets what can be undone. Called when someone signs in or out of the window. */
+    public void clearUndo() {
+        undoStack.clear();
+    }
+
     /**
      * Takes back the last thing the renter did: a reservation is cancelled, a rental is deleted
      * (only while the owner has not closed it). Returns a sentence for the screen, or null if
@@ -203,6 +210,39 @@ public class BookingService {
         return db.getReservationsByRenter(renterId);
     }
 
+    // ---------- the waiting list ----------
+
+    /**
+     * Puts the renter at the end of the waiting line of a vehicle that is rented out. Returns the
+     * place in line (1 is next).
+     */
+    public int joinWaitingList(int renterId, int vehicleId) throws SQLException {
+        checkParties(renterId, vehicleId);
+        if (!db.hasOngoingRental(vehicleId)) {
+            throw new IllegalStateException(
+                    "That vehicle is not rented out right now. You can rent or reserve it.");
+        }
+        if (db.getWaitingRenterIds(vehicleId).contains(renterId)) {
+            throw new IllegalStateException("You are already in the waiting list of this vehicle.");
+        }
+        db.addWaiting(vehicleId, renterId, today.get());
+        return db.getWaitingRenterIds(vehicleId).indexOf(renterId) + 1;
+    }
+
+    /** Takes the renter out of the waiting line of a vehicle. */
+    public void leaveWaitingList(int renterId, int vehicleId) throws SQLException {
+        db.removeWaiting(vehicleId, renterId);
+    }
+
+    /** The place of the renter in the line of each vehicle he or she waits for (1 is next). */
+    public Map<Integer, Integer> waitingPlacesOf(int renterId) throws SQLException {
+        Map<Integer, Integer> places = new java.util.LinkedHashMap<>();
+        for (int vehicleId : db.getWaitingVehicleIds(renterId)) {
+            places.put(vehicleId, db.getWaitingRenterIds(vehicleId).indexOf(renterId) + 1);
+        }
+        return places;
+    }
+
     // ---------- the owner ----------
 
     /**
@@ -210,6 +250,14 @@ public class BookingService {
      * days.
      */
     public Rental handOver(int reservationId) throws SQLException {
+        return handOver(reservationId, null);
+    }
+
+    /**
+     * Same as above, and the rental remembers the account of the staff member who handed the
+     * vehicle over.
+     */
+    public Rental handOver(int reservationId, Integer processedBy) throws SQLException {
         LocalDate now = today.get();
         Reservation r = db.getReservationById(reservationId);
         if (r == null) {
@@ -236,6 +284,7 @@ public class BookingService {
         }
         Rental rental = Rental.startNew(r.getRenterId(), r.getVehicleId(), r.getStartDate(),
                 r.getEndDate());
+        rental.setProcessedBy(processedBy);
         db.convertReservationToRental(r, rental);
         return rental;
     }

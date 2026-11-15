@@ -5,6 +5,7 @@ import fleetrent.dto.VehicleModelInfo;
 import fleetrent.model.Maintenance;
 import fleetrent.model.MaintenanceType;
 import fleetrent.model.Vehicle;
+import fleetrent.service.ApiMapper;
 import fleetrent.service.CarImageStore;
 import fleetrent.service.FleetService;
 import fleetrent.service.PhotoFinder;
@@ -129,7 +130,7 @@ public class VehicleController {
 
     /** Asks NHTSA for the makes of a vehicle type. Slow, so call it from a background job. */
     public List<String> fetchMakes(String apiType) throws ControllerException {
-        return Guard.web("NHTSA", () -> vpic.fetchMakes(apiType));
+        return Guard.web("NHTSA", () -> ApiMapper.makeNames(vpic.fetchMakes(apiType)));
     }
 
     /**

@@ -12,6 +12,7 @@ import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.sql.SQLException;
 import java.util.Locale;
+import java.util.logging.Logger;
 import javax.net.ssl.SSLException;
 
 /**
@@ -19,6 +20,8 @@ import javax.net.ssl.SSLException;
  * thing for the same problem. It has no screen code, so it can be unit tested.
  */
 public final class ErrorMessages {
+    private static final Logger LOG = Logger.getLogger(ErrorMessages.class.getName());
+
     private ErrorMessages() {
     }
 
@@ -70,6 +73,18 @@ public final class ErrorMessages {
                     + message);
         }
         return "Could not get data from " + service + ".";
+    }
+
+    /**
+     * A plain message for a file that could not be read or written. The technical text of the
+     * error goes to the log, not to the screen. action is a short phrase such as "reading the
+     * file".
+     */
+    public static String forFile(String action, IOException error) {
+        LOG.warning("File problem while " + action + ": " + error);
+        return "The file could not be used while " + action
+                + ". Check that it exists, is not open in another program and can be read or "
+                + "written.";
     }
 
     /**

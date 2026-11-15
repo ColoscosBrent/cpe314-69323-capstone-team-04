@@ -22,7 +22,7 @@ final class PhoneField {
         country.setValue(Countries.defaultCountry());
         country.setPrefWidth(COUNTRY_WIDTH);
         country.setMinWidth(COUNTRY_WIDTH);
-        country.setVisibleRowCount(10);
+        country.setVisibleRowCount(Layout.DROPDOWN_ROWS);
         number.field().setPrefWidth(COUNTRY_WIDTH);
         number.field().setMinWidth(0);
         country.valueProperty().addListener((obs, was, now) -> number.showError(null));

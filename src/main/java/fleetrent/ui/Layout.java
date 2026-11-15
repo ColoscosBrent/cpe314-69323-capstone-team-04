@@ -23,6 +23,31 @@ final class Layout {
     static final double GAP_LARGE = 16;
     /** The largest gap, between page sections. */
     static final double GAP_XLARGE = 18;
+    /** The smallest gap of all, between the lines of a title block. */
+    static final double GAP_MINI = 2;
+    /** How many rows a drop-down list shows before it scrolls. */
+    static final int DROPDOWN_ROWS = 10;
+
+    /** The width a new window opens with. */
+    static final double WINDOW_WIDTH = 1320;
+    /** The height a new window opens with. */
+    static final double WINDOW_HEIGHT = 800;
+    /** How far each new window is moved right and down, so windows do not hide each other. */
+    static final double WINDOW_STEP = 28;
+    /** How many windows are moved before the first position is used again. */
+    static final int WINDOW_STEPS = 5;
+    /** The smallest width of a window. */
+    static final double WINDOW_MIN_WIDTH = 860;
+    /** The smallest height of a window. */
+    static final double WINDOW_MIN_HEIGHT = 620;
+    /** How long the screen fades in, in milliseconds. */
+    static final double FADE_MILLIS = 260;
+    /** The longest time a closing window waits for its running jobs, in milliseconds. */
+    static final long CLOSE_WAIT_MILLIS = 4000;
+    /** The width of the lists in the small windows (removed vehicles, maintenance). */
+    static final double DIALOG_LIST_WIDTH = 460;
+    /** The smallest height of the lists in the small windows. */
+    static final double DIALOG_LIST_HEIGHT = 200;
 
     private Layout() {
     }

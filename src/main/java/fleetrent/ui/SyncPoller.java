@@ -19,11 +19,6 @@ final class SyncPoller {
     private String last;
     private boolean asking;
 
-    // Temporary: the old form with a node, still used by the screens until they are updated.
-    SyncPoller(ChangeWatcher watcher, Runnable onChange, double seconds, javafx.scene.Node owner) {
-        this(watcher, onChange, seconds);
-    }
-
     SyncPoller(ChangeWatcher watcher, Runnable onChange, double seconds) {
         this.watcher = watcher;
         this.onChange = onChange;

@@ -1,6 +1,5 @@
 package fleetrent.ui;
 
-import fleetrent.controller.ControllerException;
 import fleetrent.controller.DashboardController;
 import fleetrent.controller.DashboardController.Metric;
 
@@ -9,7 +8,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import javafx.collections.FXCollections;
-import javafx.concurrent.Task;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
@@ -64,6 +62,8 @@ public class DashboardTab extends Tab {
         super("Dashboard");
         this.controller = controller;
         setClosable(false);
+        // The load problems are part of the controller's observable state.
+        UiHelper.showProblems(controller, summary);
 
         metricBox.setValue(Metric.MOST_RENTED.label());
         metricBox.setPrefWidth(METRIC_BOX_PREF_WIDTH);
@@ -73,6 +73,8 @@ public class DashboardTab extends Tab {
         summary.getStyleClass().add("status-label");
         summary.setMaxWidth(SUMMARY_MAX_WIDTH);
         statusLabel.getStyleClass().add("hint-label");
+        barY.setForceZeroInRange(false);
+        lineY.setForceZeroInRange(false);
         barChart.setAnimated(false);
         barChart.setLegendVisible(false);
         lineChart.setAnimated(false);
@@ -99,7 +101,7 @@ public class DashboardTab extends Tab {
         card.getStyleClass().add("card");
         HBox.setHgrow(card, Priority.ALWAYS);
         HBox content = new HBox(card);
-        content.setPadding(new javafx.geometry.Insets(18));
+        content.setPadding(new javafx.geometry.Insets(Layout.GAP_XLARGE));
         setContent(UiHelper.scroll(content));
     }
 
@@ -113,9 +115,12 @@ public class DashboardTab extends Tab {
         t.getStyleClass().add("field-label");
         fromPicker.setEditable(false);
         toPicker.setEditable(false);
+        Format.styleDatePicker(fromPicker);
+        Format.styleDatePicker(toPicker);
         // A FlowPane wraps to a second line on a narrow window, so no button is squeezed to
         // "Sh...".
-        javafx.scene.layout.FlowPane controls = new javafx.scene.layout.FlowPane(10, 8, q,
+        javafx.scene.layout.FlowPane controls = new javafx.scene.layout.FlowPane(Layout.GAP_MEDIUM,
+                Layout.GAP_NORMAL, q,
                 metricBox, f, fromPicker, t, toPicker, showButton, bar);
         controls.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         controls.setColumnHalignment(javafx.geometry.HPos.LEFT);
@@ -128,68 +133,64 @@ public class DashboardTab extends Tab {
         LocalDate from = fromPicker.getValue();
         LocalDate to = toPicker.getValue();
         if (from != null && to != null && from.isAfter(to)) {
-            summary.setText("The 'From' date is after the 'To' date.");
+            UiHelper.setStatus(summary, "The 'From' date is after the 'To' date.", true);
             clearCharts();
             return;
         }
         Metric metric = Metric.fromLabel(metricBox.getValue());
-        try {
-            if (metric == Metric.LIVE) {
-                treeText.setText(controller.mileageTree());
-                showLive(controller.ownedMakes());
-                return;
-            }
-            DashboardController.Result result = controller.answer(metric, from, to);
+        // The controller mines the data in a background Task and answers on this thread.
+        if (metric == Metric.LIVE) {
+            controller.loadFleet(fleet -> {
+                treeText.setText(fleet.treeText());
+                showLive(fleet.makes());
+            });
+            return;
+        }
+        controller.ask(metric, from, to, result -> {
             treeText.setText(result.treeText());
-            summary.setText(result.summary());
+            UiHelper.setNote(summary, result.summary());
             statusLabel.setText("");
             draw(metric, result.data());
-        } catch (ControllerException e) {
-            UiHelper.setStatus(summary, e.getMessage(), true);
-        }
+        });
     }
 
     // Live mining on real API data: how many models does NHTSA list for each make we own?
     // One API call per make, all on a background thread.
     private void showLive(Set<String> makes) {
         if (makes.isEmpty()) {
-            summary.setText("No vehicles yet. Add vehicles first.");
+            UiHelper.setNote(summary, "No vehicles yet. Add vehicles first.");
             clearCharts();
             return;
         }
         showButton.setDisable(true);
         bar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
         bar.setVisible(true);
-        summary.setText("Asking NHTSA about " + makes.size() + " makes...");
-        Task<Map<String, Number>> task = new Task<Map<String, Number>>() {
-            @Override
-            protected Map<String, Number> call() throws Exception {
-                return controller.modelsPerMake(makes);
-            }
-        };
-        task.setOnSucceeded(e -> {
-            Map<String, Number> counts = task.getValue();
+        UiHelper.setNote(summary, "Asking NHTSA about " + makes.size() + " makes...");
+        controller.countModels(makes, counts -> {
             String top = null;
             for (Map.Entry<String, Number> en : counts.entrySet()) {
                 if (top == null || en.getValue().intValue() > counts.get(top).intValue()) {
                     top = en.getKey();
                 }
             }
-            summary.setText("NHTSA lists the most models for " + top + " (" + counts.get(top)
-                    + ").");
+            UiHelper.setNote(summary, "NHTSA lists the most models for " + top + " ("
+                    + Format.number(counts.get(top).longValue()) + ").");
             draw(Metric.LIVE, counts);
             bar.setVisible(false);
             showButton.setDisable(false);
-        });
-        task.setOnFailed(e -> {
-            Throwable error = task.getException();
-            UiHelper.setStatus(summary, error == null ? "NHTSA could not be reached."
-                    : error.getMessage(), true);
+        }, message -> {
+            UiHelper.setStatus(summary, message, true);
             clearCharts();
             bar.setVisible(false);
             showButton.setDisable(false);
         });
-        UiHelper.runInBackground(task);
+    }
+
+    // 1,500 for a whole number, 33.3 for a number with a fraction.
+    private static String valueText(Number value) {
+        double d = value.doubleValue();
+        return d == Math.rint(d) ? Format.number(Math.round(d))
+                : String.format(java.util.Locale.US, "%,.1f", d);
     }
 
     private void clearCharts() {
@@ -203,7 +204,14 @@ public class DashboardTab extends Tab {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName(metric.label());
         for (Map.Entry<String, Number> e : data.entrySet()) {
-            series.getData().add(new XYChart.Data<String, Number>(e.getKey(), e.getValue()));
+            XYChart.Data<String, Number> point = new XYChart.Data<>(e.getKey(), e.getValue());
+            point.nodeProperty().addListener((obs, was, node) -> {
+                if (node != null) {
+                    javafx.scene.control.Tooltip.install(node, new javafx.scene.control.Tooltip(
+                            e.getKey() + ": " + valueText(e.getValue())));
+                }
+            });
+            series.getData().add(point);
         }
         clearCharts();
         if (metric.isOverTime()) {

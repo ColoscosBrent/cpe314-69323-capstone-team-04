@@ -13,7 +13,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
@@ -196,7 +196,8 @@ final class AuthScreen {
         if (username != null) {
             user.field.setText(username);
         }
-        PasswordInput pass = new PasswordInput("Password");
+        PasswordInput pass = new PasswordInput("Password").keepErrorSpace();
+        UiHelper.keepSpace(user.error);
         Label status = status();
         if (message != null) {
             UiHelper.setStatus(status, message, false);
@@ -237,8 +238,9 @@ final class AuthScreen {
                 UiHelper.setError(user.error, text);
             } else if (text.startsWith("The password is not correct")) {
                 pass.showError(text);
+            } else {
+                UiHelper.setStatus(status, text, true);
             }
-            UiHelper.setStatus(status, text, true);
         }
     }
 
@@ -252,7 +254,7 @@ final class AuthScreen {
         final Row user = new Row("4 to 20 letters, digits, _ or .");
         final PasswordInput pass = new PasswordInput("8+ characters, a letter and a digit");
         final PasswordInput confirm = new PasswordInput("Type the password again");
-        final ChoiceBox<String> question = new ChoiceBox<>();
+        final ComboBox<String> question = new ComboBox<>();
         final Label questionError = UiHelper.errorLabel();
         final Row answer = new Row("Your answer");
         final NameFields name = new NameFields();
@@ -265,6 +267,17 @@ final class AuthScreen {
         final Label status = status();
 
         SignUpForm() {
+            setUpSegments();
+            question.getItems().setAll(AuthController.securityQuestions());
+            question.setPromptText("Choose a question");
+            question.setPrefWidth(QUESTION_PREF_WIDTH);
+            question.valueProperty().addListener((obs, o, n) ->
+                    UiHelper.setError(questionError, null));
+        }
+
+        // The two segments "renter" and "owner". One is always on, and the owner one hides the
+        // boxes that only a renter fills in.
+        private void setUpSegments() {
             ToggleGroup group = new ToggleGroup();
             for (ToggleButton b : new ToggleButton[] {renterTab, ownerTab}) {
                 b.setToggleGroup(group);
@@ -272,7 +285,6 @@ final class AuthScreen {
                 b.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
             }
             renterTab.setSelected(true);
-            // A segment cannot be switched off by clicking it again.
             group.selectedToggleProperty().addListener((obs, old, now) -> {
                 if (now == null && old != null) {
                     old.setSelected(true);
@@ -282,10 +294,6 @@ final class AuthScreen {
                 renterOnly.setManaged(!now);
                 renterOnly.setVisible(!now);
             });
-            question.getItems().setAll(AuthController.securityQuestions());
-            question.setPrefWidth(QUESTION_PREF_WIDTH);
-            question.valueProperty().addListener((obs, o, n) ->
-                    UiHelper.setError(questionError, null));
         }
 
         // Checks every box and shows a red message under each one that is wrong.
@@ -347,9 +355,11 @@ final class AuthScreen {
             }
             try {
                 if (f.ownerTab.isSelected()) {
+                    chosenRole = Role.ADMIN;
                     auth.signUpOwner(f.user.text(), f.pass.text(), f.name.value(), f.phone.value(),
                             f.question.getValue(), f.answer.text());
                 } else {
+                    chosenRole = Role.RENTER;
                     auth.signUpRenter(f.user.text(), f.pass.text(), new Renter(0, f.name.value(),
                             f.phone.value(), f.email.text(), f.address.value()),
                             f.question.getValue(), f.answer.text());
@@ -368,56 +378,85 @@ final class AuthScreen {
         VBox form = f.node();
         form.getChildren().addAll(create,
                 link("I already have an account", () -> showLogin(null, f.user.text())));
-        form.getChildren().get(form.getChildren().size() - 1).setStyle("-fx-alignment: center;");
+        form.getChildren().get(form.getChildren().size() - 1).getStyleClass().add("centered");
         show(form);
     }
 
     // ---------- forgot password ----------
 
     void showForgot(String username) {
-        Row user = new Row("Username");
-        if (username != null) {
-            user.field.setText(username);
-        }
-        Label question = new Label();
-        question.getStyleClass().add("vehicle-name");
-        question.setWrapText(true);
-        question.setMaxWidth(QUESTION_MAX_WIDTH);
-        Row answer = new Row("Your answer");
-        PasswordInput newPass = new PasswordInput(
+        new ForgotForm(username).show();
+    }
+
+    // The two steps of "Forgot password": find the account, then answer and choose a new password.
+    private final class ForgotForm {
+        private final Row user = new Row("Username");
+        private final Label question = new Label();
+        private final Row answer = new Row("Your answer");
+        private final PasswordInput newPass = new PasswordInput(
                 "New password (8+ characters, a letter and a digit)");
-        PasswordInput confirm = new PasswordInput("Type the new password again");
-        Label status = status();
-        VBox step2 = new VBox(Layout.GAP_MEDIUM, question, labeled("Your answer", answer.node),
-                labeled("New password", newPass.node()),
-                labeled("Confirm new password", confirm.node()));
-        step2.setManaged(false);
-        step2.setVisible(false);
-        Button find = primary("Find my account");
-        Button reset = primary("Reset password");
-        reset.setManaged(false);
-        reset.setVisible(false);
-        find.setOnAction(e -> {
+        private final PasswordInput confirm = new PasswordInput("Type the new password again");
+        private final Label status = status();
+        private final VBox step2;
+        private final Button find = primary("Find my account");
+        private final Button reset = primary("Reset password");
+
+        ForgotForm(String username) {
+            if (username != null) {
+                user.field.setText(username);
+            }
+            question.getStyleClass().add("vehicle-name");
+            question.setWrapText(true);
+            question.setMaxWidth(QUESTION_MAX_WIDTH);
+            step2 = new VBox(Layout.GAP_MEDIUM, question, labeled("Your answer", answer.node),
+                    labeled("New password", newPass.node()),
+                    labeled("Confirm new password", confirm.node()));
+            setShown(step2, false);
+            setShown(reset, false);
+            find.setOnAction(e -> findAccount());
+            reset.setOnAction(e -> resetPassword());
+            user.field.setOnAction(e -> find.fire());
+        }
+
+        private void setShown(javafx.scene.Node node, boolean shown) {
+            node.setManaged(shown);
+            node.setVisible(shown);
+        }
+
+        // Step 1: look up the security question of the username.
+        private void findAccount() {
             if (user.text().isEmpty()) {
                 UiHelper.setError(user.error, "Type your username.");
                 return;
             }
             try {
                 question.setText(auth.securityQuestionOf(user.text()));
-                step2.setManaged(true);
-                step2.setVisible(true);
-                reset.setManaged(true);
-                reset.setVisible(true);
-                find.setManaged(false);
-                find.setVisible(false);
+                setShown(step2, true);
+                setShown(reset, true);
+                setShown(find, false);
                 user.field.setDisable(true);
                 UiHelper.setStatus(status,
                         "Answer your security question and choose a new password.", false);
             } catch (ControllerException ex) {
                 UiHelper.setStatus(status, ex.getMessage(), true);
             }
-        });
-        reset.setOnAction(e -> {
+        }
+
+        // Step 2: check the answer and the new password, then change the password.
+        private void resetPassword() {
+            if (!validate()) {
+                UiHelper.setStatus(status, "Please fix the red messages first.", true);
+                return;
+            }
+            try {
+                auth.resetPassword(user.text(), answer.text(), newPass.text());
+                showLogin("Your password was changed. Log in with the new password.", user.text());
+            } catch (ControllerException ex) {
+                UiHelper.setStatus(status, ex.getMessage(), true);
+            }
+        }
+
+        private boolean validate() {
             boolean ok = true;
             String m = AuthController.checkAnswer(answer.text());
             if (m != null) {
@@ -432,24 +471,16 @@ final class AuthScreen {
                 confirm.showError("The two passwords are not the same.");
                 ok = false;
             }
-            if (!ok) {
-                UiHelper.setStatus(status, "Please fix the red messages first.", true);
-                return;
-            }
-            try {
-                auth.resetPassword(user.text(), answer.text(), newPass.text());
-                showLogin("Your password was changed. Log in with the new password.", user.text());
-            } catch (ControllerException ex) {
-                UiHelper.setStatus(status, ex.getMessage(), true);
-            }
-        });
-        user.field.setOnAction(e -> find.fire());
-        show(new VBox(Layout.GAP_WIDE, UiHelper.title("Forgot your password?"),
-                hintLabel(
-                        "Type your username. You will answer the security question you chose at "
-                        + "sign up."),
-                labeled("Username", user.node), step2, status, find, reset,
-                link("Back to log in", () -> showLogin(null, user.text()))));
-        javafx.application.Platform.runLater(user.field::requestFocus);
+            return ok;
+        }
+
+        void show() {
+            AuthScreen.this.show(new VBox(Layout.GAP_WIDE, UiHelper.title("Forgot your password?"),
+                    hintLabel("Type your username. You will answer the security question you "
+                            + "chose at sign up."),
+                    labeled("Username", user.node), step2, status, find, reset,
+                    link("Back to log in", () -> showLogin(null, user.text()))));
+            javafx.application.Platform.runLater(user.field::requestFocus);
+        }
     }
 }

@@ -1,6 +1,6 @@
 package fleetrent.ui;
 
-import fleetrent.controller.Background;
+import fleetrent.controller.ObservableController;
 
 
 import javafx.application.Platform;
@@ -14,6 +14,8 @@ import javafx.scene.layout.GridPane;
 public final class UiHelper {
     private static final double TF_PREF_WIDTH = 220;
     private static final double LABEL_MIN_WIDTH = 90;
+    private static final double ERROR_LINE_HEIGHT = 16;
+    private static final String KEEP_SPACE = "keepSpace";
     private static final double L_MAX_WIDTH = 260;
     private UiHelper() {
     }
@@ -53,7 +55,15 @@ public final class UiHelper {
         boolean has = message != null && !message.isEmpty();
         label.setText(has ? message : "");
         label.setVisible(has);
-        label.setManaged(has);
+        label.setManaged(has || label.getProperties().containsKey(KEEP_SPACE));
+    }
+
+    // Makes an error label keep one line of space even when it is empty, so showing a message
+    // does not push the controls below it.
+    static void keepSpace(Label label) {
+        label.getProperties().put(KEEP_SPACE, Boolean.TRUE);
+        label.setMinHeight(ERROR_LINE_HEIGHT);
+        label.setManaged(true);
     }
 
     // A control with its error label under it, for a grid cell.
@@ -66,6 +76,21 @@ public final class UiHelper {
         label.setText(text);
         label.getStyleClass().removeAll("status-error", "status-ok");
         label.getStyleClass().add(problem ? "status-error" : "status-ok");
+    }
+
+    // Shows a normal line again (not green and not red).
+    static void setNote(Label label, String text) {
+        label.setText(text);
+        label.getStyleClass().removeAll("status-error", "status-ok");
+    }
+
+    // Shows the load problems of a controller (its status property) in red on a label.
+    static void showProblems(ObservableController<?> controller, Label label) {
+        controller.statusProperty().addListener((obs, old, message) -> {
+            if (message != null && !message.isEmpty()) {
+                setStatus(label, message, true);
+            }
+        });
     }
 
     // Makes every button as wide as its full text, so a label is never cut to "Sh...".
@@ -107,10 +132,15 @@ public final class UiHelper {
         return sp;
     }
 
-    // Runs the job (usually a Task) on the shared pool of the controller layer, so the window
-    // never freezes and a double click cannot start many threads.
-    static void runInBackground(Runnable job) {
-        Background.run(job);
+    // Gives a dialog the look of the app: the FleetRent style sheet, and a frame in the colors of
+    // the app instead of the system title bar. Call it before the dialog is shown.
+    static void themeDialog(javafx.scene.control.Dialog<?> dialog) {
+        dialog.initStyle(javafx.stage.StageStyle.UNDECORATED);
+        java.net.URL css = UiHelper.class.getResource("/fleetrent.css");
+        if (css != null) {
+            dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
+        }
+        dialog.getDialogPane().getStyleClass().add("themed-dialog");
     }
 
     static void onFxThread(Runnable r) {

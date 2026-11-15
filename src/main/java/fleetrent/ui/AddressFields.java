@@ -6,6 +6,7 @@ import fleetrent.service.Validators;
 
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 
 // Three boxes for an address: street address, city and country (a drop-down). All three are
@@ -17,7 +18,6 @@ final class AddressFields {
     private final ValidatedField city = new ValidatedField(Validators.Kind.CITY, "Cebu City", true);
     private final ComboBox<String> country = new ComboBox<>();
     private final Label countryError = UiHelper.errorLabel();
-    private final VBox node;
 
     AddressFields() {
         for (Countries.Country c : Countries.all()) {
@@ -26,12 +26,9 @@ final class AddressFields {
         country.setValue(Countries.DEFAULT_NAME);
         country.setPrefWidth(COUNTRY_WIDTH);
         country.setMinWidth(COUNTRY_WIDTH);
-        country.setVisibleRowCount(10);
+        country.setVisibleRowCount(Layout.DROPDOWN_ROWS);
         country.valueProperty().addListener((obs, was, now) -> UiHelper.setError(countryError,
                 null));
-        node = new VBox(Layout.GAP_MEDIUM, labeled("Street address", street.node()),
-                labeled("City", city.node()),
-                labeled("Country", UiHelper.withError(country, countryError)));
     }
 
     private static VBox labeled(String text, javafx.scene.Node control) {
@@ -40,8 +37,20 @@ final class AddressFields {
         return new VBox(Layout.GAP_HAIR, label, control);
     }
 
+    // The three boxes stacked, each with a small label above it. Use this or addRows, not both.
     VBox node() {
-        return node;
+        return new VBox(Layout.GAP_MEDIUM, labeled("Street address", street.node()),
+                labeled("City", city.node()),
+                labeled("Country", UiHelper.withError(country, countryError)));
+    }
+
+    // Puts the three boxes on a shared grid, one label per row in the left column.
+    // Returns the next free row. Use this or node(), not both.
+    int addRows(GridPane grid, int row) {
+        UiHelper.addRow(grid, row, "Street address", street.node());
+        UiHelper.addRow(grid, row + 1, "City", city.node());
+        UiHelper.addRow(grid, row + 2, "Country", UiHelper.withError(country, countryError));
+        return row + 3;
     }
 
     // The three parts joined: "12 Rizal St, Cebu City, Philippines".

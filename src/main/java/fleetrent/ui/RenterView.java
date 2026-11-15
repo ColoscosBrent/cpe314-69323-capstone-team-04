@@ -15,17 +15,17 @@ import javafx.scene.layout.VBox;
 // My account). Nothing of the owner's screen is here: no other renters, no plates, no mileage,
 // no money totals. It reloads by itself when the owner changes something.
 final class RenterView {
+    private static final double SYNC_SECONDS = 3;
     private final VBox root = new VBox();
     private final SyncPoller poller;
 
     RenterView(AppController app, Account account, VehiclePictures pictures, Runnable signOut,
                Runnable newWindow) {
         RenterController booking = app.renter();
-        int renterId = account.getRenterId();
         RenterBookingsTab[] bookings = new RenterBookingsTab[1];
-        RenterBrowseTab browse = new RenterBrowseTab(booking, pictures, renterId, () ->
+        RenterBrowseTab browse = new RenterBrowseTab(booking, pictures, () ->
                 bookings[0].refresh());
-        bookings[0] = new RenterBookingsTab(booking, pictures, renterId, browse::refresh);
+        bookings[0] = new RenterBookingsTab(booking, pictures, browse::refresh);
         RenterAccountTab accountTab = new RenterAccountTab(app.auth(), booking, account);
 
         TabPane tabs = new TabPane(browse, bookings[0], accountTab);
@@ -44,7 +44,7 @@ final class RenterView {
         poller = new SyncPoller(app.changes(), () -> {
             browse.refresh();
             bookings[0].refresh();
-        }, 3);
+        }, SYNC_SECONDS);
         root.getChildren().addAll(Chrome.header("Vehicle rental  |  Renter", account, signOut,
                 newWindow), tabs);
         poller.start();

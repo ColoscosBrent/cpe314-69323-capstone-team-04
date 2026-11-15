@@ -38,6 +38,10 @@ final class ValidatedField {
             if (!change.isContentChange()) {
                 return change;
             }
+            // An email is always in small letters: a capital letter turns small as it is typed.
+            if (kind == Validators.Kind.EMAIL && !programmatic) {
+                change.setText(change.getText().toLowerCase(java.util.Locale.ROOT));
+            }
             // A value that the program sets (a make or a model chosen from the NHTSA list) is not a
             // key press.
             if (programmatic || kind.typingAllowed(change.getControlNewText())) {

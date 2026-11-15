@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox;
 // tabs. It reloads the Vehicles, Rentals and Reservations tabs by itself when something changes in
 // the database, for example when a renter reserves a car from the renter screen.
 final class AdminView {
+    private static final double SYNC_SECONDS = 3;
     private final VBox root = new VBox();
     private final SyncPoller poller;
 
@@ -50,7 +51,7 @@ final class AdminView {
                 dashboardTab.refresh();
             }
         });
-        poller = new SyncPoller(app.changes(), refreshSelected, 3);
+        poller = new SyncPoller(app.changes(), refreshSelected, SYNC_SECONDS);
         root.getChildren().addAll(Chrome.header("Vehicle rental and fleet management  |  Owner",
                 account, signOut, newWindow), tabs);
         poller.start();

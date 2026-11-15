@@ -189,15 +189,48 @@
     -fx-background-radius: 10;
     -fx-border-radius: 10;
 }
+.context-menu .menu-item {
+    -fx-background-color: #1b1233;
+}
+.context-menu .menu-item .label {
+    -fx-text-fill: #f3eefc;
+}
 .menu-item:focused {
     -fx-background-color: #f5b800;
 }
 .menu-item:focused .label {
     -fx-text-fill: #120b24;
 }
+.date-picker-popup .month-year-pane, .date-picker-popup .calendar-grid {
+    -fx-background-color: #1b1233;
+    -fx-border-color: #2a1157;
+}
+.date-picker-popup .spinner .button {
+    -fx-background-color: #2a1157;
+}
+.date-picker-popup .spinner .button .left-arrow, .date-picker-popup .spinner .button .right-arrow {
+    -fx-background-color: #f5b800;
+}
+.date-picker-popup .label, .date-picker-popup .day-name-cell, .date-picker-popup .week-number-cell {
+    -fx-text-fill: #f3eefc;
+}
+.date-picker-popup .day-cell {
+    -fx-background-color: #1b1233;
+    -fx-border-color: #2a1157;
+    -fx-text-fill: #f3eefc;
+}
+.date-picker-popup .day-cell:hover {
+    -fx-background-color: #5b21b6;
+}
+.date-picker-popup .day-cell:today {
+    -fx-border-color: #f5b800;
+}
 .date-picker-popup .day-cell:selected {
     -fx-background-color: #f5b800;
     -fx-text-fill: #120b24;
+}
+.date-picker-popup .other-month {
+    -fx-text-fill: #8a78b8;
 }
 
 /* ---------- buttons ---------- */
@@ -293,6 +326,31 @@
 .list-view {
     -fx-background-color: transparent;
     -fx-control-inner-background: transparent;
+}
+.combo-box-popup > .list-view {
+    -fx-background-color: #1b1233;
+    -fx-control-inner-background: #1b1233;
+    -fx-border-color: #f5b800;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
+    -fx-background-color: #1b1233;
+    -fx-text-fill: #f3eefc;
+    -fx-padding: 6 12 6 12;
+}
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:hover {
+    -fx-background-color: #5b21b6;
+    -fx-text-fill: #ffffff;
+}
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:selected {
+    -fx-background-color: #f5b800;
+    -fx-text-fill: #120b24;
+}
+.combo-box .list-cell, .combo-box-base .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #f3eefc;
 }
 .vehicle-list {
     -fx-background-color: transparent;
@@ -461,7 +519,7 @@
 }
 
 
-/* ---------- Week 10 review: accounts, owner and renter screens ---------- */
+/* ---------- Accounts, owner and renter screens ---------- */
 .danger-button {
     -fx-background-color: rgba(220, 38, 38, 0.18);
     -fx-text-fill: #ffc9c9;
@@ -665,4 +723,49 @@
 }
 .auth-scroll, .auth-scroll > .viewport {
     -fx-background-color: transparent;
+}
+
+/* ---------- custom window frame and title bar ---------- */
+.window-frame {
+    -fx-background-color: #0b0814;
+    -fx-border-color: #f5b800;
+    -fx-border-width: 1;
+}
+.title-bar {
+    -fx-background-color: linear-gradient(to right, #050309, #2a1157 55%, #5b21b6);
+    -fx-padding: 4 4 4 10;
+    -fx-border-color: transparent transparent #f5b800 transparent;
+    -fx-border-width: 0 0 2 0;
+}
+.title-bar-icon {
+    -fx-text-fill: #f5b800;
+    -fx-font-size: 15px;
+}
+.title-bar-text {
+    -fx-text-fill: #f5b800;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+.button.title-bar-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-text-fill: #f3eefc;
+    -fx-font-size: 14px;
+    -fx-padding: 4 14 4 14;
+    -fx-cursor: hand;
+}
+.button.title-bar-button:hover {
+    -fx-background-color: rgba(245, 184, 0, 0.28);
+}
+.button.title-bar-close:hover {
+    -fx-background-color: #e5384d;
+    -fx-text-fill: #ffffff;
+}
+.themed-dialog {
+    -fx-border-color: #f5b800;
+    -fx-border-width: 1;
+}
+.centered {
+    -fx-alignment: center;
 }

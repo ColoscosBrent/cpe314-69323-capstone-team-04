@@ -4,6 +4,7 @@ import fleetrent.service.PersonName;
 import fleetrent.service.Validators;
 
 import javafx.scene.control.Label;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 
 // Three boxes for a person's name: last name, first name and middle name. All three are required.
@@ -13,8 +14,6 @@ final class NameFields {
     private final ValidatedField first = new ValidatedField(Validators.Kind.NAME, "Ana", true);
     private final ValidatedField middle =
             new ValidatedField(Validators.Kind.NAME_PART, "Santos", true);
-    private final VBox node = new VBox(Layout.GAP_MEDIUM, labeled("Last name", last),
-            labeled("First name", first), labeled("Middle name", middle));
 
     private static VBox labeled(String text, ValidatedField field) {
         Label label = new Label(text);
@@ -22,8 +21,19 @@ final class NameFields {
         return new VBox(Layout.GAP_HAIR, label, field.node());
     }
 
+    // The three boxes stacked, each with a small label above it. Use this or addRows, not both.
     VBox node() {
-        return node;
+        return new VBox(Layout.GAP_MEDIUM, labeled("Last name", last),
+                labeled("First name", first), labeled("Middle name", middle));
+    }
+
+    // Puts the three boxes on a shared grid, one label per row in the left column.
+    // Returns the next free row.
+    int addRows(GridPane grid, int row) {
+        UiHelper.addRow(grid, row, "Last name", last.node());
+        UiHelper.addRow(grid, row + 1, "First name", first.node());
+        UiHelper.addRow(grid, row + 2, "Middle name", middle.node());
+        return row + 3;
     }
 
     // The three parts joined: "Reyes, Ana Santos".

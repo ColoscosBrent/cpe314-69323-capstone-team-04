@@ -54,6 +54,12 @@ final class PasswordInput {
         showError(null);
     }
 
+    // Keeps one line of space for the red message so nothing below it moves.
+    PasswordInput keepErrorSpace() {
+        UiHelper.keepSpace(error);
+        return this;
+    }
+
     void showError(String message) {
         UiHelper.setError(error, message);
     }

@@ -3,10 +3,7 @@ package fleetrent.ui;
 import fleetrent.controller.ControllerException;
 import fleetrent.controller.RuleException;
 import fleetrent.controller.VehicleController;
-import fleetrent.controller.VehicleController.Models;
 import fleetrent.dto.VehicleModelInfo;
-import fleetrent.model.Maintenance;
-import fleetrent.model.MaintenanceType;
 import fleetrent.model.Vehicle;
 import fleetrent.model.VehicleFactory;
 import fleetrent.model.VehicleTypes;
@@ -15,25 +12,17 @@ import fleetrent.service.Validators;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import javafx.collections.FXCollections;
-import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Tab;
 import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
@@ -43,7 +32,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 
 /**
@@ -52,6 +40,9 @@ import javafx.stage.FileChooser;
  * asked for, so the type and the model can never disagree.
  */
 public class VehicleTab extends Tab {
+    private static final double PREVIEW_LOAD_WIDTH = 300;
+    private static final double PREVIEW_WIDTH = 240;
+    private static final double PREVIEW_HEIGHT = 125;
     private static final double TYPE_BOX_PREF_WIDTH = 280;
     private static final double TYPE_BOX_MIN_WIDTH = 280;
     private static final double YEAR_BOX_PREF_WIDTH = 280;
@@ -60,7 +51,7 @@ public class VehicleTab extends Tab {
     private static final double COLOR_BOX_MIN_WIDTH = 280;
     private static final double CATEGORY_BOX_PREF_WIDTH = 280;
     private static final double CATEGORY_BOX_MIN_WIDTH = 280;
-    private static final double PMS_PICKER_PREF_WIDTH = 180;
+    private static final double PMS_BOX_WIDTH = 280;
     private static final double YEAR_NOTE_MAX_WIDTH = 300;
     private static final double PHOTO_NAME_MAX_WIDTH = 400;
     private static final double FORM_HGAP = 12;
@@ -69,44 +60,22 @@ public class VehicleTab extends Tab {
     private static final double STATUS_MAX_WIDTH = 400;
     private static final double FORM_CARD_PREF_WIDTH = 420;
     private static final double FORM_CARD_MIN_WIDTH = 420;
-    private static final double LOOKUP_BAR_PREF_WIDTH = 280;
-    private static final double LOOKUP_STATUS_MAX_WIDTH = 300;
-    private static final double LOOKUP_HINT_MAX_WIDTH = 300;
-    private static final double MAKE_LIST_PREF_HEIGHT = 190;
-    private static final double MAKE_LIST_MIN_HEIGHT = 190;
-    private static final double MODEL_LIST_PREF_HEIGHT = 230;
-    private static final double MODEL_LIST_MIN_HEIGHT = 230;
-    private static final double LOOKUP_CARD_PREF_WIDTH = 310;
-    private static final double LOOKUP_CARD_MIN_WIDTH = 310;
-    private static final double LIST_CARD_MIN_WIDTH = 380;
-    private static final double LIST_CARD_PREF_WIDTH = 420;
     private static final Insets CONTENT_PADDING = new Insets(18);
-    private static final double INFO_MAX_WIDTH = 460;
-    private static final double MAINTENANCE_WIDTH = 460;
-    private static final double MAINTENANCE_LIST_HEIGHT = 200;
     private static final int OLDEST_YEAR = 1996;
-    private static final double SWATCH_RADIUS = 8;
     private static final String YEAR_FIRST = "Choose the year first. Then pick the make and model.";
     private static final String PHOTO_HINT =
-            "No photo chosen. FleetRent will try to find one online.";
+            "No photo chosen. FleetRent will look online for one in the chosen color.";
+    private static final String CATEGORY_HINT = "NHTSA lists makes and models only, so choose "
+            + "the category and the transmission of your unit.";
 
     private final VehicleController controller;
     private final VehiclePictures pictures;
     private Path chosenPhoto;
     // The vehicle being edited, or null while the form adds a new vehicle.
     private Vehicle editing;
-    // The make and model the person clicked in the NHTSA lists. The Add button accepts them even
-    // when the lists are reloading (for example after the Year was changed).
-    private String pickedMake;
-    private String pickedModel;
 
-    private final ListView<Vehicle> vehicleList = new ListView<>();
     private final Label status = new Label("Ready.");
-    private final Label countLabel = new Label("0 vehicles");
-    private final Button findPhotosButton = new Button("Find photos for all");
-    private final Button removedButton = new Button("Removed vehicles");
-    private final Button maintenanceButton = new Button("Maintenance");
-    private final Button addButton = new Button("Add Vehicle");
+    private final Button addButton = new Button("Add vehicle");
     private final Button cancelEditButton = new Button("Cancel editing");
     private final Button removePhotoButton = new Button("Remove saved photo");
     private final Label formTitle = UiHelper.title("Add a vehicle");
@@ -139,22 +108,11 @@ public class VehicleTab extends Tab {
     private final Label categoryError = UiHelper.errorLabel();
     private final Label yearNote = new Label();
 
-    // NHTSA picker
-    private final ValidatedField makeSearch = new ValidatedField(Validators.Kind.VEHICLE_TEXT,
-            "Search makes...", false);
-    private final ValidatedField modelSearch = new ValidatedField(Validators.Kind.VEHICLE_TEXT,
-            "Search models...", false);
-    private final ListView<String> makeList = new ListView<>();
-    private final ListView<VehicleModelInfo> modelList = new ListView<>();
-    private final ProgressBar lookupBar = new ProgressBar(0);
-    private final Label lookupStatus = new Label("Choosing a type loads its makes from NHTSA.");
-    private final Button reloadButton = new Button("Reload from NHTSA");
-    private List<String> allMakes = new ArrayList<>();
-    private List<VehicleModelInfo> allModels = new ArrayList<>();
-    private boolean apiReady;
+    private final Label categoryNote = new Label(CATEGORY_HINT);
+
+    private final NhtsaPicker picker;
+    private final FleetListCard fleetCard;
     private boolean busyChangingForm;
-    private int makesRequest;
-    private int modelsRequest;
     private StackPane preview;
     private Label previewName;
 
@@ -165,6 +123,27 @@ public class VehicleTab extends Tab {
         this.pictures = pictures;
         setClosable(false);
 
+        configureInputs();
+        initPreview();
+        HBox photoRow = buildPhotoRow();
+        // Make and model are chosen from the NHTSA lists, so they cannot be typed by hand while
+        // NHTSA works.
+        picker = new NhtsaPicker(controller, makeField, modelField, typeBox::getValue,
+                yearBox::getValue, this::suggestCategory);
+        fleetCard = new FleetListCard(controller, pictures, status, this::beginEdit,
+                this::removeVehicle, this::refresh);
+        VBox formCard = buildFormCard(photoRow);
+
+        HBox content = new HBox(Layout.GAP_XLARGE, formCard, picker.node(), fleetCard.node());
+        content.setPadding(CONTENT_PADDING);
+        setContent(UiHelper.scroll(content));
+        refresh();
+        picker.loadMakes();
+        onYearChanged(null);
+    }
+
+    // Sets the size, the prompt and the choices of the boxes of the form.
+    private void configureInputs() {
         typeBox.setValue(VehicleTypes.ALL.get(0));
         typeBox.setPrefWidth(TYPE_BOX_PREF_WIDTH);
         typeBox.setMinWidth(TYPE_BOX_MIN_WIDTH);
@@ -187,7 +166,8 @@ public class VehicleTab extends Tab {
         fillStyles();
         pmsPicker.setEditable(false);
         pmsPicker.setPromptText("Optional");
-        pmsPicker.setPrefWidth(PMS_PICKER_PREF_WIDTH);
+        pmsPicker.setMaxWidth(Double.MAX_VALUE);
+        Format.styleDatePicker(pmsPicker);
         pmsPicker.setDayCellFactory(p -> new javafx.scene.control.DateCell() {
             @Override
             public void updateItem(LocalDate date, boolean empty) {
@@ -195,17 +175,16 @@ public class VehicleTab extends Tab {
                 setDisable(empty || date.isAfter(LocalDate.now()));
             }
         });
-        Button clearPms = new Button("Clear");
-        clearPms.getStyleClass().add("ghost-button");
-        clearPms.setOnAction(e -> pmsPicker.setValue(null));
         yearNote.getStyleClass().add("hint-label");
         yearNote.setWrapText(true);
         yearNote.setMaxWidth(YEAR_NOTE_MAX_WIDTH);
         yearNote.setManaged(false);
         yearNote.setVisible(false);
         mileageField.field().setText("0");
+    }
 
-        // Live car picture: it follows the Type box and the Color box.
+    // The live car picture. It follows the Type box and the Color box.
+    private void initPreview() {
         preview = new StackPane();
         preview.getStyleClass().add("preview-stage");
         previewName = new Label("Pick a color below");
@@ -215,7 +194,9 @@ public class VehicleTab extends Tab {
             redraw();
         });
         redraw();
+    }
 
+    private HBox buildPhotoRow() {
         photoName.getStyleClass().add("hint-label");
         photoName.setWrapText(true);
         photoName.setMaxWidth(PHOTO_NAME_MAX_WIDTH);
@@ -248,11 +229,14 @@ public class VehicleTab extends Tab {
         HBox photoRow = new HBox(Layout.GAP_NORMAL, photoButton, clearPhotoButton,
                 removePhotoButton);
         photoRow.setAlignment(Pos.CENTER_LEFT);
+        return photoRow;
+    }
 
-        // Make and model are chosen from the NHTSA lists, so they cannot be typed by hand while
-        // NHTSA works.
-        setManualEntry(false);
-
+    // The form to add or edit a vehicle, with its buttons and its status line.
+    private VBox buildFormCard(HBox photoRow) {
+        Button clearPms = new Button("Clear");
+        clearPms.getStyleClass().add("ghost-button");
+        clearPms.setOnAction(e -> pmsPicker.setValue(null));
         GridPane form = new GridPane();
         form.setHgap(FORM_HGAP);
         form.setVgap(FORM_VGAP);
@@ -266,22 +250,11 @@ public class VehicleTab extends Tab {
         UiHelper.addRow(form, r++, "Plate number", plateField.node());
         UiHelper.addRow(form, r++, "Daily rate", rateField.node());
         UiHelper.addRow(form, r++, "Mileage", mileageField.node());
-        UiHelper.addRow(form, r++, "Last PMS", new HBox(Layout.GAP_NORMAL, pmsPicker, clearPms));
+        UiHelper.addRow(form, r++, "Last PMS", pmsRow(clearPms));
         UiHelper.addRow(form, r++, "Category", UiHelper.withError(categoryBox, categoryError));
-        UiHelper.addRow(form, r++, "Transmission", gearBox);
-
-        addButton.getStyleClass().add("primary-button");
-        cancelEditButton.getStyleClass().add("secondary-button");
-        cancelEditButton.setOnAction(e -> cancelEdit());
-        removePhotoButton.getStyleClass().add("secondary-button");
-        removePhotoButton.setOnAction(e -> removeSavedPhoto());
-        typeNote.getStyleClass().add("hint-label");
-        typeNote.setWrapText(true);
-        typeNote.setMaxWidth(TYPE_NOTE_MAX_WIDTH);
-        setEditControls(false);
-        status.getStyleClass().add("status-label");
-        status.setWrapText(true);
-        status.setMaxWidth(STATUS_MAX_WIDTH);
+        UiHelper.addRow(form, r++, "Transmission", new VBox(Layout.GAP_HAIR, gearBox,
+                categoryNote));
+        styleFormControls();
 
         HBox saveRow = new HBox(Layout.GAP_MEDIUM, addButton, cancelEditButton);
         saveRow.setAlignment(Pos.CENTER_LEFT);
@@ -296,144 +269,55 @@ public class VehicleTab extends Tab {
 
         typeBox.valueProperty().addListener((obs, o, n) -> onTypeChanged());
         yearBox.valueProperty().addListener((obs, o, n) -> onYearChanged(n));
-
-        // ----- NHTSA picker card -----
-        reloadButton.getStyleClass().add("secondary-button");
-        reloadButton.setOnAction(e -> loadMakes());
-        lookupBar.setVisible(false);
-        lookupBar.setPrefWidth(LOOKUP_BAR_PREF_WIDTH);
-        lookupStatus.getStyleClass().add("status-label");
-        lookupStatus.setWrapText(true);
-        lookupStatus.setMaxWidth(LOOKUP_STATUS_MAX_WIDTH);
-        Label lookupHint = new Label("The Type decides the list. Click a make, then click a model. "
-                + "Choose the Year first: only models made in that year are listed.");
-        lookupHint.getStyleClass().add("hint-label");
-        lookupHint.setWrapText(true);
-        lookupHint.setMaxWidth(LOOKUP_HINT_MAX_WIDTH);
-        makeList.getStyleClass().add("plain-list");
-        makeList.setPrefHeight(MAKE_LIST_PREF_HEIGHT);
-        makeList.setMinHeight(MAKE_LIST_MIN_HEIGHT);
-        modelList.getStyleClass().add("plain-list");
-        modelList.setPrefHeight(MODEL_LIST_PREF_HEIGHT);
-        modelList.setMinHeight(MODEL_LIST_MIN_HEIGHT);
-        modelList.setCellFactory(list -> new ListCell<VehicleModelInfo>() {
-            @Override
-            protected void updateItem(VehicleModelInfo item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getModelName());
-            }
-        });
-        makeSearch.field().textProperty().addListener((obs, o, n) -> filterMakes());
-        modelSearch.field().textProperty().addListener((obs, o, n) -> filterModels());
-        makeList.getSelectionModel().selectedItemProperty().addListener((obs, o, picked) -> {
-            if (picked != null) {
-                onMakePicked(picked);
-            }
-        });
-        modelList.getSelectionModel().selectedItemProperty().addListener((obs, o, picked) -> {
-            if (picked != null) {
-                pickedModel = picked.getModelName();
-                modelField.setValue(picked.getModelName());
-                modelField.showError(null);
-            }
-        });
-        Label makeTitle = new Label("1. Make");
-        makeTitle.getStyleClass().add("field-label");
-        Label modelTitle = new Label("2. Model");
-        modelTitle.getStyleClass().add("field-label");
-        VBox lookupCard = new VBox(Layout.GAP_NORMAL, UiHelper.title("Choose from NHTSA"),
-                lookupHint,
-                new HBox(Layout.GAP_NORMAL, reloadButton), lookupBar, lookupStatus,
-                makeTitle, makeSearch.node(), makeList, modelTitle, modelSearch.node(), modelList);
-        lookupCard.getStyleClass().add("card");
-        lookupCard.setPrefWidth(LOOKUP_CARD_PREF_WIDTH);
-        lookupCard.setMinWidth(LOOKUP_CARD_MIN_WIDTH);
-
-        // ----- fleet card -----
-        countLabel.getStyleClass().add("count-label");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        findPhotosButton.getStyleClass().add("secondary-button");
-        findPhotosButton.setOnAction(e -> findAllPhotos());
-        removedButton.getStyleClass().add("secondary-button");
-        removedButton.setOnAction(e -> showRemovedVehicles());
-        maintenanceButton.getStyleClass().add("secondary-button");
-        maintenanceButton.setOnAction(e -> showMaintenance());
-        HBox titleRow = new HBox(Layout.GAP_MEDIUM, UiHelper.title("Our fleet"), spacer,
-                countLabel);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-        HBox fleetButtons = new HBox(Layout.GAP_NORMAL, maintenanceButton, removedButton,
-                findPhotosButton);
-        VBox listHeader = new VBox(Layout.GAP_NORMAL, titleRow, fleetButtons);
-        Label hint = new Label("Price shown is for 1 day with no extra miles. " + feeHint()
-                + " Photos come from your file or Wikipedia.");
-        hint.getStyleClass().add("hint-label");
-        hint.setWrapText(true);
-        vehicleList.setCellFactory(list -> new VehicleCell());
-        vehicleList.setFocusTraversable(false);
-        vehicleList.getStyleClass().add("vehicle-list");
-        VBox.setVgrow(vehicleList, Priority.ALWAYS);
-        VBox listCard = new VBox(Layout.GAP_MEDIUM, listHeader, hint, vehicleList);
-        listCard.getStyleClass().add("card");
-        listCard.setMinWidth(LIST_CARD_MIN_WIDTH);
-        listCard.setPrefWidth(LIST_CARD_PREF_WIDTH);
-        HBox.setHgrow(listCard, Priority.ALWAYS);
-
-        HBox content = new HBox(Layout.GAP_XLARGE, formCard, lookupCard, listCard);
-        content.setPadding(CONTENT_PADDING);
-        setContent(UiHelper.scroll(content));
-        refresh();
-        loadMakes();
-        onYearChanged(null);
+        return formCard;
     }
 
-    // One row of the color list: the color dot beside the color name.
-    private static final class ColorCell extends ListCell<String> {
-        @Override
-        protected void updateItem(String name, boolean empty) {
-            super.updateItem(name, empty);
-            if (empty || name == null) {
-                setText("Pick a color");
-                setGraphic(null);
-                return;
-            }
-            Circle dot = new Circle(SWATCH_RADIUS, ColorNames.toColor(name));
-            dot.setStroke(Color.web("#8a8f9c"));
-            setText(name);
-            setGraphic(dot);
-        }
+    // The look of the buttons and the notes of the form, and what the edit buttons do.
+    private void styleFormControls() {
+        categoryNote.getStyleClass().add("hint-label");
+        categoryNote.setWrapText(true);
+        categoryNote.setMaxWidth(YEAR_NOTE_MAX_WIDTH);
+        addButton.getStyleClass().add("primary-button");
+        cancelEditButton.getStyleClass().add("secondary-button");
+        cancelEditButton.setOnAction(e -> cancelEdit());
+        removePhotoButton.getStyleClass().add("secondary-button");
+        removePhotoButton.setOnAction(e -> removeSavedPhoto());
+        typeNote.getStyleClass().add("hint-label");
+        typeNote.setWrapText(true);
+        typeNote.setMaxWidth(TYPE_NOTE_MAX_WIDTH);
+        setEditControls(false);
+        status.getStyleClass().add("status-label");
+        status.setWrapText(true);
+        status.setMaxWidth(STATUS_MAX_WIDTH);
     }
 
-    // "Extra-mile fees: Sedan 100 free miles a day then 0.20 per mile, ..." built from the vehicle
-    // classes, so the text always matches the real rules.
-    private static String feeHint() {
-        StringBuilder sb = new StringBuilder("Extra-mile fees: ");
-        for (String type : VehicleTypes.ALL) {
-            Vehicle sample = VehicleFactory.create(0, type, "", "", 0, "", "", 1, 0, null, null);
-            if (sb.length() > 17) {
-                sb.append("; ");
-            }
-            sb.append(type.charAt(0)).append(type.substring(1).toLowerCase(Locale.ROOT)).append(' ')
-                    .append(sample.getFreeMilesPerDay()).append(" free miles a day, then ")
-                    .append(String.format(Locale.US, "%.2f", sample.getFeePerExtraMile()))
-                            .append(" per mile");
-        }
-        return sb.append('.').toString();
+    // The date box and its Clear button share one row that is as wide as the other boxes.
+    private HBox pmsRow(Button clearPms) {
+        HBox row = new HBox(Layout.GAP_NORMAL, pmsPicker, clearPms);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPrefWidth(PMS_BOX_WIDTH);
+        row.setMinWidth(PMS_BOX_WIDTH);
+        row.setMaxWidth(PMS_BOX_WIDTH);
+        HBox.setHgrow(pmsPicker, Priority.ALWAYS);
+        clearPms.setMinWidth(Region.USE_PREF_SIZE);
+        return row;
     }
 
     // ---------- live picture ----------
 
     private void redraw() {
-        Image chosen = chosenPhoto == null ? null : pictures.load(chosenPhoto, 300);
+        Image chosen = chosenPhoto == null ? null : pictures.load(chosenPhoto, PREVIEW_LOAD_WIDTH);
         if (chosen != null) {
-            preview.getChildren().setAll(VehiclePictures.photoNode(chosen, 240, 125));
+            preview.getChildren().setAll(VehiclePictures.photoNode(chosen, PREVIEW_WIDTH,
+                    PREVIEW_HEIGHT));
             previewName.setText("Your photo");
             return;
         }
         Path saved = editing == null ? null : controller.photoFile(editing.getId());
-        Image savedImage = saved == null ? null : pictures.load(saved, 300);
+        Image savedImage = saved == null ? null : pictures.load(saved, PREVIEW_LOAD_WIDTH);
         if (savedImage != null) {
-            preview.getChildren().setAll(VehiclePictures.photoNode(savedImage, 240, 125));
+            preview.getChildren().setAll(VehiclePictures.photoNode(savedImage, PREVIEW_WIDTH,
+                    PREVIEW_HEIGHT));
             previewName.setText("Saved photo");
             return;
         }
@@ -444,22 +328,12 @@ public class VehicleTab extends Tab {
 
     // ---------- type, make, model, year ----------
 
-    // Make and model boxes: read-only while NHTSA works, typed by hand only when NHTSA cannot be
-    // reached.
-    private void setManualEntry(boolean manual) {
-        makeField.field().setEditable(manual);
-        modelField.field().setEditable(manual);
-        String hint = manual ? "Type it (NHTSA is not reachable)" : "Pick from the NHTSA list";
-        makeField.field().setPromptText(hint);
-        modelField.field().setPromptText(hint);
-    }
-
     private void onTypeChanged() {
         fillStyles();
         UiHelper.setError(categoryError, null);
         clearMakeAndModel();
         redraw();
-        loadMakes();
+        picker.loadMakes();
     }
 
     // The Category box lists the styles of the chosen type (Sedan: Compact, Luxury ...; Motorcycle:
@@ -468,6 +342,7 @@ public class VehicleTab extends Tab {
         categoryBox.getItems().setAll(VehicleTypes.styles(typeBox.getValue()));
         categoryBox.setValue(categoryBox.getItems().get(0));
         onStyleChanged();
+        categoryNote.setText(CATEGORY_HINT);
     }
 
     // The Transmission box lists the gearboxes that exist for the chosen style.
@@ -480,14 +355,26 @@ public class VehicleTab extends Tab {
         gearBox.setValue(gearBox.getItems().get(0));
     }
 
+    // A model was clicked in the NHTSA list. NHTSA does not send the category or the
+    // transmission, so the app suggests the category of a model it knows and says so. The owner
+    // can still change both boxes.
+    private void suggestCategory(String model) {
+        String type = typeBox.getValue();
+        String style = VehicleController.suggestStyle(type, makeField.text(), model);
+        if (style == null || !categoryBox.getItems().contains(style)) {
+            categoryNote.setText(CATEGORY_HINT);
+            return;
+        }
+        categoryBox.setValue(style);
+        categoryNote.setText("Suggested for " + makeField.text() + " " + model + ": " + style
+                + ", " + gearBox.getValue() + ". Change them if your unit is different.");
+    }
+
     // The make and model can only be chosen after the year, because a model may not exist in
     // every year.
     private void onYearChanged(String year) {
         boolean chosen = year != null;
-        for (javafx.scene.Node n : new javafx.scene.Node[] {makeField.node(), modelField.node(),
-                makeSearch.node(), modelSearch.node(), makeList, modelList}) {
-            n.setDisable(!chosen);
-        }
+        picker.setEnabled(chosen);
         UiHelper.setError(yearError, null);
         if (!chosen) {
             showYearNote(YEAR_FIRST);
@@ -497,25 +384,11 @@ public class VehicleTab extends Tab {
         if (busyChangingForm) {
             return;
         }
-        pickedModel = null;
-        modelField.reset();
-        allModels = new ArrayList<>();
-        modelList.getItems().clear();
-        if (!makeField.field().getText().isEmpty() && apiReady) {
-            loadModels();
-        }
+        picker.yearChanged();
     }
 
     private void clearMakeAndModel() {
-        pickedMake = null;
-        pickedModel = null;
-        makeField.reset();
-        modelField.reset();
-        makeSearch.reset();
-        modelSearch.reset();
-        makeList.getSelectionModel().clearSelection();
-        allModels = new ArrayList<>();
-        modelList.getItems().clear();
+        picker.clear();
         showYearNote(yearBox.getValue() == null ? YEAR_FIRST : null);
     }
 
@@ -526,162 +399,7 @@ public class VehicleTab extends Tab {
         yearNote.setVisible(has);
     }
 
-    private void loadMakes() {
-        final String type = typeBox.getValue();
-        final String apiType = VehicleTypes.apiType(type);
-        final int request = ++makesRequest;
-        modelsRequest++;
-        reloadButton.setDisable(true);
-        lookupBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-        lookupBar.setVisible(true);
-        UiHelper.setStatus(lookupStatus, "Asking NHTSA for " + type + " makes...", false);
-        allMakes = new ArrayList<>();
-        makeList.getItems().clear();
-        modelList.getItems().clear();
-
-        Task<List<String>> task = new Task<List<String>>() {
-            @Override
-            protected List<String> call() throws Exception {
-                return controller.fetchMakes(apiType);
-            }
-        };
-        task.setOnSucceeded(e -> {
-            if (request != makesRequest) {
-                return;
-            }
-            allMakes = task.getValue();
-            apiReady = !allMakes.isEmpty();
-            filterMakes();
-            if (apiReady) {
-                setManualEntry(false);
-                UiHelper.setStatus(lookupStatus, "NHTSA lists " + allMakes.size() + " " + type
-                        + " makes. Click one.", false);
-            } else {
-                setManualEntry(true);
-                UiHelper.setStatus(lookupStatus, "NHTSA returned no makes for " + type
-                        + ". You can type the make and model by hand.", true);
-            }
-            finishLookup();
-        });
-        task.setOnFailed(e -> {
-            if (request != makesRequest) {
-                return;
-            }
-            apiReady = false;
-            setManualEntry(true);
-            UiHelper.setStatus(lookupStatus, task.getException().getMessage()
-                    + " Until it works you can type the make and model by hand.", true);
-            finishLookup();
-        });
-        UiHelper.runInBackground(task);
-    }
-
-    private void filterMakes() {
-        String q = makeSearch.field().getText().trim().toLowerCase(Locale.ROOT);
-        List<String> shown = new ArrayList<>();
-        for (String m : allMakes) {
-            if (q.isEmpty() || m.toLowerCase(Locale.ROOT).contains(q)) {
-                shown.add(m);
-            }
-        }
-        makeList.getItems().setAll(shown);
-    }
-
-    private void filterModels() {
-        String q = modelSearch.field().getText().trim().toLowerCase(Locale.ROOT);
-        List<VehicleModelInfo> shown = new ArrayList<>();
-        for (VehicleModelInfo m : allModels) {
-            if (q.isEmpty() || m.getModelName().toLowerCase(Locale.ROOT).contains(q)) {
-                shown.add(m);
-            }
-        }
-        modelList.getItems().setAll(shown);
-    }
-
-    private void onMakePicked(String make) {
-        pickedMake = make;
-        pickedModel = null;
-        makeField.setValue(make);
-        makeField.showError(null);
-        modelField.reset();
-        loadModels();
-    }
-
-    // Asks NHTSA for the models of the chosen make, for the chosen type and (if chosen) year.
-    // If NHTSA has no model of that make for that year, the list stays empty.
-    private void loadModels() {
-        final String make = makeField.field().getText().trim();
-        if (make.isEmpty()) {
-            return;
-        }
-        final String apiType = VehicleTypes.apiType(typeBox.getValue());
-        if (yearBox.getValue() == null) {
-            return;
-        }
-        final int year = Integer.parseInt(yearBox.getValue());
-        final int request = ++modelsRequest;
-        lookupBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-        lookupBar.setVisible(true);
-        UiHelper.setStatus(lookupStatus, "Asking NHTSA for " + make + " models...", false);
-        modelList.getItems().clear();
-        allModels = new ArrayList<>();
-
-        Task<Models> task = new Task<Models>() {
-            @Override
-            protected Models call() throws Exception {
-                return controller.fetchModels(make, year, apiType);
-            }
-        };
-        task.setOnSucceeded(e -> {
-            if (request != modelsRequest) {
-                return;
-            }
-            Models result = task.getValue();
-            allModels = result.models();
-            modelSearch.reset();
-            filterModels();
-            if (result.models().isEmpty()) {
-                modelField.field().clear();
-                UiHelper.setStatus(lookupStatus, "NHTSA has no " + typeBox.getValue()
-                        + " model of " + make + " for " + year
-                        + ". Pick another make or another year.", true);
-            } else {
-                UiHelper.setStatus(lookupStatus, result.models().size() + " models of " + make
-                        + " for " + year + ". Click one.", false);
-            }
-            lookupBar.setVisible(false);
-        });
-        task.setOnFailed(e -> {
-            if (request != modelsRequest) {
-                return;
-            }
-            apiReady = false;
-            setManualEntry(true);
-            UiHelper.setStatus(lookupStatus, task.getException().getMessage()
-                    + " You can type the model by hand.", true);
-            lookupBar.setVisible(false);
-        });
-        UiHelper.runInBackground(task);
-    }
-
-    private void finishLookup() {
-        lookupBar.setVisible(false);
-        reloadButton.setDisable(false);
-    }
-
     // ---------- saving ----------
-
-    // True when the make was chosen from NHTSA (or clicked in the list), ignoring capitals and
-    // extra spaces.
-    private boolean isKnownMake(String text) {
-        return Validators.sameName(pickedMake, text)
-                || allMakes.stream().anyMatch(m -> Validators.sameName(m, text));
-    }
-
-    private boolean isKnownModel(String text) {
-        return Validators.sameName(pickedModel, text)
-                || allModels.stream().anyMatch(m -> Validators.sameName(m.getModelName(), text));
-    }
 
     // The saved category: the style and the transmission of the type, or null when one is missing.
     private String categoryPathOrNull(String type) {
@@ -703,13 +421,13 @@ public class VehicleTab extends Tab {
         }
         if (!makeField.validate()) {
             ok = false;
-        } else if (apiReady && !makeUnchanged && !isKnownMake(makeField.text())) {
+        } else if (picker.isReady() && !makeUnchanged && !picker.isKnownMake(makeField.text())) {
             makeField.showError("Pick the make from the NHTSA list.");
             ok = false;
         }
         if (!modelField.validate()) {
             ok = false;
-        } else if (apiReady && !modelUnchanged && !isKnownModel(modelField.text())) {
+        } else if (picker.isReady() && !modelUnchanged && !picker.isKnownModel(modelField.text())) {
             modelField.showError("Pick the model from the NHTSA list.");
             ok = false;
         }
@@ -756,8 +474,8 @@ public class VehicleTab extends Tab {
             String mileageText = mileageField.text();
             int mileage = mileageText.isEmpty() ? 0 : Integer.parseInt(mileageText);
             int id = editing == null ? 0 : editing.getId();
-            Vehicle vehicle = VehicleFactory.create(id, type, makeField.text(), modelField.text(),
-                    year,
+            VehicleModelInfo info = new VehicleModelInfo(makeField.text(), 0, modelField.text());
+            Vehicle vehicle = VehicleFactory.create(id, type, info, year,
                     plateField.text(), colorBox.getValue(), Double.parseDouble(rateField.text()),
                     mileage, pms, path);
             Vehicle samePlate = controller.findByPlate(vehicle.getPlateNumber());
@@ -772,7 +490,7 @@ public class VehicleTab extends Tab {
             }
             controller.add(vehicle);
             UiHelper.setStatus(status, "Saved: " + vehicle, false);
-            afterAdd(vehicle);
+            fleetCard.afterAdd(vehicle, chosenPhoto);
             resetForm();
             refresh();
         } catch (NumberFormatException e) {
@@ -815,7 +533,7 @@ public class VehicleTab extends Tab {
     private void setEditControls(boolean editMode) {
         formTitle.setText(editMode && editing != null ? "Edit vehicle #" + editing.getId()
                 : "Add a vehicle");
-        addButton.setText(editMode ? "Save changes" : "Add Vehicle");
+        addButton.setText(editMode ? "Save changes" : "Add vehicle");
         for (javafx.scene.Node n : new javafx.scene.Node[] {cancelEditButton, removePhotoButton,
                 typeNote}) {
             n.setVisible(editMode);
@@ -832,7 +550,7 @@ public class VehicleTab extends Tab {
             typeBox.setValue(v.getType());
         } else {
             clearMakeAndModel();
-            loadMakes();
+            picker.loadMakes();
         }
         makeField.setValue(v.getMake());
         modelField.setValue(v.getModel());
@@ -861,8 +579,10 @@ public class VehicleTab extends Tab {
         UiHelper.setError(categoryError, null);
         chosenPhoto = null;
         photoName.setText(controller.hasPhoto(v.getId())
-                ? "Keeping the saved photo. Choose a new one to replace it."
+                ? "Keeping the saved photo. Choose a new one to replace it. For a photo in a new "
+                        + "color, remove the saved photo and press Find photos for all."
                 : "No photo yet. Choose one, or FleetRent will use the drawn car.");
+        categoryNote.setText(CATEGORY_HINT);
         removePhotoButton.setDisable(!controller.hasPhoto(v.getId()));
         redraw();
         UiHelper.setStatus(status, "Editing " + v.displayName()
@@ -900,15 +620,6 @@ public class VehicleTab extends Tab {
 
     // ---------- remove and restore ----------
 
-    private Alert styledAlert(Alert.AlertType type, String text, ButtonType... buttons) {
-        Alert alert = new Alert(type, text, buttons);
-        java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
-        if (css != null) {
-            alert.getDialogPane().getStylesheets().add(css.toExternalForm());
-        }
-        return alert;
-    }
-
     private void removeVehicle(Vehicle v) {
         try {
             int reserved = controller.activeReservations(v.getId());
@@ -919,11 +630,11 @@ public class VehicleTab extends Tab {
                             + " active reservation(s) will be cancelled." : "")
                     + "\n\nThe rental history is kept. You can bring it back with \"Removed "
                             + "vehicles\".";
-            Alert alert = styledAlert(Alert.AlertType.CONFIRMATION, text, remove, keep);
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, text, remove, keep);
+            UiHelper.themeDialog(alert);
             alert.setTitle("Remove vehicle");
             alert.setHeaderText("Remove " + v.displayName() + " (" + v.getPlateNumber() + ")?");
-            alert.initOwner(vehicleList.getScene() == null ? null : vehicleList.getScene()
-                    .getWindow());
+            alert.initOwner(fleetCard.window());
             java.util.Optional<ButtonType> answer = alert.showAndWait();
             if (answer.isEmpty() || answer.get() != remove) {
                 return;
@@ -941,147 +652,6 @@ public class VehicleTab extends Tab {
         } catch (ControllerException e) {
             UiHelper.setStatus(status, e.getMessage(), true);
         }
-    }
-
-    // A small window with the removed vehicles and a Restore button.
-    private void showRemovedVehicles() {
-        ListView<Vehicle> list = new ListView<>();
-        list.setPrefSize(460, 260);
-        list.setCellFactory(l -> new ListCell<Vehicle>() {
-            @Override
-            protected void updateItem(Vehicle item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.displayName() + "  |  "
-                        + item.getPlateNumber()
-                        + "  |  " + item.getType());
-            }
-        });
-        list.getStyleClass().add("plain-list");
-        Label info = new Label();
-        info.getStyleClass().add("status-label");
-        info.setWrapText(true);
-        info.setMaxWidth(INFO_MAX_WIDTH);
-        Button restore = new Button("Restore selected");
-        restore.getStyleClass().add("primary-button");
-        Runnable load = () -> {
-            try {
-                list.getItems().setAll(controller.removedVehicles());
-                info.setText(list.getItems().isEmpty() ? "No removed vehicles."
-                        : "Pick a vehicle, then press Restore.");
-            } catch (ControllerException e) {
-                UiHelper.setStatus(info, e.getMessage(), true);
-            }
-        };
-        restore.setOnAction(e -> {
-            Vehicle picked = list.getSelectionModel().getSelectedItem();
-            if (picked == null) {
-                UiHelper.setStatus(info, "Pick a vehicle first.", true);
-                return;
-            }
-            try {
-                controller.restore(picked.getId());
-                load.run();
-                refresh();
-                UiHelper.setStatus(info, picked.displayName() + " is back in the fleet.", false);
-                UiHelper.setStatus(status, picked.displayName() + " was restored to the fleet.",
-                        false);
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-                UiHelper.setStatus(info, ex.getMessage(), true);
-            } catch (ControllerException ex) {
-                UiHelper.setStatus(info, ex.getMessage(), true);
-            }
-        });
-        load.run();
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Removed vehicles");
-        dialog.setHeaderText("Vehicles you removed from the fleet");
-        dialog.getDialogPane().setContent(new VBox(Layout.GAP_MEDIUM, list, info, restore));
-        dialog.getDialogPane().getButtonTypes().add(new ButtonType("Close",
-                ButtonBar.ButtonData.CANCEL_CLOSE));
-        java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
-        if (css != null) {
-            dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
-        }
-        dialog.initOwner(vehicleList.getScene() == null ? null : vehicleList.getScene()
-                .getWindow());
-        dialog.showAndWait();
-    }
-
-    // A small window with the maintenance of the selected vehicle and a form to add a record.
-    private void showMaintenance() {
-        Vehicle picked = vehicleList.getSelectionModel().getSelectedItem();
-        if (picked == null) {
-            UiHelper.setStatus(status, "Pick a vehicle in the list first.", true);
-            return;
-        }
-        ListView<String> list = new ListView<>();
-        list.setPrefSize(MAINTENANCE_WIDTH, MAINTENANCE_LIST_HEIGHT);
-        list.getStyleClass().add("plain-list");
-        Label info = new Label();
-        info.getStyleClass().add("status-label");
-        info.setWrapText(true);
-        info.setMaxWidth(MAINTENANCE_WIDTH);
-        javafx.scene.control.ComboBox<MaintenanceType> typeBox =
-                new javafx.scene.control.ComboBox<>();
-        typeBox.getItems().setAll(MaintenanceType.values());
-        typeBox.getSelectionModel().select(MaintenanceType.PMS);
-        javafx.scene.control.DatePicker datePicker =
-                new javafx.scene.control.DatePicker(LocalDate.now());
-        javafx.scene.control.TextField costField = new javafx.scene.control.TextField();
-        costField.setPromptText("Cost, for example 2500");
-        javafx.scene.control.TextField noteField = new javafx.scene.control.TextField();
-        noteField.setPromptText("Note (optional)");
-        Button save = new Button("Save record");
-        save.getStyleClass().add("primary-button");
-        Runnable load = () -> {
-            try {
-                List<String> lines = new ArrayList<>();
-                for (Maintenance m : controller.maintenanceOf(picked.getId())) {
-                    lines.add(m.getDoneOn() + "  |  " + m.getType().getLabel()
-                            + String.format(Locale.US, "  |  %.2f", m.getCost())
-                            + (m.getNote().isEmpty() ? "" : "  |  " + m.getNote()));
-                }
-                list.getItems().setAll(lines);
-                info.setText(lines.isEmpty() ? "No maintenance recorded yet." : lines.size()
-                        + " record(s).");
-            } catch (ControllerException e) {
-                UiHelper.setStatus(info, e.getMessage(), true);
-            }
-        };
-        save.setOnAction(e -> {
-            try {
-                double cost = Double.parseDouble(costField.getText().trim());
-                controller.logMaintenance(picked.getId(), datePicker.getValue(),
-                        typeBox.getValue(), cost,
-                        noteField.getText());
-                costField.clear();
-                noteField.clear();
-                load.run();
-                refresh();
-                UiHelper.setStatus(info, "Saved.", false);
-            } catch (NumberFormatException ex) {
-                UiHelper.setStatus(info, "Enter the cost as a number.", true);
-            } catch (ControllerException ex) {
-                UiHelper.setStatus(info, ex.getMessage(), true);
-            }
-        });
-        load.run();
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Maintenance");
-        dialog.setHeaderText("Maintenance of " + picked.displayName() + " ("
-                + picked.getPlateNumber() + ")");
-        dialog.getDialogPane().setContent(new VBox(Layout.GAP_MEDIUM, list, info, typeBox,
-                datePicker, costField,
-                noteField, save));
-        dialog.getDialogPane().getButtonTypes().add(new ButtonType("Close",
-                ButtonBar.ButtonData.CANCEL_CLOSE));
-        java.net.URL css = VehicleTab.class.getResource("/fleetrent.css");
-        if (css != null) {
-            dialog.getDialogPane().getStylesheets().add(css.toExternalForm());
-        }
-        dialog.initOwner(vehicleList.getScene() == null ? null : vehicleList.getScene()
-                .getWindow());
-        dialog.showAndWait();
     }
 
     private void resetForm() {
@@ -1102,144 +672,13 @@ public class VehicleTab extends Tab {
         UiHelper.setError(colorError, null);
         UiHelper.setError(categoryError, null);
         redraw();
-        UiHelper.setStatus(lookupStatus, "Choose the year, then click a make.", false);
+        picker.showStatus("Choose the year, then click a make.");
     }
 
     /** Reloads the data of this tab from the database. */
     public void refresh() {
-        try {
-            vehicleList.getItems().setAll(controller.vehicles());
-            int count = vehicleList.getItems().size();
-            countLabel.setText(count + (count == 1 ? " vehicle" : " vehicles"));
-        } catch (ControllerException e) {
-            UiHelper.setStatus(status, e.getMessage(), true);
-        }
+        controller.refresh();
     }
 
-    // After a vehicle is saved: copy the chosen photo, or look for one online in the background.
-    private void afterAdd(Vehicle vehicle) {
-        if (chosenPhoto != null) {
-            try {
-                controller.savePhoto(vehicle.getId(), chosenPhoto);
-            } catch (ControllerException e) {
-                UiHelper.setStatus(status, "Saved, but the photo could not be used: "
-                        + e.getMessage(), true);
-            }
-            return;
-        }
-        UiHelper.setStatus(status, "Saved: " + vehicle + ". Looking for a photo online...", false);
-        Task<Boolean> task = new Task<Boolean>() {
-            @Override
-            protected Boolean call() throws Exception {
-                return controller.findPhoto(vehicle) != VehicleController.Photo.NONE;
-            }
-        };
-        task.setOnSucceeded(e -> {
-            UiHelper.setStatus(status, task.getValue()
-                    ? "Saved: " + vehicle + ". Photo added."
-                    : "Saved: " + vehicle + ". No online photo found, showing the drawn car. "
-                            + "Use Choose photo to add yours.", false);
-            refresh();
-        });
-        task.setOnFailed(e -> UiHelper.setStatus(status, "Saved: " + vehicle + ". "
-                + task.getException().getMessage() + " Showing the drawn car.", true));
-        UiHelper.runInBackground(task);
-    }
 
-    // Looks online for a photo of every vehicle that has none. Runs in the background with a
-    // progress count.
-    private void findAllPhotos() {
-        final List<Vehicle> missing = new ArrayList<>();
-        for (Vehicle v : vehicleList.getItems()) {
-            if (!controller.hasPhoto(v.getId())) {
-                missing.add(v);
-            }
-        }
-        if (missing.isEmpty()) {
-            UiHelper.setStatus(status, "Every vehicle already has a photo.", false);
-            return;
-        }
-        findPhotosButton.setDisable(true);
-        Task<int[]> task = new Task<int[]>() {
-            @Override
-            protected int[] call() throws Exception {
-                return controller.findPhotos(missing, (done, total) ->
-                        updateMessage("Looking for photos... " + done + " of " + total));
-            }
-        };
-        task.messageProperty().addListener((obs, o, n) -> UiHelper.setStatus(status, n, false));
-        task.setOnSucceeded(e -> {
-            int[] r = task.getValue();
-            UiHelper.setStatus(status, "Photo search done. Found " + r[0] + " photo(s)"
-                    + (r[1] > 0 ? ", " + r[1] + " could not be searched." : "."), r[1] > 0);
-            findPhotosButton.setDisable(false);
-            refresh();
-        });
-        task.setOnFailed(e -> {
-            Throwable cause = task.getException();
-            UiHelper.setStatus(status, "Photo search stopped. "
-                    + (cause == null ? "Unknown problem." : cause.getMessage()), true);
-            findPhotosButton.setDisable(false);
-        });
-        UiHelper.runInBackground(task);
-    }
-
-    // How one vehicle looks in the list: its picture, its name, plate, color and mileage, a type
-    // badge, and its price.
-    private class VehicleCell extends ListCell<Vehicle> {
-        @Override
-        protected void updateItem(Vehicle v, boolean empty) {
-            super.updateItem(v, empty);
-            if (empty || v == null) {
-                setText(null);
-                setGraphic(null);
-                return;
-            }
-            Label badge = new Label(v.getType());
-            badge.getStyleClass().addAll("badge", "badge-" + v.getType().toLowerCase(Locale.ROOT));
-            Label name = new Label(v.getMake() + " " + v.getModel() + (v.getYear() > 0 ? " "
-                    + v.getYear() : ""));
-            name.getStyleClass().add("vehicle-name");
-            Circle chip = new Circle(6, ColorNames.toColor(v.getColor()));
-            chip.setStroke(Color.web("#f5b800"));
-            Label colorName = new Label(v.getColor() == null ? "" : v.getColor());
-            colorName.getStyleClass().add("color-name");
-            HBox colorRow = new HBox(Layout.GAP_SMALL, chip, colorName, badge);
-            colorRow.setAlignment(Pos.CENTER_LEFT);
-            Label details = new Label(v.getPlateNumber() + "  |  " + v.getMileage() + " mi");
-            details.getStyleClass().add("vehicle-details");
-            Label category = new Label(v.getCategoryPath() == null ? "" : v.getCategoryPath()
-                    + (v.getLastPMS() == null ? "" : "  |  PMS " + v.getLastPMS()));
-            category.getStyleClass().add("hint-label");
-            // v is a Vehicle reference. Java runs the Sedan, Suv or Motorcycle version at runtime.
-            Label price = new Label(String.format(Locale.US, "%.2f / day", v.computeRentalCost(1,
-                    0)));
-            price.getStyleClass().add("vehicle-price");
-            Label fee = new Label("Extra miles: " + v.feeSummary());
-            fee.getStyleClass().add("hint-label");
-            fee.setWrapText(true);
-            fee.maxWidthProperty().bind(javafx.beans.binding.Bindings.max(120, widthProperty()
-                    .subtract(235)));
-            VBox text = new VBox(Layout.GAP_TINY, name, colorRow, details, category, price, fee);
-            text.setMinWidth(0);
-            name.setWrapText(true);
-            name.setMinHeight(Region.USE_PREF_SIZE);
-            name.maxWidthProperty().bind(javafx.beans.binding.Bindings.max(120, widthProperty()
-                    .subtract(235)));
-            Button edit = new Button("Edit");
-            edit.getStyleClass().addAll("secondary-button", "mini-button");
-            edit.setOnAction(e -> beginEdit(v));
-            Button remove = new Button("Remove");
-            remove.getStyleClass().addAll("danger-button", "mini-button");
-            remove.setOnAction(e -> removeVehicle(v));
-            edit.setMinWidth(Region.USE_PREF_SIZE);
-            remove.setMinWidth(Region.USE_PREF_SIZE);
-            text.getChildren().add(new HBox(Layout.GAP_NORMAL, edit, remove));
-            HBox card = new HBox(Layout.GAP_WIDER, pictures.stage(v), text);
-            card.setAlignment(Pos.CENTER_LEFT);
-            card.getStyleClass().add("vehicle-card");
-            setText(null);
-            setGraphic(card);
-        }
-    }
 }

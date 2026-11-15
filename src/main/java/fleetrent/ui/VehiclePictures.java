@@ -18,6 +18,16 @@ import javafx.scene.shape.Rectangle;
 // same thing: the saved photo if there is one, otherwise the drawn car in the vehicle's color.
 final class VehiclePictures {
     private static final double STAGE_MIN_WIDTH = 172;
+    private static final double LIST_LOAD_WIDTH = 320;
+    private static final double LIST_PHOTO_WIDTH = 156;
+    private static final double LIST_PHOTO_HEIGHT = 98;
+    private static final double LIST_CAR_WIDTH = 130;
+    private static final double FRAME_PAD_WIDTH = 16;
+    private static final double FRAME_PAD_HEIGHT = 8;
+    private static final double CAR_PAD_WIDTH = 24;
+    private static final double CAR_PAD_HEIGHT = 12;
+    private static final double CAR_ASPECT = 200.0 / 90.0;
+    private static final double CORNER_ARC = 18;
     private static final double STAGE_PREF_WIDTH = 172;
     private static final double STAGE_MIN_HEIGHT = 106;
     private final IntFunction<Path> photos;
@@ -30,9 +40,10 @@ final class VehiclePictures {
     // The framed picture used in the lists (about 172 x 106).
     Node stage(Vehicle v) {
         Path photo = photos.apply(v.getId());
-        Image image = photo == null ? null : load(photo, 320);
-        StackPane stage = new StackPane(image != null ? photoNode(image, 156, 98)
-                : CarGraphic.create(v.getType(), v.getColor(), 130));
+        Image image = photo == null ? null : load(photo, LIST_LOAD_WIDTH);
+        StackPane stage = new StackPane(image != null
+                ? photoNode(image, LIST_PHOTO_WIDTH, LIST_PHOTO_HEIGHT)
+                : CarGraphic.create(v.getType(), v.getColor(), LIST_CAR_WIDTH));
         stage.getStyleClass().add("car-stage");
         stage.setMinWidth(STAGE_MIN_WIDTH);
         stage.setPrefWidth(STAGE_PREF_WIDTH);
@@ -44,9 +55,10 @@ final class VehiclePictures {
     Node stage(Vehicle v, double width, double height) {
         Path photo = photos.apply(v.getId());
         Image image = photo == null ? null : load(photo, width * 2);
-        Node inner = image != null ? photoNode(image, width - 16, height - 8)
-                : CarGraphic.create(v.getType(), v.getColor(), Math.min(width - 24,
-                        (height - 12) * 200.0 / 90.0));
+        Node inner = image != null
+                ? photoNode(image, width - FRAME_PAD_WIDTH, height - FRAME_PAD_HEIGHT)
+                : CarGraphic.create(v.getType(), v.getColor(), Math.min(width - CAR_PAD_WIDTH,
+                        (height - CAR_PAD_HEIGHT) * CAR_ASPECT));
         StackPane stage = new StackPane(inner);
         stage.getStyleClass().add("car-stage");
         stage.setMinSize(width, height);
@@ -87,8 +99,8 @@ final class VehiclePictures {
         box.setPrefSize(w, h);
         box.setMaxSize(w, h);
         Rectangle clip = new Rectangle(w, h);
-        clip.setArcWidth(18);
-        clip.setArcHeight(18);
+        clip.setArcWidth(CORNER_ARC);
+        clip.setArcHeight(CORNER_ARC);
         box.setClip(clip);
         return box;
     }

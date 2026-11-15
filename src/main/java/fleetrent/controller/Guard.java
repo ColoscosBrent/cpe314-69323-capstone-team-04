@@ -1,6 +1,7 @@
 package fleetrent.controller;
 
 import fleetrent.service.AuthException;
+import fleetrent.service.ErrorMessages;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -37,8 +38,7 @@ final class Guard {
         } catch (SQLException e) {
             throw ControllerException.database(action, e);
         } catch (IOException e) {
-            throw new ControllerException("A file problem stopped " + action + ": "
-                    + e.getMessage(), e);
+            throw new ControllerException(ErrorMessages.forFile(action, e), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ControllerException("The work was stopped before " + action + " finished.",

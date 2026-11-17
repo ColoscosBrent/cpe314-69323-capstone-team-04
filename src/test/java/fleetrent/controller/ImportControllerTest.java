@@ -91,4 +91,53 @@ class ImportControllerTest {
         assertEquals(10, importer.exportRecords(out));
         assertEquals(11, Files.readAllLines(out).size());
     }
+
+    @Test
+    void exportingOneImportWritesOnlyTheRowsOfThatFile() throws Exception {
+        auth.login("owner01", "Passw0rdX");
+        importer.addDemoVehicles();
+        Path practice = folder.resolve("practice.csv");
+        importer.writeSampleCsv(practice);
+        List<String> lines = Files.readAllLines(practice);
+        Path first = folder.resolve("first.csv");
+        Files.write(first, lines.subList(0, 31));
+        List<String> more = new java.util.ArrayList<>(lines.subList(31, 301));
+        more.add(0, RentalCsvImporter.HEADER);
+        Path second = folder.resolve("second.csv");
+        Files.write(second, more);
+        ImportResult small = importer.importFile(first, p -> { });
+        ImportResult big = importer.importFile(second, p -> { });
+        assertEquals(30, small.getImported());
+        assertEquals(270, big.getImported());
+        assertEquals(300, big.getTotalRentals());
+        // Export all has every rental; the export of the first import has its 30 rows only.
+        assertEquals(300, importer.exportRecords(folder.resolve("all.csv")));
+        Path one = folder.resolve("one.csv");
+        assertEquals(30, importer.exportImport(small.getBatchId(), one));
+        List<String> written = Files.readAllLines(one);
+        assertEquals(31, written.size());
+        assertEquals(RentalCsvImporter.HEADER, written.get(0));
+        assertEquals(lines.get(1), written.get(1));
+        // The exported file is the same file as the first import, so it is refused as a whole.
+        assertThrows(RuleException.class, () -> importer.importFile(one, p -> { }));
+        // The same rows in another order are another file, but every row is already in the
+        // app, so nothing is added.
+        List<String> shuffled = new java.util.ArrayList<>(written.subList(1, written.size()));
+        java.util.Collections.reverse(shuffled);
+        shuffled.add(0, RentalCsvImporter.HEADER);
+        Path other = folder.resolve("other-order.csv");
+        Files.write(other, shuffled);
+        ImportResult again = importer.importFile(other, p -> { });
+        assertEquals(0, again.getImported());
+        assertEquals(30, again.getSkipped());
+        assertEquals(300, importer.exportRecords(folder.resolve("all2.csv")));
+    }
+
+    @Test
+    void aRenterCannotExportOneImport() throws Exception {
+        auth.login("owner01", "Passw0rdX");
+        auth.signOut();
+        assertThrows(RuleException.class,
+                () -> importer.exportImport(1, folder.resolve("x.csv")));
+    }
 }

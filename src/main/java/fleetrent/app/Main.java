@@ -18,6 +18,7 @@ public class Main {
         return "FleetRent starting...";
     }
 
+    /** Starts the app: logs the start message, uses the proxy of the computer, opens the window. */
     public static void main(String[] args) {
         LOG.info(startupMessage());
         // Use the proxy settings of the computer (school or office networks), if there are any.

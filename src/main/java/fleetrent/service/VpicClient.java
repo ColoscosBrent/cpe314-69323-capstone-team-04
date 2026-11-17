@@ -1,12 +1,8 @@
 package fleetrent.service;
 
+import fleetrent.dto.VehicleMakeDto;
 import fleetrent.dto.VehicleModelInfo;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
 import java.net.ProxySelector;
@@ -16,8 +12,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -31,6 +25,7 @@ public class VpicClient {
     private static final int HTTP_OK = 200;
     private static final int LAST_UNSUPPORTED_YEAR = 1995;
     private static final Logger LOG = Logger.getLogger(VpicClient.class.getName());
+    /** The address of the NHTSA vPIC web service. */
     public static final String DEFAULT_BASE_URL = "https://vpic.nhtsa.dot.gov/api";
 
     private final String baseUrl;
@@ -85,12 +80,14 @@ public class VpicClient {
     }
 
     /**
-     * All makes that NHTSA lists for one vehicle type word: "car", "mpv" or "motorcycle".
+     * All makes that NHTSA lists for one vehicle type word: "car", "mpv" or "motorcycle". Use
+     * {@link ApiMapper#makeNames} to get the sorted names.
      */
-    public List<String> fetchMakes(String apiType) throws IOException, InterruptedException {
+    public List<VehicleMakeDto> fetchMakes(String apiType) throws IOException,
+            InterruptedException {
         String body = get(makesUrl(apiType));
         try {
-            List<String> makes = parseMakes(body);
+            List<VehicleMakeDto> makes = parseMakes(body);
             LOG.info("[vPIC] parsed " + makes.size() + " makes");
             return makes;
         } catch (IllegalArgumentException e) {
@@ -155,23 +152,11 @@ public class VpicClient {
     }
 
     /**
-     * Turns the makes JSON into a sorted list of names without duplicates.
+     * Turns the makes JSON into DTOs. Throws IllegalArgumentException if the text is not what we
+     * expect.
      */
-    public static List<String> parseMakes(String json) {
-        JsonArray results = resultsOf(json);
-        java.util.TreeMap<String, String> byLower = new java.util.TreeMap<>();
-        for (JsonElement item : results) {
-            if (!item.isJsonObject()) {
-                continue;
-            }
-            String name = text(item.getAsJsonObject(), "MakeName");
-            if (name == null || name.isBlank()) {
-                continue;
-            }
-            String clean = name.trim();
-            byLower.putIfAbsent(clean.toLowerCase(java.util.Locale.ROOT), clean);
-        }
-        return new ArrayList<>(byLower.values());
+    public static List<VehicleMakeDto> parseMakes(String json) {
+        return ApiMapper.readMakes(ApiMapper.readVpic(json));
     }
 
     private static String cleanType(String apiType) {
@@ -181,60 +166,12 @@ public class VpicClient {
         return apiType.trim();
     }
 
-    private static JsonArray resultsOf(String json) {
-        if (json == null || json.isBlank()) {
-            throw new IllegalArgumentException("empty answer");
-        }
-        JsonElement root;
-        try {
-            root = JsonParser.parseString(json);
-        } catch (JsonParseException e) {
-            throw new IllegalArgumentException("not valid JSON");
-        }
-        if (!root.isJsonObject() || !root.getAsJsonObject().has("Results")
-                || !root.getAsJsonObject().get("Results").isJsonArray()) {
-            throw new IllegalArgumentException("no Results list in the answer");
-        }
-        return root.getAsJsonObject().getAsJsonArray("Results");
-    }
-
     /**
      * Turns the JSON text into a list. Throws IllegalArgumentException if the text is not what we
      * expect.
      */
     public static List<VehicleModelInfo> parseModels(String json) {
-        JsonArray results = resultsOf(json);
-        List<VehicleModelInfo> models = new ArrayList<>();
-        for (JsonElement item : results) {
-            if (!item.isJsonObject()) {
-                continue;
-            }
-            JsonObject o = item.getAsJsonObject();
-            String name = text(o, "Model_Name");
-            if (name == null || name.isBlank()) {
-                continue;
-            }
-            String make = text(o, "Make_Name");
-            models.add(new VehicleModelInfo(make == null ? "" : make.trim(), number(o, "Model_ID"),
-                    name.trim()));
-        }
-        models.sort(Comparator.comparing(VehicleModelInfo::getModelName,
-                String.CASE_INSENSITIVE_ORDER));
-        return models;
-    }
-
-    private static String text(JsonObject o, String key) {
-        JsonElement e = o.get(key);
-        return (e == null || e.isJsonNull()) ? null : e.getAsString();
-    }
-
-    private static int number(JsonObject o, String key) {
-        try {
-            JsonElement e = o.get(key);
-            return (e == null || e.isJsonNull()) ? 0 : e.getAsInt();
-        } catch (RuntimeException ex) {
-            return 0;
-        }
+        return ApiMapper.toModelInfos(ApiMapper.readModels(ApiMapper.readVpic(json)));
     }
 
     private static String cleanMake(String make) {

@@ -1,7 +1,6 @@
 package fleetrent.service;
 
 import fleetrent.dto.VehicleModelInfo;
-import fleetrent.model.Motorcycle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -156,7 +155,7 @@ class VpicClientTest {
 
     @Test
     void parseMakesSortsAndRemovesDuplicates() {
-        List<String> makes = VpicClient.parseMakes(MAKES);
+        List<String> makes = ApiMapper.makeNames(VpicClient.parseMakes(MAKES));
         assertEquals(List.of("Aprilia", "HONDA"), makes);
     }
 
@@ -168,8 +167,8 @@ class VpicClientTest {
     @Test
     void fetchMakesUsesTheVehicleTypeUrl() throws Exception {
         body = MAKES;
-        List<String> makes = client().fetchMakes("motorcycle");
-        assertEquals(2, makes.size());
+        List<fleetrent.dto.VehicleMakeDto> makes = client().fetchMakes("motorcycle");
+        assertEquals(2, ApiMapper.makeNames(makes).size());
         assertTrue(lastPath.startsWith("/api/vehicles/GetMakesForVehicleType/motorcycle"));
     }
 
@@ -216,7 +215,7 @@ class VpicClientTest {
     void parseMakesSkipsItemsWithoutAMakeName() {
         String json = "{\"Results\":[{\"MakeId\":1},{\"MakeName\":null},{\"MakeName\":\"  \"},"
                 + "{\"MakeName\":\"Toyota\"}]}";
-        assertEquals(List.of("Toyota"), VpicClient.parseMakes(json));
+        assertEquals(List.of("Toyota"), ApiMapper.makeNames(VpicClient.parseMakes(json)));
     }
 
     @Test

@@ -1,6 +1,8 @@
 package fleetrent.model;
 
 
+import fleetrent.dto.VehicleModelInfo;
+
 import java.time.LocalDate;
 
 /**
@@ -8,13 +10,18 @@ import java.time.LocalDate;
  */
 public class VehicleFactory {
 
-    /** Creates the right Vehicle subclass for the type name (SEDAN, SUV or MOTORCYCLE). */
-    public static Vehicle create(int id, String type, String make, String model, int year,
+    /**
+     * Creates the right Vehicle subclass for the type name (SEDAN, SUV or MOTORCYCLE). The make
+     * and the model come from a model info, the same object that the NHTSA lookup gives.
+     */
+    public static Vehicle create(int id, String type, VehicleModelInfo info, int year,
                                  String plateNumber, String color, double dailyRate,
                                  int mileage, LocalDate lastPMS, String categoryPath) {
         if (type == null) {
             throw new IllegalArgumentException("Unknown vehicle type: null");
         }
+        String make = info.getMakeName();
+        String model = info.getModelName();
         switch (type) {
             case "SEDAN":
                 return new Sedan(id, make, model, year, plateNumber, color, dailyRate, mileage,
@@ -28,6 +35,14 @@ public class VehicleFactory {
             default:
                 throw new IllegalArgumentException("Unknown vehicle type: " + type);
         }
+    }
+
+    /** Same as above, for a make and a model that are only text (a typed or saved vehicle). */
+    public static Vehicle create(int id, String type, String make, String model, int year,
+                                 String plateNumber, String color, double dailyRate,
+                                 int mileage, LocalDate lastPMS, String categoryPath) {
+        return create(id, type, new VehicleModelInfo(make, 0, model), year, plateNumber, color,
+                dailyRate, mileage, lastPMS, categoryPath);
     }
 
     /**

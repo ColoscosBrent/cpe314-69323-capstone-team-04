@@ -6,8 +6,6 @@ import fleetrent.controller.RenterController;
 import fleetrent.model.Account;
 import fleetrent.model.Renter;
 
-import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,10 +32,17 @@ public class RenterAccountTab extends Tab {
         super("My account");
         setClosable(false);
 
+        HBox content = new HBox(Layout.GAP_LARGE, buildProfile(renters, account),
+                buildPasswordCard(auth, account));
+        content.setPadding(CONTENT_PADDING);
+        setContent(UiHelper.scroll(content));
+    }
+
+    // The name, contact and address of the renter.
+    private static VBox buildProfile(RenterController renters, Account account) {
         Renter renter = null;
         try {
-            renter = account.getRenterId() == null ? null
-                    : renters.findRenter(account.getRenterId());
+            renter = account.getRenterId() == null ? null : renters.myDetails();
         } catch (ControllerException e) {
             // The page still opens. The details below stay empty.
         }
@@ -52,13 +57,16 @@ public class RenterAccountTab extends Tab {
                 : renter.getEmail()));
         UiHelper.addRow(info, 4, "Address", value(renter == null || renter.getAddress() == null
                 ? "-" : renter.getAddress()));
-        UiHelper.addRow(info, 5, "Member since", value(account.getCreatedOn()
-                .format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))));
+        UiHelper.addRow(info, 5, "Member since", value(Format.date(account.getCreatedOn())));
         VBox profile = new VBox(Layout.GAP_WIDE, UiHelper.title("My details"), info);
         profile.getStyleClass().add("card");
         profile.setPrefWidth(PROFILE_PREF_WIDTH);
         profile.setMinWidth(PROFILE_MIN_WIDTH);
+        return profile;
+    }
 
+    // The three password boxes and the Change password button.
+    private static VBox buildPasswordCard(AuthController auth, Account account) {
         PasswordInput current = new PasswordInput("Current password");
         PasswordInput next = new PasswordInput(
                 "New password (8+ characters, a letter and a digit)");
@@ -69,45 +77,44 @@ public class RenterAccountTab extends Tab {
         status.setMaxWidth(STATUS_MAX_WIDTH);
         Button change = new Button("Change password");
         change.getStyleClass().add("primary-button");
-        change.setOnAction(e -> {
-            boolean ok = true;
-            if (current.text().isEmpty()) {
-                current.showError("Type your current password.");
-                ok = false;
-            }
-            String m = AuthController.checkPassword(next.text());
-            if (m != null) {
-                next.showError(m);
-                ok = false;
-            } else if (!next.text().equals(again.text())) {
-                again.showError("The two passwords are not the same.");
-                ok = false;
-            }
-            if (!ok) {
-                UiHelper.setStatus(status, "Please fix the red messages first.", true);
-                return;
-            }
-            try {
-                auth.changePassword(account.getId(), current.text(), next.text());
-                current.clear();
-                next.clear();
-                again.clear();
-                UiHelper.setStatus(status, "Your password was changed.", false);
-            } catch (ControllerException ex) {
-                UiHelper.setStatus(status, ex.getMessage(), true);
-            }
-        });
+        change.setOnAction(e -> changePassword(auth, account, current, next, again, status));
         VBox password = new VBox(Layout.GAP_MEDIUM, UiHelper.title("Change password"),
-                field("Current password",
-                current),
-                field("New password", next), field("Confirm new password", again), change, status);
+                field("Current password", current), field("New password", next),
+                field("Confirm new password", again), change, status);
         password.getStyleClass().add("card");
         password.setPrefWidth(PASSWORD_PREF_WIDTH);
         password.setMinWidth(PASSWORD_MIN_WIDTH);
+        return password;
+    }
 
-        HBox content = new HBox(Layout.GAP_LARGE, profile, password);
-        content.setPadding(CONTENT_PADDING);
-        setContent(UiHelper.scroll(content));
+    private static void changePassword(AuthController auth, Account account,
+            PasswordInput current, PasswordInput next, PasswordInput again, Label status) {
+        boolean ok = true;
+        if (current.text().isEmpty()) {
+            current.showError("Type your current password.");
+            ok = false;
+        }
+        String m = AuthController.checkPassword(next.text());
+        if (m != null) {
+            next.showError(m);
+            ok = false;
+        } else if (!next.text().equals(again.text())) {
+            again.showError("The two passwords are not the same.");
+            ok = false;
+        }
+        if (!ok) {
+            UiHelper.setStatus(status, "Please fix the red messages first.", true);
+            return;
+        }
+        try {
+            auth.changePassword(account.getId(), current.text(), next.text());
+            current.clear();
+            next.clear();
+            again.clear();
+            UiHelper.setStatus(status, "Your password was changed.", false);
+        } catch (ControllerException ex) {
+            UiHelper.setStatus(status, ex.getMessage(), true);
+        }
     }
 
     private static Label value(Object text) {

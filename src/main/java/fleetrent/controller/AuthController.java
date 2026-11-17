@@ -5,6 +5,7 @@ import fleetrent.model.Renter;
 import fleetrent.model.Role;
 import fleetrent.service.AuthService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -15,6 +16,7 @@ import java.util.List;
 public class AuthController {
     private final AuthService auth;
     private final Session session;
+    private final List<Runnable> sessionListeners = new ArrayList<>();
 
     /** Creates the controller. */
     public AuthController(AuthService auth, Session session) {
@@ -27,9 +29,24 @@ public class AuthController {
         return session;
     }
 
+    /**
+     * Runs the action every time someone signs in or out on this window. The controllers use it to
+     * forget what belongs to the person who just left (for example the renter's Undo list).
+     */
+    public void onSessionChange(Runnable listener) {
+        sessionListeners.add(listener);
+    }
+
     /** Signs out: the window no longer has an account. */
     public void signOut() {
         session.end();
+        sessionListeners.forEach(Runnable::run);
+    }
+
+    /** Starts the session of an account that just logged in or signed up. */
+    public void startSession(Account account) {
+        session.start(account);
+        sessionListeners.forEach(Runnable::run);
     }
 
     /** The security questions a new account can choose from. */
@@ -64,7 +81,7 @@ public class AuthController {
     public Account login(String username, String password, Role role) throws ControllerException {
         Account account = Guard.database("logging in",
                 () -> auth.login(username, password, role));
-        session.start(account);
+        startSession(account);
         return account;
     }
 
@@ -77,7 +94,7 @@ public class AuthController {
             String question, String answer) throws ControllerException {
         Account account = Guard.database("creating the account",
                 () -> auth.signUpOwner(username, password, displayName, phone, question, answer));
-        session.start(account);
+        startSession(account);
         return account;
     }
 
@@ -86,7 +103,7 @@ public class AuthController {
             String answer) throws ControllerException {
         Account account = Guard.database("creating the account",
                 () -> auth.signUpRenter(username, password, details, question, answer));
-        session.start(account);
+        startSession(account);
         return account;
     }
 

@@ -14,21 +14,18 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
 /**
  * One FleetRent window. It opens the database, shows the login screen, and after a login swaps the
  * screen for the owner's or the renter's. Sign out brings the login screen back. Every window has
  * its own database connection to the same file, so two windows (an owner and a renter) stay in
- * sync.
+ * sync. The window has no system title bar: ThemedWindow draws one in the colors of the app.
  */
 public final class AppWindow {
-    private static final double STAGE_MIN_WIDTH = 860;
-    private static final double STAGE_MIN_HEIGHT = 560;
-    private static final double FADE_MILLIS = 260;
     private static final List<AppWindow> OPEN = new ArrayList<>();
     private static int opened;
 
@@ -36,10 +33,12 @@ public final class AppWindow {
     private VehiclePictures pictures;
     private AppController app;
     private Scene scene;
+    private ThemedWindow frame;
     private AuthScreen authScreen;
     private AdminView adminView;
     private RenterView renterView;
 
+    /** Creates the window on a stage. Call open() to show it. */
     public AppWindow(Stage stage) {
         this.stage = stage;
     }
@@ -64,41 +63,29 @@ public final class AppWindow {
             app = AppController.open(System.getProperty("fleetrent.dbUrl",
                     "jdbc:sqlite:fleetrent.db"));
         } catch (ControllerException e) {
-            // The database is the heart of the app, so without it the app tells the user why and
-            // stops.
-            Alert alert = new Alert(Alert.AlertType.ERROR,
-                    e.getMessage() + "\n\nFleetRent will close now.");
-            alert.setTitle("FleetRent - database problem");
-            alert.setHeaderText("The database cannot be opened");
-            alert.showAndWait();
-            closeDatabase();
-            if (OPEN.isEmpty()) {
-                Platform.exit();
-            }
+            showOpenError(e);
             return false;
         }
         pictures = new VehiclePictures(app.vehicles()::photoFile);
         OPEN.add(this);
         int number = opened++;
 
-        scene = new Scene(new StackPane(), 1320, 800);
+        stage.initStyle(StageStyle.UNDECORATED);
+        ThemedWindow.setWindowIcon(stage);
+        frame = new ThemedWindow(stage);
+        scene = new Scene((javafx.scene.Parent) frame.frame(), Layout.WINDOW_WIDTH,
+                Layout.WINDOW_HEIGHT);
+        frame.install(scene);
         URL css = AppWindow.class.getResource("/fleetrent.css");
         if (css != null) {
             scene.getStylesheets().add(css.toExternalForm());
         }
         stage.setTitle("FleetRent");
         stage.setScene(scene);
-        // Small enough for a laptop, big enough that the header and tabs never overlap. Maximize
-        // works at any size.
-        stage.setMinWidth(STAGE_MIN_WIDTH);
-        stage.setMinHeight(STAGE_MIN_HEIGHT);
-        // Never open bigger than the usable screen, so the title bar and the close button stay
-        // visible.
-        Rectangle2D area = Screen.getPrimary().getVisualBounds();
-        stage.setWidth(Math.min(1320, area.getWidth()));
-        stage.setHeight(Math.min(800, area.getHeight()));
-        stage.setX(area.getMinX() + (area.getWidth() - stage.getWidth()) / 2 + 28 * (number % 5));
-        stage.setY(area.getMinY() + 28 * (number % 5));
+        // Small enough for a laptop, big enough that the header and tabs never overlap.
+        stage.setMinWidth(Layout.WINDOW_MIN_WIDTH);
+        stage.setMinHeight(Layout.WINDOW_MIN_HEIGHT);
+        placeOnScreen(number);
         stage.setOnHidden(e -> {
             disposeViews();
             closeDatabase();
@@ -108,12 +95,52 @@ public final class AppWindow {
         stage.show();
         stage.toFront();
         stage.requestFocus();
+        String warning = app.takeSetupWarning();
+        if (warning != null) {
+            Platform.runLater(() -> showWarning(warning));
+        }
         return true;
     }
 
+    // Never opens bigger than the usable screen, so the whole window and its buttons stay visible.
+    private void placeOnScreen(int number) {
+        Rectangle2D area = Screen.getPrimary().getVisualBounds();
+        double step = Layout.WINDOW_STEP * (number % Layout.WINDOW_STEPS);
+        stage.setWidth(Math.min(Layout.WINDOW_WIDTH, area.getWidth()));
+        stage.setHeight(Math.min(Layout.WINDOW_HEIGHT, area.getHeight()));
+        stage.setX(area.getMinX() + (area.getWidth() - stage.getWidth()) / 2 + step);
+        stage.setY(area.getMinY() + step);
+    }
+
+    // The database is the heart of the app, so without it the app tells the user why and stops.
+    private void showOpenError(ControllerException e) {
+        Alert alert = new Alert(Alert.AlertType.ERROR,
+                e.getMessage() + "\n\nFleetRent will close now.");
+        alert.setTitle("FleetRent - database problem");
+        alert.setHeaderText("The database cannot be opened");
+        UiHelper.themeDialog(alert);
+        alert.showAndWait();
+        closeDatabase();
+        if (OPEN.isEmpty()) {
+            Platform.exit();
+        }
+    }
+
+    private void showWarning(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING, message);
+        alert.setTitle("FleetRent - please check");
+        alert.setHeaderText("The database needs attention");
+        UiHelper.themeDialog(alert);
+        alert.initOwner(stage);
+        alert.show();
+    }
+
+    // Stops the jobs of this window first (a photo search, an import), then closes the database,
+    // so no job uses a closed connection.
     private void closeDatabase() {
         OPEN.remove(this);
         if (app != null) {
+            app.stopJobs(Layout.CLOSE_WAIT_MILLIS);
             app.close();
             app = null;
         }
@@ -135,8 +162,8 @@ public final class AppWindow {
     }
 
     private void swap(Node root) {
-        scene.setRoot(new StackPane(root));
-        FadeTransition fade = new FadeTransition(Duration.millis(FADE_MILLIS), scene.getRoot());
+        frame.body().getChildren().setAll(root);
+        FadeTransition fade = new FadeTransition(Duration.millis(Layout.FADE_MILLIS), root);
         fade.setFromValue(0);
         fade.setToValue(1);
         fade.play();
@@ -151,15 +178,17 @@ public final class AppWindow {
     }
 
     private void showFor(Account account) {
-        app.auth().session().start(account);
+        app.auth().startSession(account);
         disposeViews();
         if (account.getRole() == Role.ADMIN) {
             stage.setTitle("FleetRent - Owner: " + account.getDisplayName());
-            adminView = new AdminView(app, account, pictures, this::showAuth, AppWindow::openNew);
+            adminView = new AdminView(app, account, pictures, this::showAuth,
+                    AppWindow::openNew);
             swap(adminView.root());
         } else {
             stage.setTitle("FleetRent - " + account.getDisplayName());
-            renterView = new RenterView(app, account, pictures, this::showAuth, AppWindow::openNew);
+            renterView = new RenterView(app, account, pictures, this::showAuth,
+                    AppWindow::openNew);
             swap(renterView.root());
         }
     }

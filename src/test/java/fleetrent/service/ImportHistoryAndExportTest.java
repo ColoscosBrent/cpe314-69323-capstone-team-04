@@ -163,8 +163,69 @@ class ImportHistoryAndExportTest {
             renters.put(r.getId(), r);
         }
         List<String> lines = RentalCsvExporter.lines(db.getAllRentals(), vehicles, renters);
+        // Another app (an empty database with the same vehicle) takes the exported file.
+        try (Database other = new Database("jdbc:sqlite::memory:")) {
+            other.createTables();
+            other.insertVehicle(VehicleFactory.create(0, "SEDAN", "Toyota", "Vios", 2020,
+                    "ABC 123", "White", 1000, 0, null, "Car > Sedan"));
+            ImportResult again = new RentalCsvImporter().importLines(lines, other, null);
+            assertEquals(1, again.getImported());
+            assertEquals(0, again.getSkipped());
+            assertEquals(1, again.getTotalRentals());
+        }
+    }
+
+    @Test
+    void importingAnExportIntoTheSameAppAddsNothing() throws SQLException {
+        new RentalCsvImporter().importLines(Arrays.asList(ROW_OK), db, null);
+        Map<Integer, Vehicle> vehicles = new HashMap<>();
+        for (Vehicle v : db.getAllVehicles()) {
+            vehicles.put(v.getId(), v);
+        }
+        Map<Integer, Renter> renters = new HashMap<>();
+        for (Renter r : db.getAllRenters()) {
+            renters.put(r.getId(), r);
+        }
+        List<String> lines = RentalCsvExporter.lines(db.getAllRentals(), vehicles, renters);
         ImportResult again = new RentalCsvImporter().importLines(lines, db, null);
-        assertEquals(1, again.getImported());
-        assertEquals(0, again.getSkipped());
+        assertEquals(0, again.getImported());
+        assertEquals(1, again.getSkipped());
+        assertTrue(again.getErrors().get(0).contains("already in the app"));
+        assertEquals(1, db.getAllRentals().size());
+        assertEquals(1, again.getTotalRentals());
+    }
+
+    @Test
+    void aRowRepeatedInsideOneFileIsSavedOnce() throws SQLException {
+        ImportResult result = new RentalCsvImporter().importLines(
+                Arrays.asList(RentalCsvImporter.HEADER, ROW_OK, ROW_OK), db, null);
+        assertEquals(1, result.getImported());
+        assertEquals(1, result.getSkipped());
+        assertEquals(1, db.getAllRentals().size());
+    }
+
+    @Test
+    void theRowsOfOneImportAreExportedWithTheRenterDetails() throws SQLException {
+        ImportResult first = new RentalCsvImporter().importLines(Arrays.asList(
+                RentalCsvImporter.HEADER, ROW_OK), db, null, "one.csv", "owner01");
+        new RentalCsvImporter().importLines(Arrays.asList(RentalCsvImporter.HEADER,
+                "ABC 123,SEDAN,Toyota,Vios,2020,Ben,,,,2026-04-01,2026-04-04,10,RETURNED",
+                "ABC 123,SEDAN,Toyota,Vios,2020,Ben,,,,2026-05-01,2026-05-04,10,RETURNED"),
+                db, null, "two.csv", "owner01");
+        Map<String, Renter> byName = new HashMap<>();
+        for (Renter r : db.getAllRenters()) {
+            byName.put(r.getName().toLowerCase(java.util.Locale.ROOT), r);
+        }
+        List<String> lines = RentalCsvExporter.linesOfImport(
+                db.getImportRecords(first.getBatchId(), "ADDED", Integer.MAX_VALUE), byName);
+        // The header and the one rental of the first file, not the three rentals in the app.
+        assertEquals(2, lines.size());
+        assertEquals(3, db.getAllRentals().size());
+        assertEquals(RentalCsvImporter.HEADER, lines.get(0));
+        List<String> cols = CsvLine.parse(lines.get(1));
+        assertEquals("ABC 123", cols.get(0));
+        assertEquals("Reyes, Ana Cruz", cols.get(5));
+        assertEquals("ana@example.com", cols.get(7));
+        assertEquals("RETURNED", cols.get(12));
     }
 }

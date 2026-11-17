@@ -13,7 +13,9 @@ import java.util.Locale;
  */
 public class CarImageStore {
     private static final int MIN_IMAGE_BYTES = 4;
+    /** The folder of the saved photos, next to the database file. */
     public static final String DEFAULT_FOLDER = "vehicle_images";
+    /** The biggest photo file the owner may choose, in bytes. */
     public static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
     private static final List<String> EXTENSIONS = List.of("jpg", "png", "gif", "bmp");
 

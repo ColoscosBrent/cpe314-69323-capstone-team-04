@@ -15,6 +15,7 @@ public class Rental {
     private LocalDate returnedOn;
     private int milesDriven;
     private RentalStatus status;
+    private Integer processedBy;
 
     /** Creates a rental. */
     public Rental(int id, int renterId, int vehicleId, LocalDate startDate, LocalDate endDate,
@@ -65,4 +66,8 @@ public class Rental {
     public int getMilesDriven() { return milesDriven; }
     /** Returns the status. */
     public RentalStatus getStatus() { return status; }
+    /** Returns the id of the account that started the rental, or null (for example imported). */
+    public Integer getProcessedBy() { return processedBy; }
+    /** Sets the id of the account that started the rental. */
+    public void setProcessedBy(Integer accountId) { this.processedBy = accountId; }
 }

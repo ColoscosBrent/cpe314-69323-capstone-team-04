@@ -32,6 +32,15 @@ public class RentalService {
      */
     public Rental startRental(int renterId, int vehicleId, LocalDate start,
             LocalDate end) throws SQLException {
+        return startRental(renterId, vehicleId, start, end, null);
+    }
+
+    /**
+     * Same as above, and the rental remembers the account of the staff member who started it
+     * (processedBy may be null).
+     */
+    public Rental startRental(int renterId, int vehicleId, LocalDate start, LocalDate end,
+            Integer processedBy) throws SQLException {
         RentalMath.billableDays(start, end);
         Vehicle vehicle = db.getVehicleById(vehicleId);
         if (vehicle == null) {
@@ -54,6 +63,7 @@ public class RentalService {
                     + "Pick other dates or another vehicle.");
         }
         Rental rental = Rental.startNew(renterId, vehicleId, start, end);
+        rental.setProcessedBy(processedBy);
         // Check and save in one step: a renter in another window may have booked these days a
         // moment ago.
         if (!db.insertRentalIfFree(rental, start)) {

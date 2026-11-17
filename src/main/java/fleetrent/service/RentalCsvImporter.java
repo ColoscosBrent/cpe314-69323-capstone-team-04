@@ -18,9 +18,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.IntConsumer;
 
 /**
@@ -183,7 +186,8 @@ public class RentalCsvImporter {
     // The renter columns are optional. A filled-in phone, email or address must be valid.
     private static String[] checkRenterColumns(List<String> cols, String renterName) {
         String phone = col(cols, PHONE);
-        String email = col(cols, EMAIL);
+        // An email is saved in small letters, so a file with capital letters is still accepted.
+        String email = col(cols, EMAIL).toLowerCase(Locale.ROOT);
         String address = col(cols, ADDRESS);
         if (!phone.isEmpty() && PhoneNumber.checkSaved(phone) != null) {
             throw new IllegalArgumentException("renter phone must look like +63 9171234567");
@@ -214,9 +218,19 @@ public class RentalCsvImporter {
      */
     public ImportResult importFile(Path file, Database db, IntConsumer progressPercent,
             String importedBy) throws IOException, SQLException {
+        return importFile(file, db, progressPercent, importedBy, null, () -> false);
+    }
+
+    /**
+     * The full import of a file. The file hash (may be null) is saved in the Import history, and
+     * the import stops early, keeping what is saved, as soon as cancelled returns true.
+     */
+    public ImportResult importFile(Path file, Database db, IntConsumer progressPercent,
+            String importedBy, String fileHash, BooleanSupplier cancelled)
+            throws IOException, SQLException {
         List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
         return importLines(lines, db, progressPercent, String.valueOf(file.getFileName()),
-                importedBy);
+                importedBy, fileHash, cancelled);
     }
 
     /**
@@ -231,9 +245,36 @@ public class RentalCsvImporter {
     /** The full import: it also writes the file name and every row to the Import history. */
     public ImportResult importLines(List<String> lines, Database db, IntConsumer progressPercent,
             String fileName, String importedBy) throws SQLException {
+        return importLines(lines, db, progressPercent, fileName, importedBy, null, () -> false);
+    }
+
+    /**
+     * The full import with a cancel check. When the database fails half way, the Import history
+     * gets the real counts and an ImportStoppedException tells how many rentals were saved.
+     */
+    public ImportResult importLines(List<String> lines, Database db, IntConsumer progressPercent,
+            String fileName, String importedBy, String fileHash, BooleanSupplier cancelled)
+            throws SQLException {
         ImportResult result = new ImportResult();
-        int batchId = db.insertImportBatch(fileName, importedBy, LocalDateTime.now());
+        int batchId = db.insertImportBatch(fileName, importedBy, LocalDateTime.now(), fileHash);
         result.setBatchId(batchId);
+        int[] rowsRead = {0};
+        try {
+            readLines(lines, db, progressPercent, batchId, cancelled, result, rowsRead);
+        } catch (SQLException e) {
+            finishQuietly(db, batchId, rowsRead[0], result);
+            throw new ImportStoppedException(result.getImported(), e);
+        }
+        db.finishImportBatch(batchId, rowsRead[0], result.getImported(), result.getSkipped());
+        if (progressPercent != null) {
+            progressPercent.accept(PERCENT_FULL);
+        }
+        return result;
+    }
+
+    private void readLines(List<String> lines, Database db, IntConsumer progressPercent,
+            int batchId, BooleanSupplier cancelled, ImportResult result, int[] rowsRead)
+            throws SQLException {
         Map<String, Vehicle> byPlate = new HashMap<>();
         for (Vehicle v : db.getAllVehicles()) {
             if (v.getPlateNumber() != null) {
@@ -244,16 +285,28 @@ public class RentalCsvImporter {
         for (Renter r : db.getAllRenters()) {
             renterIds.putIfAbsent(r.getName().trim().toLowerCase(Locale.ROOT), r.getId());
         }
+        // The rentals that are already saved. A row that repeats one of them is skipped, so
+        // importing an exported file (or the same rows in another file) never doubles the data.
+        Set<String> known = new HashSet<>();
+        List<Rental> saved = db.getAllRentals();
+        result.setRentalsBefore(saved.size());
+        for (Rental r : saved) {
+            known.add(rentalKey(r.getVehicleId(), r.getRenterId(), r.getStartDate(),
+                    r.getEndDate(), r.getMilesDriven()));
+        }
         List<Rental> batch = new ArrayList<>();
         List<ImportRecord> records = new ArrayList<>();
-        int rowsRead = 0;
         int total = lines.size();
         for (int i = 0; i < total; i++) {
-            String line = i == 0 && lines.get(i).startsWith("﻿") ? lines.get(i).substring(1)
+            if (cancelled.getAsBoolean()) {
+                result.setCancelled(true);
+                break;
+            }
+            String line = i == 0 && lines.get(i).startsWith("\uFEFF") ? lines.get(i).substring(1)
                     : lines.get(i);
             if (!line.isBlank() && !isHeader(i, line)) {
-                rowsRead++;
-                saveOrSkip(line, i + 1, byPlate, renterIds, db, batch, records, result);
+                rowsRead[0]++;
+                saveOrSkip(line, i + 1, byPlate, renterIds, known, db, batch, records, result);
             }
             if (batch.size() >= BATCH_SIZE || records.size() >= RECORD_BATCH_SIZE) {
                 flush(db, batchId, batch, records, result);
@@ -264,11 +317,23 @@ public class RentalCsvImporter {
             }
         }
         flush(db, batchId, batch, records, result);
-        db.finishImportBatch(batchId, rowsRead, result.getImported(), result.getSkipped());
-        if (progressPercent != null) {
-            progressPercent.accept(PERCENT_FULL);
+    }
+
+    // After a failure the history row still gets the real counts. If this fails too (for
+    // example the database is closed), the first problem is the one to report.
+    private static void finishQuietly(Database db, int batchId, int rowsRead,
+            ImportResult result) {
+        try {
+            db.finishImportBatch(batchId, rowsRead, result.getImported(), result.getSkipped());
+        } catch (SQLException ignored) {
+            // The caller reports the first error.
         }
-        return result;
+    }
+
+    // Two rentals with the same key are the same rental.
+    private static String rentalKey(int vehicleId, int renterId, LocalDate start, LocalDate end,
+            int miles) {
+        return vehicleId + "|" + renterId + "|" + start + "|" + end + "|" + miles;
     }
 
     private static boolean isHeader(int index, String line) {
@@ -277,17 +342,23 @@ public class RentalCsvImporter {
 
     // Checks one line. A good line joins the batch; a bad line is counted and remembered.
     private void saveOrSkip(String line, int lineNo, Map<String, Vehicle> byPlate,
-            Map<String, Integer> renterIds, Database db, List<Rental> batch,
+            Map<String, Integer> renterIds, Set<String> known, Database db, List<Rental> batch,
             List<ImportRecord> records, ImportResult result) throws SQLException {
         try {
             Row row = parseRow(line, byPlate);
             String key = row.renterName.toLowerCase(Locale.ROOT);
             Integer renterId = renterIds.get(key);
+            if (renterId != null && known.contains(rentalKey(row.vehicle.getId(), renterId,
+                    row.start, row.end, row.miles))) {
+                throw new IllegalArgumentException("this rental is already in the app (same "
+                        + "vehicle, renter, dates and miles)");
+            }
             if (renterId == null) {
                 renterId = db.insertRenter(new Renter(0, row.renterName, row.renterPhone,
                         row.renterEmail, row.renterAddress));
                 renterIds.put(key, renterId);
             }
+            known.add(rentalKey(row.vehicle.getId(), renterId, row.start, row.end, row.miles));
             batch.add(new Rental(0, renterId, row.vehicle.getId(), row.start, row.end, row.end,
                     row.miles, RentalStatus.RETURNED));
             records.add(record(lineNo, line, row, null));

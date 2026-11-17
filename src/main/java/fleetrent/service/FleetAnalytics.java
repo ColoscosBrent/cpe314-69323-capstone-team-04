@@ -126,11 +126,20 @@ public final class FleetAnalytics {
     /**
      * Fleet utilization per month, in percent: (vehicle-days that were rented) / (vehicles x days
      * in the month) x 100. A vehicle counts once per day even if two rentals overlap, so it never
-     * passes 100. Months between the first and the last busy month with no rentals show as 0.
+     * passes 100. Months between the first and the last busy month with no rentals show as 0. A
+     * month is divided only by its days that count: the days inside from..to, and for the month
+     * that is not over yet the days up to today.
      */
     public static Map<YearMonth, Double> utilizationByMonth(List<Rental> rentals,
-            List<Vehicle> vehicles,
-                                                            LocalDate from, LocalDate to) {
+            List<Vehicle> vehicles, LocalDate from, LocalDate to) {
+        return utilizationByMonth(rentals, vehicles, from, to, LocalDate.now());
+    }
+
+    /**
+     * The same, with the date of today given (so a test can choose it).
+     */
+    public static Map<YearMonth, Double> utilizationByMonth(List<Rental> rentals,
+            List<Vehicle> vehicles, LocalDate from, LocalDate to, LocalDate today) {
         TreeMap<YearMonth, Double> result = new TreeMap<>();
         if (vehicles.isEmpty()) {
             return result;
@@ -145,8 +154,8 @@ public final class FleetAnalytics {
             }
         }
         for (Map.Entry<YearMonth, Set<Long>> e : usedDays.entrySet()) {
-            double capacity = (double) vehicles.size() * e.getKey().lengthOfMonth();
-            result.put(e.getKey(), e.getValue().size() * PERCENT / capacity);
+            double capacity = (double) vehicles.size() * daysCounted(e.getKey(), from, to, today);
+            result.put(e.getKey(), Math.min(PERCENT, e.getValue().size() * PERCENT / capacity));
         }
         if (!result.isEmpty()) {
             YearMonth m = result.firstKey();
@@ -157,6 +166,21 @@ public final class FleetAnalytics {
             }
         }
         return result;
+    }
+
+    // How many days of the month count: from the 'from' day (when it is in this month) to the
+    // 'to' day (when it is in this month), and never past today. At least 1.
+    private static int daysCounted(YearMonth month, LocalDate from, LocalDate to,
+            LocalDate today) {
+        int first = from != null && YearMonth.from(from).equals(month) ? from.getDayOfMonth() : 1;
+        int last = month.lengthOfMonth();
+        if (to != null && YearMonth.from(to).equals(month)) {
+            last = Math.min(last, to.getDayOfMonth());
+        }
+        if (YearMonth.from(today).equals(month)) {
+            last = Math.min(last, today.getDayOfMonth());
+        }
+        return Math.max(1, last - first + 1);
     }
 
     /**
@@ -225,8 +249,8 @@ public final class FleetAnalytics {
             }
         }
         return String.format(java.util.Locale.US,
-                "%d rentals, total %.2f. Best earner: %s. Busiest month: %s (%d rentals). Average "
-                + "rental: %.1f days.",
+                "%,d rentals, total \u20B1%,.2f. Best earner: %s. Busiest month: %s (%,d). "
+                + "Average: %.1f days.",
                 kept.size(), total, bestType, busiest, months.get(busiest), averageDays(rentals,
                         from, to));
     }

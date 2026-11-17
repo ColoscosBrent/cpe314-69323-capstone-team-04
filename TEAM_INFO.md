@@ -1,6 +1,6 @@
 # Team Information - Team 04
 
-Course: CPE 314 - Software Design | Instructor: Richyll Son | EDP code: 69323 | Theme Q
+Course: CPE 314 - Software Design | Instructor: Richyll Son | EDP code: 69323 
 
 | Member | Student number | GitHub username |
 | ------ | -------------- | --------------- |
